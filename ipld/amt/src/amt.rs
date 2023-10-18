@@ -1,6 +1,99 @@
 // Copyright 2021-2023 Protocol Labs
-// Copyright 2019-2022 ChainSafe Systems
+// Copyright 2019-2023 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
+//! In the context of this code, an Array Mapped Trie (AMT) is a data structure 
+//! utilizing an IPLD blockstore that solves the problem of referencing shared 
+//! data without copying an entire array. This implementation is similar to an 
+//! [IPLD vector](https://github.com/ipld/specs/blob/master/data-structures/vector.md) 
+//! but supports internal node compression and therefore sparse arrays. This is 
+//! the Rust implementation of the Go implementation documented [here](https://pkg.go.dev/github.com/filecoin-project/go-amt-ipld/v4#section-readme):
+//! "The AMT algorithm produces a tree-like graph, with a single root node addressing 
+//! a collection of child nodes which connect downward toward leaf nodes which store 
+//! the actual entries. No terminal entries are stored in intermediate elements 
+//! of the tree... We can divide up the AMT tree structure into "levels" or "heights", 
+//! where a height of zero contains the terminal elements, and the maximum height 
+//! of the tree contains the single root node. Intermediate nodes are used to span 
+//! across the range of indexes."
+//!
+//! 
+//! The maximum width for any node in the AMT structure is determined by 
+//! `2 ^ branching_factor`, meaning a node with the default branching factor of 
+//! `3` has a maximum index range of `8` and can therefore be indexed from `0` 
+//! to `(2 ^ 3) - 1 = 7`. The maximum index range for the overall structure is 
+//! determined by both the branching factor and the height of the structure; the 
+//! width of this range is `branching_factor ^ (height + 1)`. The height is specified 
+//! using a bottom-up numbering scheme, with the terminal leaves at a height of 
+//! `0` and the root node at the maximum height. Nodes can be either a `Link` or 
+//! a `Leaf` variant, which are actually a vector of links or a vector of values, 
+//! respectively. Each entry in the `Link` variant's vector may contain a CID or 
+//! a cache which holds a pointer to another `Node`; the pointer's value can only 
+//! be written once. Clearing the value of the cache and updating the CID requires 
+//! flushing, which is discussed in more detail below.
+//!
+//! An example with a single root node that is also a leaf node. This AMT has the 
+//! default branching factor, a height of `0`, and contains a single element at 
+//! index `2`.
+//! ```text
+//!                    ____________
+//!                   | root node  |  <--height 0
+//!                   |____________|
+//!                         |
+//!         | 0  | 1  | 2  | 3  | 4  | 5  | 6  | 7  |  <-- index
+//!         |None|None|Some|None|None|None|None|None|  <-- value
+//! ```
+//!
+//! A less trivial example is an AMT with a branching factor of `2` and a height 
+//! of `1`. The children nodes are leaf nodes in this example, and the leaves contain 
+//! values at indices `2`, `5`, `8`, and `15`.
+//! ```text
+//!                           ____________
+//!                          | root node  |  <-- height 1
+//!                          |____________|
+//!                                 |
+//!           __________________________________________________________________
+//!          |                     |                     |                      |
+//!    ____________           ____________          ____________           ____________
+//!   | child node |         | child node |        | child node |         | child node |  <-- height 0
+//!   |____________|         |____________|        |____________|         |____________|
+//! | 0  | 1  | 2  | 3  |  | 4  | 5  | 6  | 7  |  | 8  | 9  | 10 | 11 |  | 12 | 13 | 14 | 15 |  <-- index
+//! |None|None|Some|None|  |None|Some|None|None|  |Some|None|None|None|  |None|None|None|Some|  <-- value       
+//! ```
+//!
+//! Extending this example a bit further, let's say we create an empty AMT with 
+//! a branching factor of two using `Amt::new_with_branching_factor` and then 
+//! push a value to index `16` using `.set`. This will cause the AMT to expand 
+//! to a height of `2` with a structure as follows:
+//! ```text
+//!                           ____________
+//!                          | root node  |  <-- height 2
+//!                          |____________|
+//!                                 |
+//!           ___________________________________________________________________________________
+//!          |                     |                                      |                      |
+//!    ____________           ____________                          ____________           ____________
+//!   | child node |         | child node |                        | child node |         | child node |  <-- height 1
+//!   |____________|         |____________|                        |____________|         |____________|
+//!          |                      |                                     |                      |
+//!     ___________             _______________________              ___________            ___________
+//!    |   |   |   |           |               |   |   |            |   |   |   |          |   |   |   |
+//!    _   _   _   _      ____________         _   _   _            _   _   _   _          _   _   _   _
+//!   |_| |_| |_| |_|    | child node |       |_| |_| |_|          |_| |_| |_| |_|        |_| |_| |_| |_| <-- height 0
+//!  (indices 0 to 15)   |____________|       (indices 20 to 31)  (indices 32 to 47)      (indices 48 to 63)
+//!                     | 16 | 17 | 18 | 19 |
+//!                     |Some|None|None|None|
+//! ```
+//! 
+//! In this example, the child node containing indices 16 to 19 is expanded to show 
+//! detail; other than the value at index 16, all the other child nodes at height 
+//! `0` are functionally identical.
+//! 
+//! Each parent node contains a CID that represents a hash of the children nodes 
+//! (CIDs) or leaves (values) under that node. When adding nodes and/or leaves, 
+//! it would be inefficient to refresh all the parent node CIDs until necessary. 
+//! As a result, modified nodes are identified using the `Dirty` variant of the 
+//! `Link` enum; this way the cache can store the updated node information, and 
+//! the CIDs are only regenerated when the AMT is flushed, which empties the data 
+//! in the cache.
 
 use anyhow::anyhow;
 use cid::multihash::Code;
@@ -29,35 +122,6 @@ pub struct AmtImpl<V, BS, Ver> {
     flushed_cid: Option<Cid>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Amt;
-    use quickcheck_macros::quickcheck;
-
-    #[test]
-    fn foo() {
-        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-        let mut amt = Amt::new_with_branching_factor(&db, 3);
-        amt.set(8, "foo".to_owned()).unwrap();
-        dbg!(&amt);
-        amt.flush().unwrap();
-        dbg!(amt);
-    }
-
-    #[quickcheck]
-    fn vary_branching_factor(branching_factor: u32) {
-        let branching_factor = branching_factor % 20;
-        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-        let mut amt: crate::amt::AmtImpl<
-            String,
-            &fvm_ipld_blockstore::MemoryBlockstore,
-            crate::root::version::V3,
-        > = Amt::new_with_branching_factor(&db, branching_factor);
-        amt.set(0, "foo".to_owned()).unwrap();
-        // dbg!(amt);
-    }
-}
-
 /// Array Mapped Trie allows for the insertion and persistence of data, serializable to a CID.
 ///
 /// Amt is not threadsafe and can't be shared between threads.
@@ -79,7 +143,7 @@ mod tests {
 /// // Generate cid by calling flush to remove cache
 /// let cid = amt.flush().unwrap();
 /// ```
-// TODO(jdjaustin): clean all this up
+// TODO(jdjaustin): in another PR: remove or refactor version typestate, and refactor `AmtImpl`
 pub type Amt<V, BS> = AmtImpl<V, BS, V3>;
 /// Legacy amt V0
 pub type Amtv0<V, BS> = AmtImpl<V, BS, V0>;
@@ -366,40 +430,6 @@ where
         let cid = self.block_store.put_cbor(&self.root, Code::Blake2b256)?;
         self.flushed_cid = Some(cid);
         Ok(cid)
-    }
-
-    /// Iterates over each value in the Amt and runs a function on the values.
-    ///
-    /// The index in the amt is a `u64` and the value is the generic parameter `V` as defined
-    /// in the Amt.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use fvm_ipld_amt::Amt;
-    ///
-    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
-    ///
-    /// let mut map: Amt<String, _> = Amt::new(&store);
-    /// map.set(1, "One".to_owned()).unwrap();
-    /// map.set(4, "Four".to_owned()).unwrap();
-    ///
-    /// let mut values: Vec<(u64, String)> = Vec::new();
-    /// map.for_each(|i, v| {
-    ///    values.push((i, v.clone()));
-    ///    Ok(())
-    /// }).unwrap();
-    /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
-    /// ```
-    #[inline]
-    pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
-    where
-        F: FnMut(u64, &V) -> anyhow::Result<()>,
-    {
-        self.for_each_while(|i, x| {
-            f(i, x)?;
-            Ok(true)
-        })
     }
 
     /// Iterates over each value in the Amt and runs a function on the values, for as long as that

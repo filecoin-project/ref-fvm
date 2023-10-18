@@ -116,17 +116,17 @@ fn from_slice(c: &mut Criterion) {
     });
 }
 
-fn for_each(c: &mut Criterion) {
-    let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-    let cid = Amt::new_from_iter(&db, black_box(VALUES.iter().copied())).unwrap();
+// fn for_each(c: &mut Criterion) {
+//     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+//     let cid = Amt::new_from_iter(&db, black_box(VALUES.iter().copied())).unwrap();
 
-    c.bench_function("AMT for_each function", |b| {
-        b.iter(|| {
-            let a = Amt::load(&cid, &db).unwrap();
-            black_box(a).for_each(|_, _v: &u64| Ok(())).unwrap();
-        })
-    });
-}
+//     c.bench_function("AMT for_each function", |b| {
+//         b.iter(|| {
+//             let a = Amt::load(&cid, &db).unwrap();
+//             black_box(a).for_each(|_, _v: &u64| Ok(())).unwrap();
+//         })
+//     });
+// }
 
-criterion_group!(benches, insert, insert_load_flush, from_slice, for_each);
+criterion_group!(benches, insert, insert_load_flush, from_slice);
 criterion_main!(benches);

@@ -16,7 +16,7 @@ mod node;
 mod root;
 mod value_mut;
 
-pub use self::amt::{Amt, Amtv0};
+pub use self::amt::{Amt, AmtImpl, Amtv0};
 pub use self::diff::{diff, Change, ChangeType};
 pub use self::error::Error;
 pub use self::iter::Iter;
