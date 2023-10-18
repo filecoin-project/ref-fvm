@@ -592,6 +592,9 @@ where
         match self {
             Node::Leaf { vals } => {
                 let start_idx = start_at.map_or(0, |s| s.saturating_sub(offset));
+                if start_idx as usize >= vals.len() {
+                    return Ok((false, 0, None));
+                }
                 let mut keep_going = true;
                 for (i, v) in (start_idx..).zip(vals[start_idx as usize..].iter()) {
                     let idx = offset + i;
@@ -611,6 +614,9 @@ where
                 let idx: usize = ((start_at.map_or(0, |s| s.saturating_sub(offset))) / nfh)
                     .try_into()
                     .expect("index overflow");
+                if idx >= links.len() {
+                    return Ok((false, 0, None));
+                }
                 for (i, link) in (idx..).zip(links[idx..].iter()) {
                     if let Some(l) = link {
                         let offs = offset + (i as u64 * nfh);

@@ -6,22 +6,17 @@ use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context as _};
-use blake2b_simd::Params;
-use byteorder::WriteBytesExt;
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
 use fvm_shared::address::Payload;
-use fvm_shared::bigint::Zero;
-use fvm_shared::chainid::ChainID;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::event::ActorEvent;
+use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
-use fvm_shared::sector::RegisteredPoStProof::{StackedDRGWindow32GiBV1, StackedDRGWindow32GiBV1P1};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::{commcid, ActorID};
@@ -29,7 +24,6 @@ use lazy_static::lazy_static;
 use multihash::MultihashDigest;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rayon::prelude::ParallelDrainRange;
-use std::io::Write;
 
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
@@ -39,9 +33,9 @@ use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::externs::{Chain, Consensus, Rand};
 use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
-use crate::machine::{MachineContext, NetworkConfig};
+use crate::machine::{MachineContext, NetworkConfig, BURNT_FUNDS_ACTOR_ID};
 use crate::state_tree::ActorState;
-use crate::syscall_error;
+use crate::{ipld, syscall_error};
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
@@ -51,7 +45,6 @@ lazy_static! {
 const BLAKE2B_256: u64 = 0xb220;
 const ENV_ARTIFACT_DIR: &str = "FVM_STORE_ARTIFACT_DIR";
 const MAX_ARTIFACT_NAME_LEN: usize = 256;
-const FINALITY: i64 = 900;
 
 #[cfg(feature = "testing")]
 const TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 98;
@@ -155,9 +148,13 @@ where
                 value: Some(blk),
             } => {
                 let block_stat = blk.stat();
+                // This can't fail because:
+                // 1. We've already charged for gas.
+                // 2. We've already checked that we have space for a return block.
+                // 3. This block has already been validated by the kernel that returned it.
                 let block_id = self
                     .blocks
-                    .put(blk)
+                    .put_reachable(blk)
                     .or_fatal()
                     .context("failed to store a valid return value")?;
                 SendResult {
@@ -192,13 +189,21 @@ impl<C> SelfOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn root(&self) -> Result<Cid> {
+    fn root(&mut self) -> Result<Cid> {
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_get_root())?;
+
         // This can fail during normal operations if the actor has been deleted.
         let cid = self
             .get_self()?
             .context("state root requested after actor deletion")
             .or_error(ErrorNumber::IllegalOperation)?
             .state;
+
+        self.blocks.mark_reachable(&cid);
+
+        t.stop();
 
         Ok(cid)
     }
@@ -209,6 +214,15 @@ where
                 syscall_error!(ReadOnly; "cannot update the state-root while read-only").into(),
             );
         }
+
+        let _ = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_set_root())?;
+
+        if !self.blocks.is_reachable(&new) {
+            return Err(syscall_error!(NotFound; "new root cid not reachable: {new}").into());
+        }
+
         let mut state = self
             .call_manager
             .get_actor(self.actor_id)?
@@ -227,35 +241,37 @@ where
         t.record(Ok(self.get_self()?.map(|a| a.balance).unwrap_or_default()))
     }
 
-    fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
+    fn self_destruct(&mut self, burn_unspent: bool) -> Result<()> {
         if self.read_only {
             return Err(syscall_error!(ReadOnly; "cannot self-destruct when read-only").into());
         }
 
-        // Idempotentcy: If the actor doesn't exist, this won't actually do anything. The current
+        // Idempotent: If the actor doesn't exist, this won't actually do anything. The current
         // balance will be zero, and `delete_actor_id` will be a no-op.
         let t = self
             .call_manager
             .charge_gas(self.call_manager.price_list().on_delete_actor())?;
 
+        // If there are remaining funds, burn them. We do this instead of letting the user to
+        // specify the beneficiary as:
+        //
+        // 1. This lets the user handle transfer failure cases themselves. The only way _this_ can
+        //    fail is for the caller to run out of gas.
+        // 2. If we ever decide to allow code on method 0, allowing transfers here would be
+        //    unfortunate.
         let balance = self.current_balance()?;
-        if balance != TokenAmount::zero() {
-            // Starting from network version v7, the runtime checks if the beneficiary
-            // exists; if missing, it fails the self destruct.
-            //
-            // In FVM we check unconditionally, since we only support nv13+.
-            let beneficiary_id = self.resolve_address(beneficiary)?;
-
-            if beneficiary_id == self.actor_id {
-                return Err(syscall_error!(Forbidden, "benefactor cannot be beneficiary").into());
+        if !balance.is_zero() {
+            if !burn_unspent {
+                return Err(
+                    syscall_error!(IllegalOperation; "self-destruct with unspent funds").into(),
+                );
             }
-
-            // Transfer the entirety of funds to beneficiary.
             self.call_manager
-                .transfer(self.actor_id, beneficiary_id, &balance)?;
+                .transfer(self.actor_id, BURNT_FUNDS_ACTOR_ID, &balance)
+                .or_fatal()?;
         }
 
-        // Delete the executing actor
+        // Delete the executing actor.
         t.record(self.call_manager.delete_actor(self.actor_id))
     }
 }
@@ -265,37 +281,44 @@ where
     C: CallManager,
 {
     fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
-        // TODO(M2): Check for reachability here.
-
-        self.call_manager
+        let t = self
+            .call_manager
             .charge_gas(self.call_manager.price_list().on_block_open_base())?;
 
-        let start = GasTimer::start();
+        if !self.blocks.is_reachable(cid) {
+            return Err(syscall_error!(NotFound; "block not reachable: {cid}").into());
+        }
 
         let data = self
             .call_manager
             .blockstore()
             .get(cid)
-            // TODO: This is really "super fatal". It means we failed to store state, and should
-            // probably abort the entire block.
-            .or_fatal()?
-            .ok_or_else(|| anyhow!("missing state: {}", cid))
-            // Missing state is a fatal error because it means we have a bug. Once we do
-            // reachability checking (for user actors) we won't get here unless the block is known
-            // to be in the state-tree.
+            // Treat missing blocks as errors as well.
+            .and_then(|b| b.ok_or_else(|| anyhow!("missing reachable state: {}", cid)))
+            // TODO Any failures here should really be considered "super fatal". It means we're
+            // missing state and/or have a corrupted store.
             .or_fatal()?;
 
-        let block = Block::new(cid.codec(), data);
+        t.stop();
+
+        // This can fail because we can run out of gas.
+        let children = ipld::scan_for_reachable_links(
+            cid.codec(),
+            &data,
+            self.call_manager.price_list(),
+            self.call_manager.gas_tracker(),
+        )?;
 
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_block_open_per_byte(block.size() as usize),
+                .on_block_open(data.len(), children.len()),
         )?;
 
+        let block = Block::new(cid.codec(), data, children);
         let stat = block.stat();
-        let id = self.blocks.put(block)?;
-        t.stop_with(start);
+        let id = self.blocks.put_reachable(block)?;
+        t.stop();
         Ok((id, stat))
     }
 
@@ -304,11 +327,26 @@ where
             return Err(syscall_error!(LimitExceeded; "blocks may not be larger than 1MiB").into());
         }
 
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_block_create(data.len()))?;
+        if !ipld::ALLOWED_CODECS.contains(&codec) {
+            return Err(syscall_error!(IllegalCodec; "codec {} not allowed", codec).into());
+        }
 
-        t.record(Ok(self.blocks.put(Block::new(codec, data))?))
+        let children = ipld::scan_for_reachable_links(
+            codec,
+            data,
+            self.call_manager.price_list(),
+            self.call_manager.gas_tracker(),
+        )?;
+
+        let t = self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_block_create(data.len(), children.len()),
+        )?;
+
+        let blk = Block::new(codec, data, children);
+
+        t.record(Ok(self.blocks.put_check_reachable(blk)?))
     }
 
     fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
@@ -331,13 +369,14 @@ where
             return Err(syscall_error!(IllegalCid; "invalid hash length: {}", hash_len).into());
         }
         let k = Cid::new_v1(block.codec(), hash.truncate(hash_len as u8));
-        // TODO(M2): Add the block to the reachable set.
         self.call_manager
             .blockstore()
             .put_keyed(&k, block.data())
             // TODO: This is really "super fatal". It means we failed to store state, and should
             // probably abort the entire block.
             .or_fatal()?;
+        self.blocks.mark_reachable(&k);
+
         t.stop_with(start);
         Ok(k)
     }
@@ -525,26 +564,9 @@ where
             .call_manager
             .charge_gas(self.call_manager.price_list().on_verify_post(verify_info))?;
 
-        // Due to a bug on calibrationnet, we have some _valid_ StackedDRGWindow32GiBV1P1
-        // proofs that were deemed invalid on chain. This was fixed WITHOUT a network version check.
-        // As a result, we need to explicitly consider all such proofs invalid, ONLY on calibrationnet,
-        // and ONLY before epoch 498691,
-        let calibnet_chain_id = ChainID::from(314159);
-        let mut verify_info = verify_info.clone();
-
-        #[allow(clippy::collapsible_if)]
-        if self.call_manager.context().network.chain_id == calibnet_chain_id {
-            if self.call_manager.context().epoch <= 498691
-                && !verify_info.proofs.is_empty()
-                && verify_info.proofs[0].post_proof == StackedDRGWindow32GiBV1P1
-            {
-                verify_info.proofs[0].post_proof = StackedDRGWindow32GiBV1;
-            }
-        }
-
         // This is especially important to catch as, otherwise, a bad "post" could be undisputable.
         t.record(catch_and_log_panic("verifying post", || {
-            verify_post(&verify_info)
+            verify_post(verify_info)
         }))
     }
 
@@ -721,36 +743,11 @@ where
             Greater => {}
         }
 
-        // Can't lookup tipset CIDs beyond finality.
-        if offset >= FINALITY {
-            return Err(
-                syscall_error!(IllegalArgument; "epoch {} is too far in the past", epoch).into(),
-            );
-        }
-
         self.call_manager
-            .charge_gas(self.call_manager.price_list().on_tipset_cid(offset > 1))?;
+            .charge_gas(self.call_manager.price_list().on_tipset_cid(offset))?;
 
         self.call_manager.externs().get_tipset_cid(epoch).or_fatal()
     }
-}
-
-fn draw_randomness(
-    rbase: &[u8; RANDOMNESS_LENGTH],
-    pers: i64,
-    round: ChainEpoch,
-    entropy: &[u8],
-) -> anyhow::Result<[u8; RANDOMNESS_LENGTH]> {
-    let mut state = Params::new().hash_length(32).to_state();
-    state.write_i64::<byteorder::BigEndian>(pers)?;
-    state.write_all(rbase)?;
-    state.write_i64::<byteorder::BigEndian>(round)?;
-    state.write_all(entropy)?;
-    state
-        .finalize()
-        .as_bytes()
-        .try_into()
-        .map_err(anyhow::Error::from)
 }
 
 impl<C> RandomnessOps for DefaultKernel<C>
@@ -759,55 +756,49 @@ where
 {
     fn get_randomness_from_tickets(
         &self,
-        personalization: i64,
         rand_epoch: ChainEpoch,
-        entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        let t = self.call_manager.charge_gas(
-            self.call_manager
-                .price_list()
-                .on_get_randomness(entropy.len()),
-        )?;
+        let lookback = self
+            .call_manager
+            .context()
+            .epoch
+            .checked_sub(rand_epoch)
+            .ok_or_else(|| syscall_error!(IllegalArgument; "randomness epoch {} is in the future", rand_epoch)
+            )?;
 
-        // TODO(M2): Check error code
-        // Specifically, lookback length?
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_get_randomness(lookback))?;
 
-        let digest = t.record(
+        t.record(
             self.call_manager
                 .externs()
                 .get_chain_randomness(rand_epoch)
                 .or_illegal_argument(),
-        )?;
-
-        draw_randomness(&digest, personalization, rand_epoch, entropy).map_err(|e| {
-            syscall_error!(IllegalArgument; "failed to draw chain randmness {}", e).into()
-        })
+        )
     }
 
     fn get_randomness_from_beacon(
         &self,
-        personalization: i64,
         rand_epoch: ChainEpoch,
-        entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        let t = self.call_manager.charge_gas(
-            self.call_manager
-                .price_list()
-                .on_get_randomness(entropy.len()),
-        )?;
+        let lookback = self
+            .call_manager
+            .context()
+            .epoch
+            .checked_sub(rand_epoch)
+            .ok_or_else(|| syscall_error!(IllegalArgument; "randomness epoch {} is in the future", rand_epoch))?;
 
-        // TODO(M2): Check error code
-        // Specifically, lookback length?
-        let digest = t.record(
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_get_randomness(lookback))?;
+
+        t.record(
             self.call_manager
                 .externs()
                 .get_beacon_randomness(rand_epoch)
                 .or_illegal_argument(),
-        )?;
-
-        draw_randomness(&digest, personalization, rand_epoch, entropy).map_err(|e| {
-            syscall_error!(IllegalArgument; "failed to draw beacon randmness {}", e).into()
-        })
+        )
     }
 }
 
@@ -1021,44 +1012,128 @@ impl<C> EventOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()> {
+    fn emit_event(
+        &mut self,
+        event_headers: &[fvm_shared::sys::EventEntry],
+        event_keys: &[u8],
+        event_values: &[u8],
+    ) -> Result<()> {
+        const MAX_NR_ENTRIES: usize = 255;
+        const MAX_KEY_LEN: usize = 31;
+        const MAX_TOTAL_VALUES_LEN: usize = 8 << 10;
+
         if self.read_only {
             return Err(syscall_error!(ReadOnly; "cannot emit events while read-only").into());
         }
-        let len = raw_evt.len();
+
         let t = self
             .call_manager
-            .charge_gas(self.call_manager.price_list().on_actor_event_validate(len))?;
+            .charge_gas(self.call_manager.price_list().on_actor_event(
+                event_headers.len(),
+                event_keys.len(),
+                event_values.len(),
+            ))?;
 
-        // This is an over-estimation of the maximum event size, for safety. No valid event can even
-        // get close to this. We check this first so we don't try to decode a large event.
-        const MAX_ENCODED_SIZE: usize = 1 << 20;
-        if raw_evt.len() > MAX_ENCODED_SIZE {
-            return Err(syscall_error!(IllegalArgument; "event WAY too large").into());
+        if event_headers.len() > MAX_NR_ENTRIES {
+            return Err(syscall_error!(LimitExceeded; "event exceeded max entries: {} > {MAX_NR_ENTRIES}", event_headers.len()).into());
         }
 
-        let actor_evt = {
-            let res = match panic::catch_unwind(|| {
-                fvm_ipld_encoding::from_slice(raw_evt).or_error(ErrorNumber::IllegalArgument)
-            }) {
-                Ok(v) => v,
-                Err(e) => {
-                    log::error!("panic when decoding event cbor from actor: {:?}", e);
-                    Err(syscall_error!(IllegalArgument; "panic when decoding event cbor from actor").into())
-                }
-            };
-            t.stop();
-            res
-        }?;
-        validate_actor_event(&actor_evt)?;
+        if event_values.len() > MAX_TOTAL_VALUES_LEN {
+            return Err(syscall_error!(LimitExceeded; "total event value lengths exceeded the max size: {} > {MAX_TOTAL_VALUES_LEN}", event_values.len()).into());
+        }
 
-        let t = self.call_manager.charge_gas(
-            self.call_manager
-                .price_list()
-                .on_actor_event_accept(&actor_evt, len),
-        )?;
+        // We validate utf8 all at once for better performance.
+        let event_keys = std::str::from_utf8(event_keys)
+            .context("invalid event key")
+            .or_illegal_argument()?;
+
+        let mut key_offset: usize = 0;
+        let mut val_offset: usize = 0;
+
+        let mut entries: Vec<Entry> = Vec::with_capacity(event_headers.len());
+        for header in event_headers {
+            // make sure that the fixed parsed values are within bounds before we do any allocation
+            let flags = header.flags;
+            if Flags::from_bits(flags.bits()).is_none() {
+                return Err(
+                    syscall_error!(IllegalArgument; "event flags are invalid: {}", flags.bits())
+                        .into(),
+                );
+            }
+
+            if header.key_len > MAX_KEY_LEN as u32 {
+                let tmp = header.key_len;
+                return Err(syscall_error!(LimitExceeded; "event key exceeded max size: {} > {MAX_KEY_LEN}", tmp).into());
+            }
+
+            // We check this here purely to detect/prevent integer overflows below. That's why we
+            // return IllegalArgument, not LimitExceeded.
+            if header.val_len > MAX_TOTAL_VALUES_LEN as u32 {
+                return Err(
+                    syscall_error!(IllegalArgument; "event entry value out of range").into(),
+                );
+            }
+
+            // parse the variable sized fields from the raw_key/raw_val buffers
+            let key = &event_keys
+                .get(key_offset..key_offset + header.key_len as usize)
+                .context("event entry key out of range")
+                .or_illegal_argument()?;
+
+            let value = &event_values
+                .get(val_offset..val_offset + header.val_len as usize)
+                .context("event entry value out of range")
+                .or_illegal_argument()?;
+
+            // Check the codec. We currently only allow IPLD_RAW.
+            if header.codec != IPLD_RAW {
+                let tmp = header.codec;
+                return Err(
+                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", tmp)
+                        .into(),
+                );
+            }
+
+            // we have all we need to construct a new Entry
+            let entry = Entry {
+                flags: header.flags,
+                key: key.to_string(),
+                codec: header.codec,
+                value: value.to_vec(),
+            };
+
+            // shift the key/value offsets
+            key_offset += header.key_len as usize;
+            val_offset += header.val_len as usize;
+
+            entries.push(entry);
+        }
+
+        if key_offset != event_keys.len() {
+            return Err(syscall_error!(IllegalArgument;
+                "event key buffer length is too large: {} < {}",
+                key_offset,
+                event_keys.len()
+            )
+            .into());
+        }
+
+        if val_offset != event_values.len() {
+            return Err(syscall_error!(IllegalArgument;
+                "event value buffer length is too large: {} < {}",
+                val_offset,
+                event_values.len()
+            )
+            .into());
+        }
+
+        let actor_evt = ActorEvent::from(entries);
 
         let stamped_evt = StampedEvent::new(self.actor_id, actor_evt);
+        // Enable this when performing gas calibration to measure the cost of serializing early.
+        #[cfg(feature = "gas_calibration")]
+        let _ = fvm_ipld_encoding::to_vec(&stamped_evt).unwrap();
+
         self.call_manager.append_event(stamped_evt);
 
         t.stop();
@@ -1075,35 +1150,6 @@ fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, 
             Err(syscall_error!(IllegalArgument; "caught panic when {}: {:?}", context, e).into())
         }
     }
-}
-
-fn validate_actor_event(evt: &ActorEvent) -> Result<()> {
-    const MAX_ENTRIES: usize = 256;
-    const MAX_DATA: usize = 8 << 10;
-    const MAX_KEY_LEN: usize = 32;
-
-    if evt.entries.len() > MAX_ENTRIES {
-        return Err(syscall_error!(IllegalArgument; "event exceeded max entries: {} > {MAX_ENTRIES}", evt.entries.len()).into());
-    }
-    let mut total_value_size: usize = 0;
-    for entry in &evt.entries {
-        if entry.key.len() > MAX_KEY_LEN {
-            return Err(syscall_error!(IllegalArgument; "event key exceeded max size: {} > {MAX_KEY_LEN}", entry.key.len()).into());
-        }
-        if entry.codec != IPLD_RAW {
-            return Err(
-                syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", entry.codec)
-                    .into(),
-            );
-        }
-        total_value_size += entry.value.len();
-    }
-    if total_value_size > MAX_DATA {
-        return Err(
-            syscall_error!(IllegalArgument; "event total values exceeded max size: {total_value_size} > {MAX_DATA}").into(),
-        );
-    }
-    Ok(())
 }
 
 fn prover_id_from_u64(id: u64) -> ProverId {
@@ -1157,31 +1203,11 @@ fn to_fil_public_replica_infos(
 }
 
 fn check_valid_proof_type(post_type: RegisteredPoStProof, seal_type: RegisteredSealProof) -> bool {
-    let proof_type_v1p1 = seal_type
-        .registered_window_post_proof()
-        .unwrap_or(RegisteredPoStProof::Invalid(-1));
-    let proof_type_v1 = match proof_type_v1p1 {
-        RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow2KiBV1
-        }
-        RegisteredPoStProof::StackedDRGWindow8MiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow8MiBV1
-        }
-        RegisteredPoStProof::StackedDRGWindow512MiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow512MiBV1
-        }
-        RegisteredPoStProof::StackedDRGWindow32GiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow32GiBV1
-        }
-        RegisteredPoStProof::StackedDRGWindow64GiBV1P1 => {
-            RegisteredPoStProof::StackedDRGWindow64GiBV1
-        }
-        _ => {
-            return false;
-        }
-    };
-
-    proof_type_v1 == post_type || proof_type_v1p1 == post_type
+    if let Ok(proof_type_v1p1) = seal_type.registered_window_post_proof() {
+        proof_type_v1p1 == post_type
+    } else {
+        false
+    }
 }
 
 fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {

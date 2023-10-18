@@ -38,6 +38,7 @@ super::fvm_syscalls! {
     /// | Error                | Reason                                         |
     /// |----------------------|------------------------------------------------|
     /// | [`IllegalOperation`] | actor has been deleted                         |
+    /// | [`ReadOnly`]         | the actor is executing in read-only mode       |
     /// | [`NotFound`]         | specified root CID is not in the reachable set |
     pub fn set_root(cid: *const u8) -> Result<()>;
 
@@ -48,23 +49,19 @@ super::fvm_syscalls! {
     /// None.
     pub fn current_balance() -> Result<super::TokenAmount>;
 
-    /// Destroys the calling actor, sending its current balance
-    /// to the supplied address, which cannot be itself.
-    ///
-    /// Fails when calling actor has a non zero balance and the beneficiary doesn't
-    /// exist or is the actor being deleted.
+    /// Destroys the calling actor. If `burn_funds` is true, any unspent balance will be burnt
+    /// (destroyed). Otherwise, if `burnt_funds` is false and there are unspent funds, this syscall
+    /// will fail.
     ///
     /// # Arguments
     ///
-    /// - `addr_off` and `addr_len` specify the location and length of beneficiary's address in wasm
-    ///   memory.
+    /// - `burn_funds` must be true to delete an actor with unspent funds.
     ///
     /// # Errors
     ///
-    /// | Error               | Reason                                                         |
-    /// |---------------------|----------------------------------------------------------------|
-    /// | [`NotFound`]        | beneficiary isn't found                                        |
-    /// | [`Forbidden`]       | beneficiary is not allowed (usually means beneficiary is self) |
-    /// | [`IllegalArgument`] | if the passed address buffer isn't valid, in memory, etc.      |
-    pub fn self_destruct(addr_off: *const u8, addr_len: u32) -> Result<()>;
+    /// | Error                 | Reason                                    |
+    /// |-----------------------|-------------------------------------------|
+    /// | [`IllegalOperation`]  | the actor has unspent funds               |
+    /// | [`ReadOnly`]          | the actor is executing in read-only mode  |
+    pub fn self_destruct(burn_funds: bool) -> Result<()>;
 }

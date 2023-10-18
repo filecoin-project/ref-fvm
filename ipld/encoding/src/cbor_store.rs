@@ -1,10 +1,11 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
+use anyhow::anyhow;
 use cid::{multihash, Cid};
 use fvm_ipld_blockstore::{Block, Blockstore};
 use serde::{de, ser};
 
-use crate::DAG_CBOR;
+use crate::{CBOR, DAG_CBOR};
 
 /// Wrapper for database to handle inserting and retrieving ipld data with Cids
 pub trait CborStore: Blockstore + Sized {
@@ -13,6 +14,9 @@ pub trait CborStore: Blockstore + Sized {
     where
         T: de::DeserializeOwned,
     {
+        if !matches!(cid.codec(), CBOR | DAG_CBOR) {
+            return Err(anyhow!("{} is not CBOR or DagCBOR", cid.codec()));
+        }
         match self.get(cid)? {
             Some(bz) => {
                 let res = crate::from_slice(&bz)?;

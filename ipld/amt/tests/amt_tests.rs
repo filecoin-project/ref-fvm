@@ -421,6 +421,17 @@ fn for_each_ranged() {
         assert_eq!(count, retrieved_values.len() as u64);
     }
 
+    // Iterate out of bounds
+    for i in [RANGE, RANGE + 1, 2 * RANGE, 8 * RANGE] {
+        let (count, next_key) = a
+            .for_each_while_ranged(Some(i), None, |_, _: &BytesDe| {
+                panic!("didn't expect to iterate")
+            })
+            .unwrap();
+        assert_eq!(count, 0);
+        assert_eq!(next_key, None);
+    }
+
     // Iterate over amt with dirty cache with different page sizes
     for page_size in 1..=RANGE {
         let mut retrieved_values = Vec::new();

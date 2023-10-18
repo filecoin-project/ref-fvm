@@ -1,4 +1,4 @@
-# Reference Filecoin VM implementation (v3; dev)
+# Reference Filecoin VM implementation (v4; dev)
 
 [![Continuous integration](https://github.com/filecoin-project/ref-fvm/actions/workflows/ci.yml/badge.svg)](https://github.com/filecoin-project/ref-fvm/actions/workflows/ci.yml)
 
@@ -15,8 +15,7 @@ See the [Project Website](https://fvm.filecoin.io/) for details.
 
 ```sh
 $ git clone https://github.com/filecoin-project/ref-fvm.git
-$ cd fvm
-$ rustup target add wasm32-unknown-unknown
+$ cd ref-fvm
 $ make
 ```
 

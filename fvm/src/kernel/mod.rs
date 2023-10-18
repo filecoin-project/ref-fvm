@@ -166,7 +166,7 @@ pub trait IpldBlockOps {
 /// Depends on BlockOps to read and write blocks in the state tree.
 pub trait SelfOps: IpldBlockOps {
     /// Get the state root.
-    fn root(&self) -> Result<Cid>;
+    fn root(&mut self) -> Result<Cid>;
 
     /// Update the state-root.
     ///
@@ -176,10 +176,8 @@ pub trait SelfOps: IpldBlockOps {
     /// The balance of the receiver.
     fn current_balance(&self) -> Result<TokenAmount>;
 
-    /// Deletes the executing actor from the state tree, transferring any balance to beneficiary.
-    /// Aborts if the beneficiary does not exist.
-    /// May only be called by the actor itself.
-    fn self_destruct(&mut self, beneficiary: &Address) -> Result<()>;
+    /// Deletes the executing actor from the state tree, burning any remaining balance if requested.
+    fn self_destruct(&mut self, burn_unspent: bool) -> Result<()>;
 }
 
 /// Actors operations whose scope of action is actors other than the calling
@@ -323,24 +321,18 @@ pub trait CryptoOps {
 /// Randomness queries.
 pub trait RandomnessOps {
     /// Randomness returns a (pseudo)random byte array drawing from the latest
-    /// ticket chain from a given epoch and incorporating requisite entropy.
+    /// ticket chain from a given epoch.
     /// This randomness is fork dependant but also biasable because of this.
     fn get_randomness_from_tickets(
         &self,
-        personalization: i64,
         rand_epoch: ChainEpoch,
-        entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]>;
 
     /// Randomness returns a (pseudo)random byte array drawing from the latest
-    /// beacon from a given epoch and incorporating requisite entropy.
+    /// beacon from a given epoch.
     /// This randomness is not tied to any fork of the chain, and is unbiasable.
-    fn get_randomness_from_beacon(
-        &self,
-        personalization: i64,
-        rand_epoch: ChainEpoch,
-        entropy: &[u8],
-    ) -> Result<[u8; RANDOMNESS_LENGTH]>;
+    fn get_randomness_from_beacon(&self, rand_epoch: ChainEpoch)
+        -> Result<[u8; RANDOMNESS_LENGTH]>;
 }
 
 /// Debugging APIs.
@@ -370,5 +362,10 @@ pub trait LimiterOps {
 /// Eventing APIs.
 pub trait EventOps {
     /// Records an event emitted throughout execution.
-    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()>;
+    fn emit_event(
+        &mut self,
+        event_headers: &[fvm_shared::sys::EventEntry],
+        raw_key: &[u8],
+        raw_val: &[u8],
+    ) -> Result<()>;
 }

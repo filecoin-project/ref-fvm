@@ -39,6 +39,7 @@ impl From<Vec<Entry>> for ActorEvent {
 bitflags! {
     /// Flags associated with an Event entry.
     #[derive(Deserialize, Serialize, Copy, Clone, Eq, PartialEq, Debug)]
+    #[repr(transparent)] // we pass this type through a syscall
     #[serde(transparent)]
     pub struct Flags: u64 {
         const FLAG_INDEXED_KEY      = 0b00000001;

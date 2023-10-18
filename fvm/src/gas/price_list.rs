@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::ops::Mul;
 
 use anyhow::Context;
+use fvm_shared::clock::ChainEpoch;
 use fvm_shared::crypto::signature::SignatureType;
-use fvm_shared::event::{ActorEvent, Flags};
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof, ReplicaUpdateInfo,
@@ -26,6 +26,21 @@ use crate::kernel::SupportedHashes;
 // Each element reserves a `usize` in the table, so we charge 8 bytes per pointer.
 // https://docs.rs/wasmtime/2.0.2/wasmtime/struct.InstanceLimits.html#structfield.table_elements
 const TABLE_ELEMENT_SIZE: u32 = 8;
+
+// The maximum overhead (in bytes) of a single event when encoded into CBOR.
+//
+// 1: CBOR tuple with 2 fields (StampedEvent)
+//   9: Emitter ID
+//   2: Entry array overhead (max size 255)
+const EVENT_OVERHEAD: u64 = 12;
+// The maximum overhead (in bytes) of a single event entry when encoded into CBOR.
+//
+// 1: CBOR tuple with 4 fields
+//   1: Flags (will adjust as more flags are added)
+//   2: Key major type + length (up to 255 bytes)
+//   2: Codec major type + value (codec should be <= 255)
+//   3: Value major type + length (up to 8192 bytes)
+const EVENT_ENTRY_OVERHEAD: u64 = 9;
 
 /// Create a mapping from enum items to values in a way that guarantees at compile
 /// time that we did not miss any member, in any of the prices, even if the enum
@@ -64,7 +79,7 @@ macro_rules! total_enum_map {
 }
 
 lazy_static! {
-    static ref HYGGE_PRICES: PriceList = PriceList {
+    static ref WATERMELON_PRICES: PriceList = PriceList {
         on_chain_message_compute: ScalingCost::fixed(Gas::new(38863)),
         on_chain_message_storage: ScalingCost {
             flat: Gas::new(36*1300),
@@ -125,9 +140,6 @@ lazy_static! {
             }
         },
 
-        tipset_cid_latest: Gas::new(50_000),
-        tipset_cid_historical: Gas::new(215_000),
-
         compute_unsealed_sector_cid_base: Gas::new(98647),
         verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
 
@@ -180,27 +192,6 @@ lazy_static! {
 
         verify_replica_update: Gas::new(36316136),
         verify_post_lookup: [
-            (
-                RegisteredPoStProof::StackedDRGWindow512MiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
-            (
-                RegisteredPoStProof::StackedDRGWindow32GiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
-            (
-                RegisteredPoStProof::StackedDRGWindow64GiBV1,
-                ScalingCost {
-                    flat: Gas::new(117680921),
-                    scale: Gas::new(43780),
-                },
-            ),
             (RegisteredPoStProof::StackedDRGWindow512MiBV1P1,
                 ScalingCost {
                     flat: Gas::new(117680921),
@@ -226,9 +217,13 @@ lazy_static! {
         .copied()
         .collect(),
 
-        // TODO(#1277): Implement this first before benchmarking.
-        // TODO(#1384): Reprice
-        get_randomness_seed: Gas::new(21000),
+        lookback_cost: ScalingCost {
+            // 5800 * 19 based on walking up the blockchain skipping 20 epochs at a time,
+            // 15000 for the cost of the base operation (randomness / CID computation),
+            // 21000 for the extern cost
+            flat: Gas::new(5800*19 + 15000 + 21000),
+            scale: Gas::new(75),
+        },
 
         block_allocate: ScalingCost {
             flat: Gas::zero(),
@@ -293,32 +288,23 @@ lazy_static! {
             memory_fill_per_byte_cost: Gas::from_milligas(400),
         },
 
-        // These parameters are specifically sized for EVM events. They will need
-        // to be revisited before Wasm actors are able to emit arbitrary events.
-        //
-        // Validation costs are dependent on encoded length, but also
-        // co-dependent on the number of entries. The latter is a chicken-and-egg
-        // situation because we can only learn how many entries were emitted once we
-        // decode the CBOR event.
-        //
-        // We will likely need to revisit the ABI of emit_event to remove CBOR
-        // as the exchange format.
-        event_validation_cost: ScalingCost {
-            flat: Gas::new(1750),
-            scale: Gas::new(25),
+        event_per_entry: ScalingCost {
+            flat: Gas::new(2000),
+            scale: Gas::new(1400),
         },
 
-        // The protocol does not currently mandate indexing work, so these are
-        // left at zero. Once we start populating and committing indexing data
-        // structures, these costs will need to reflect the computation and
-        // storage costs of such actions.
-        event_accept_per_index_element: ScalingCost {
-            flat: Zero::zero(),
-            scale: Zero::zero(),
+        utf8_validation: ScalingCost {
+            flat: Gas::new(500),
+            scale: Gas::new(16),
         },
 
         // Preloaded actor IDs per FIP-0055.
         preloaded_actors: vec![0, 1, 2, 3, 4, 5, 6, 7, 10, 99],
+
+        ipld_cbor_scan_per_cid: Gas::new(400),
+        ipld_cbor_scan_per_field: Gas::new(35),
+        ipld_link_tracked: Gas::new(300),
+        ipld_link_checked: Gas::new(300),
     };
 }
 
@@ -420,10 +406,9 @@ pub struct PriceList {
 
     pub(crate) hashing_cost: HashMap<SupportedHashes, ScalingCost>,
 
-    /// Gas cost for looking up the last tipset CID.
-    pub(crate) tipset_cid_latest: Gas,
-    /// Gas cost for looking up older tipset keys.
-    pub(crate) tipset_cid_historical: Gas,
+    /// Gas cost for walking up the chain.
+    /// Applied to operations like getting randomness, tipset CIDs, etc.
+    pub(crate) lookback_cost: ScalingCost,
 
     pub(crate) compute_unsealed_sector_cid_base: Gas,
     pub(crate) verify_seal_base: Gas,
@@ -433,10 +418,6 @@ pub struct PriceList {
     pub(crate) verify_post_lookup: HashMap<RegisteredPoStProof, ScalingCost>,
     pub(crate) verify_consensus_fault: Gas,
     pub(crate) verify_replica_update: Gas,
-
-    /// Gas cost for fetching a randomness seed for an epoch. We charge separately for extracting
-    /// randomness (hashing).
-    pub(crate) get_randomness_seed: Gas,
 
     /// Gas cost per byte copied.
     pub(crate) block_memcpy: ScalingCost,
@@ -468,13 +449,13 @@ pub struct PriceList {
 
     /// Gas cost to validate an ActorEvent as soon as it's received from the actor, and prior
     /// to it being parsed.
-    pub(crate) event_validation_cost: ScalingCost,
-
-    /// Gas cost of every indexed element, scaling per number of bytes indexed.
-    pub(crate) event_accept_per_index_element: ScalingCost,
+    pub(crate) event_per_entry: ScalingCost,
 
     /// Gas cost of doing lookups in the builtin actor mappings.
     pub(crate) builtin_actor_manifest_lookup: Gas,
+
+    /// Gas cost of utf8 parsing.
+    pub(crate) utf8_validation: ScalingCost,
 
     /// Gas cost of accessing the network context.
     pub(crate) network_context: Gas,
@@ -486,6 +467,18 @@ pub struct PriceList {
 
     /// Actor IDs that can be updated for free.
     pub(crate) preloaded_actors: Vec<ActorID>,
+
+    /// Gas cost per field encountered when parsing CBOR.
+    pub(crate) ipld_cbor_scan_per_field: Gas,
+
+    /// Gas cost per CID encountered when parsing CBOR.
+    pub(crate) ipld_cbor_scan_per_cid: Gas,
+
+    /// Gas cost for tracking new reachable links.
+    pub(crate) ipld_link_tracked: Gas,
+
+    /// Gas cost for checking if CID is reachable.
+    pub(crate) ipld_link_checked: Gas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -533,20 +526,33 @@ impl PriceList {
 
     /// Returns the gas required when invoking a method.
     #[inline]
-    pub fn on_method_invocation(&self) -> GasCharge {
-        GasCharge::new("OnMethodInvocation", self.send_invoke_method, Zero::zero())
+    pub fn on_method_invocation(&self, _param_size: u32, param_links: usize) -> GasCharge {
+        let charge = self.send_invoke_method + self.ipld_link_tracked * param_links;
+        GasCharge::new("OnMethodInvocation", charge, Zero::zero())
     }
 
-    /// Returns the gas required for storing the response of a message in the chain.
+    /// Returns the gas required for returning a value from a method. At the top-level, this charges
+    /// for storing the block on-chain. Everywhere else, it charges for tracking IPLD links.
     #[inline]
-    pub fn on_method_return(&self, call_depth: u32, data_size: u32) -> Option<GasCharge> {
-        (call_depth == 1).then(|| {
+    pub fn on_method_return(
+        &self,
+        call_depth: u32,
+        return_size: u32,
+        return_links: usize,
+    ) -> GasCharge {
+        if call_depth == 1 {
             GasCharge::new(
                 "OnChainReturnValue",
-                self.on_chain_return_compute.apply(data_size),
-                self.on_chain_return_storage.apply(data_size),
+                self.on_chain_return_compute.apply(return_size),
+                self.on_chain_return_storage.apply(return_size),
             )
-        })
+        } else {
+            GasCharge::new(
+                "OnReturnValue",
+                self.ipld_link_tracked * return_links,
+                Zero::zero(),
+            )
+        }
     }
 
     /// Returns the gas cost to be applied on a syscall.
@@ -595,6 +601,15 @@ impl PriceList {
         let cost = self.hashing_cost[&hasher];
         let gas = cost.apply(data_len);
         GasCharge::new("OnHashing", gas, Zero::zero())
+    }
+
+    #[inline]
+    pub fn on_utf8_validation(&self, len: usize) -> GasCharge {
+        GasCharge::new(
+            "OnUtf8Validation",
+            self.utf8_validation.apply(len),
+            Zero::zero(),
+        )
     }
 
     /// Returns gas required for computing unsealed sector Cid.
@@ -669,10 +684,10 @@ impl PriceList {
             .proofs
             .first()
             .map(|p| p.post_proof)
-            .unwrap_or(RegisteredPoStProof::StackedDRGWindow512MiBV1);
+            .unwrap_or(RegisteredPoStProof::StackedDRGWindow512MiBV1P1);
         let cost = self.verify_post_lookup.get(&p_proof).unwrap_or_else(|| {
             self.verify_post_lookup
-                .get(&RegisteredPoStProof::StackedDRGWindow512MiBV1)
+                .get(&RegisteredPoStProof::StackedDRGWindow512MiBV1P1)
                 .expect("512MiB lookup must exist in price table")
         });
 
@@ -696,45 +711,40 @@ impl PriceList {
         )
     }
 
-    /// Returns the cost of the gas required for getting randomness from the client, based on the
-    /// number of bytes of entropy.
+    /// Returns the cost of the gas required for getting randomness from the client with the given lookback.
     #[inline]
-    pub fn on_get_randomness(&self, entropy_size: usize) -> GasCharge {
-        const RAND_INITIAL_HASH: u64 =
-            // domain separation tag, u64
-            8 +
-                // vrf digest
-                32 +
-                // round
-                8;
-
+    pub fn on_get_randomness(&self, lookback: ChainEpoch) -> GasCharge {
         GasCharge::new(
             "OnGetRandomness",
             Zero::zero(),
-            self.get_randomness_seed
-                + self.hashing_cost[&SupportedHashes::Blake2b256]
-                    .apply((entropy_size as u64).saturating_add(RAND_INITIAL_HASH)),
+            self.lookback_cost.apply(lookback as u64),
         )
     }
 
     /// Returns the base gas required for loading an object, independent of the object's size.
     #[inline]
     pub fn on_block_open_base(&self) -> GasCharge {
-        GasCharge::new("OnBlockOpenBase", Zero::zero(), self.block_open.flat)
+        GasCharge::new(
+            "OnBlockOpenBase",
+            self.ipld_link_checked,
+            self.block_open.flat,
+        )
     }
 
     /// Returns the gas required for loading an object based on the size of the object.
     #[inline]
-    pub fn on_block_open_per_byte(&self, data_size: usize) -> GasCharge {
+    pub fn on_block_open(&self, data_size: usize, links: usize) -> GasCharge {
         // These are the actual compute costs involved.
-        let compute = self.block_allocate.apply(data_size) + self.block_memcpy.apply(data_size);
-        let block_open = self.block_open.scale * data_size;
+        let compute = self.ipld_link_tracked * links;
+        let block_open = self.block_open.scale * data_size
+            + self.block_allocate.apply(data_size)
+            + self.block_memcpy.apply(data_size);
 
         // But we need to make sure we charge at least the memory retention cost.
         let retention_min = self.block_memory_retention_minimum.apply(data_size);
         let retention_surcharge = (retention_min - (compute + block_open)).max(Gas::zero());
         GasCharge::new(
-            "OnBlockOpenPerByte",
+            "OnBlockOpen",
             compute,
             // We charge the `block_open` fee as "extra" to make sure the FVM benchmarks still work.
             block_open + retention_surcharge,
@@ -753,9 +763,11 @@ impl PriceList {
 
     /// Returns the gas required for adding an object to the FVM cache.
     #[inline]
-    pub fn on_block_create(&self, data_size: usize) -> GasCharge {
+    pub fn on_block_create(&self, data_size: usize, links: usize) -> GasCharge {
         // These are the actual compute costs involved.
-        let compute = self.block_memcpy.apply(data_size) + self.block_allocate.apply(data_size);
+        let compute = self.block_memcpy.apply(data_size)
+            + self.block_allocate.apply(data_size)
+            + self.ipld_link_checked * links;
 
         // But we need to make sure we charge at least the memory retention cost.
         let retention_min = self.block_memory_retention_minimum.apply(data_size);
@@ -773,7 +785,7 @@ impl PriceList {
         let alloc = self.block_allocate.apply(data_size);
         let hashing = self.hashing_cost[&hash_code].apply(data_size);
 
-        let initial_compute = memcpy + alloc + hashing;
+        let initial_compute = memcpy + alloc + hashing + self.ipld_link_tracked;
 
         // We also have to charge for storage...
         let storage = self.block_persist_storage.apply(data_size);
@@ -868,15 +880,11 @@ impl PriceList {
 
     /// Returns the gas required for looking up a tipset CID with the given lookback.
     #[inline]
-    pub fn on_tipset_cid(&self, lookback: bool) -> GasCharge {
+    pub fn on_tipset_cid(&self, lookback: ChainEpoch) -> GasCharge {
         GasCharge::new(
             "OnTipsetCid",
             Zero::zero(),
-            if lookback {
-                self.tipset_cid_historical
-            } else {
-                self.tipset_cid_latest
-            },
+            self.lookback_cost.apply(lookback as u64),
         )
     }
 
@@ -921,69 +929,51 @@ impl PriceList {
     }
 
     #[inline]
-    pub fn on_actor_event_validate(&self, data_size: usize) -> GasCharge {
-        let memcpy = self.block_memcpy.apply(data_size);
-        let alloc = self.block_allocate.apply(data_size);
-        let validate = self.event_validation_cost.apply(data_size);
+    pub fn on_actor_event(&self, entries: usize, keysize: usize, valuesize: usize) -> GasCharge {
+        // Here we estimate per-event overhead given the constraints on event values.
+
+        let validate_entries = self.event_per_entry.apply(entries);
+        let validate_utf8 = self.utf8_validation.apply(keysize);
+
+        // Estimate the size, saturating at max-u64. Given how we calculate gas, this will saturate
+        // the gas maximum at max-u64 milligas.
+        let estimated_size = EVENT_OVERHEAD
+            .saturating_add(EVENT_ENTRY_OVERHEAD.saturating_mul(entries as u64))
+            .saturating_add(keysize as u64)
+            .saturating_add(valuesize as u64);
+
+        // Calculate the cost per copy (one memcpy + one allocation).
+        let mem =
+            self.block_memcpy.apply(estimated_size) + self.block_allocate.apply(estimated_size);
+
+        // Charge for the hashing on AMT insertion.
+        let hash = self.hashing_cost[&SupportedHashes::Blake2b256].apply(estimated_size);
 
         GasCharge::new(
-            "OnActorEventValidate",
-            memcpy + alloc + validate,
-            Zero::zero(),
+            "OnActorEvent",
+            // Charge for validation/storing/serializing events.
+            mem * 2u32 + validate_entries + validate_utf8,
+            // Charge for forming the AMT and returning the events to the client.
+            // one copy into the AMT, one copy to the client.
+            hash + mem,
         )
     }
 
     #[inline]
-    pub fn on_actor_event_accept(&self, evt: &ActorEvent, serialized_len: usize) -> GasCharge {
-        let (mut indexed_bytes, mut indexed_elements) = (0usize, 0u32);
-        for evt in evt.entries.iter() {
-            if evt.flags.contains(Flags::FLAG_INDEXED_KEY) {
-                indexed_bytes += evt.key.len();
-                indexed_elements += 1;
-            }
-            if evt.flags.contains(Flags::FLAG_INDEXED_VALUE) {
-                indexed_bytes += evt.value.len();
-                indexed_elements += 1;
-            }
-        }
+    pub fn on_get_root(&self) -> GasCharge {
+        GasCharge::new("OnActorGetRoot", self.ipld_link_tracked, Gas::zero())
+    }
 
-        // The estimated size of the serialized StampedEvent event, which
-        // includes the ActorEvent + 8 bytes for the actor ID + some bytes
-        // for CBOR framing.
-        const STAMP_EXTRA_SIZE: usize = 12;
-        let stamped_event_size = serialized_len + STAMP_EXTRA_SIZE;
-
-        // Charge for 3 memory copy operations.
-        // This includes the cost of forming a StampedEvent, copying into the
-        // AMT's buffer on finish, and returning to the client.
-        let memcpy = self.block_memcpy.apply(stamped_event_size);
-
-        // Charge for 2 memory allocations.
-        // This includes the cost of retaining the StampedEvent in the call manager,
-        // and allocaing into the AMT's buffer on finish.
-        let alloc = self.block_allocate.apply(stamped_event_size);
-
-        // Charge for the hashing on AMT insertion.
-        let hash = self.hashing_cost[&SupportedHashes::Blake2b256].apply(stamped_event_size);
-
-        GasCharge::new(
-            "OnActorEventAccept",
-            memcpy + alloc,
-            self.event_accept_per_index_element.flat * indexed_elements
-                + self.event_accept_per_index_element.scale * indexed_bytes
-                + memcpy * 2u32 // deferred cost, placing here to hide from benchmark
-                + alloc // deferred cost, placing here to hide from benchmark
-                + hash, // deferred cost, placing here to hide from benchmark
-        )
+    #[inline]
+    pub fn on_set_root(&self) -> GasCharge {
+        GasCharge::new("OnActorSetRoot", self.ipld_link_checked, Gas::zero())
     }
 }
 
 /// Returns gas price list by NetworkVersion for gas consumption.
 pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'static PriceList {
     match network_version {
-        NetworkVersion::V18 | NetworkVersion::V19 | NetworkVersion::V20 => &HYGGE_PRICES,
-        #[cfg(feature = "nv21-dev")]
-        _ if network_version == NetworkVersion::V21 => &HYGGE_PRICES,
+        NetworkVersion::V21 => &WATERMELON_PRICES,
         _ => panic!("network version {nv} not supported", nv = network_version),
     }
 }
@@ -1298,10 +1288,13 @@ fn test_read_write() {
     // The math for these operations is complicated, so we explicitly test to make sure we're
     // getting the expected 10 gas/byte.
     assert_eq!(
-        HYGGE_PRICES.on_block_open_per_byte(10).total(),
+        WATERMELON_PRICES.on_block_open(10, 0).total(),
         Gas::new(100)
     );
-    assert_eq!(HYGGE_PRICES.on_block_create(10).total(), Gas::new(100));
+    assert_eq!(
+        WATERMELON_PRICES.on_block_create(10, 0).total(),
+        Gas::new(100)
+    );
 }
 
 #[test]

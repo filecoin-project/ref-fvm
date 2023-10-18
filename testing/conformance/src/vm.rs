@@ -28,7 +28,7 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
-use fvm_shared::sys::SendFlags;
+use fvm_shared::sys::{EventEntry, SendFlags};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
 
@@ -498,22 +498,16 @@ where
 {
     fn get_randomness_from_tickets(
         &self,
-        personalization: i64,
         rand_epoch: ChainEpoch,
-        entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.0
-            .get_randomness_from_tickets(personalization, rand_epoch, entropy)
+        self.0.get_randomness_from_tickets(rand_epoch)
     }
 
     fn get_randomness_from_beacon(
         &self,
-        personalization: i64,
         rand_epoch: ChainEpoch,
-        entropy: &[u8],
     ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.0
-            .get_randomness_from_beacon(personalization, rand_epoch, entropy)
+        self.0.get_randomness_from_beacon(rand_epoch)
     }
 }
 
@@ -523,7 +517,7 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = C>,
 {
-    fn root(&self) -> Result<Cid> {
+    fn root(&mut self) -> Result<Cid> {
         self.0.root()
     }
 
@@ -535,8 +529,8 @@ where
         self.0.current_balance()
     }
 
-    fn self_destruct(&mut self, beneficiary: &Address) -> Result<()> {
-        self.0.self_destruct(beneficiary)
+    fn self_destruct(&mut self, burn_unspent: bool) -> Result<()> {
+        self.0.self_destruct(burn_unspent)
     }
 }
 
@@ -557,8 +551,13 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = C>,
 {
-    fn emit_event(&mut self, raw_evt: &[u8]) -> Result<()> {
-        self.0.emit_event(raw_evt)
+    fn emit_event(
+        &mut self,
+        event_headers: &[EventEntry],
+        key_evt: &[u8],
+        val_evt: &[u8],
+    ) -> Result<()> {
+        self.0.emit_event(event_headers, key_evt, val_evt)
     }
 }
 

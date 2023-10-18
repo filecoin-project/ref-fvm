@@ -1,6 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use actors_v10_runtime::runtime::builtins::Type;
+use actors_v12_runtime::runtime::builtins::Type;
 use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
 use fvm_shared::error::ErrorNumber;

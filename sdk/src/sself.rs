@@ -1,7 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
-use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::MAX_CID_LEN;
@@ -53,18 +52,12 @@ pub fn current_balance() -> TokenAmount {
     }
 }
 
-/// Destroys the calling actor, sending its current balance
-/// to the supplied address, which cannot be itself.
-///
-/// Fails when calling actor has a non zero balance and the beneficiary doesn't
-/// exist or is the actor being deleted.
-pub fn self_destruct(beneficiary: &Address) -> Result<(), ActorDeleteError> {
-    let bytes = beneficiary.to_bytes();
+/// Destroys the calling actor, burning any remaining balance.
+pub fn self_destruct(burn_funds: bool) -> Result<(), ActorDeleteError> {
     unsafe {
-        sys::sself::self_destruct(bytes.as_ptr(), bytes.len() as u32).map_err(|e| match e {
-            ErrorNumber::Forbidden => ActorDeleteError::BeneficiaryIsSelf,
+        sys::sself::self_destruct(burn_funds).map_err(|e| match e {
+            ErrorNumber::IllegalOperation => ActorDeleteError::UnspentFunds,
             ErrorNumber::ReadOnly => ActorDeleteError::ReadOnly,
-            ErrorNumber::NotFound => ActorDeleteError::BeneficiaryDoesNotExist,
             _ => panic!("unexpected error from `self::self_destruct` syscall: {}", e),
         })
     }

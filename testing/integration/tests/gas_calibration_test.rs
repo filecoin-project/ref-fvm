@@ -3,6 +3,7 @@
 mod calibration;
 #[cfg(feature = "calibration")]
 use calibration::*;
+#[cfg(feature = "calibration")]
 use fvm_gas_calibration_shared::*;
 
 #[test]
@@ -81,140 +82,148 @@ fn on_block() {
     }
 }
 
-// TODO (fridrik): Enable this test after closing #1699
-//#[test]
-#[allow(dead_code)]
+#[test]
 #[cfg(feature = "calibration")]
-fn on_event_evm_shapes() {
+fn on_event_by_value_size() {
     use fvm_shared::event::Flags;
     use rand::{thread_rng, Rng};
 
-    const CHARGE_VALIDATE: &str = "OnActorEventValidate";
-    const CHARGE_ACCEPT: &str = "OnActorEventAccept";
+    const CHARGE: &str = "OnActorEvent";
     const METHOD: Method = Method::OnEvent;
 
-    let entries = 1..=5;
-    let (key_size, value_size) = (2, 32); // 2 bytes per key, 32 bytes per value (topics)
-    let last_entry_value_sizes = (5u32..=13).map(|n| u64::pow(2, n) as usize); // 32 bytes to 8KiB (payload)
-
     let iterations = 500;
-
-    let (mut validate_obs, mut accept_obs) = (Vec::new(), Vec::new());
-
     let mut te = instantiate_tester();
-
     let mut rng = thread_rng();
 
-    for entry_count in entries {
-        for last_entry_value_size in last_entry_value_sizes.clone() {
-            let label = format!("{entry_count:?}entries");
+    let mut obs = Vec::new();
+
+    let entry_counts = &[1usize, 16, 127, 255];
+    for &entries in entry_counts {
+        for total_value_size in (8..=13).map(|x| usize::pow(2, x)) {
+            let label = format!("{entries}-entries");
             let params = OnEventParams {
                 iterations,
                 // number of entries to emit
-                entries: entry_count,
-                mode: EventCalibrationMode::Shape((key_size, value_size, last_entry_value_size)),
+                entries,
+                total_value_size,
                 flags: Flags::FLAG_INDEXED_ALL,
                 seed: rng.gen(),
             };
 
             let ret = te.execute_or_die(METHOD as u64, &params);
 
-            // Estimated length of the CBOR payload (confirmed with observations)
-            // 1 is the list header; 5 per entry CBOR overhead + flags.
-            let len = 1
-                + ((entry_count - 1) * value_size)
-                + last_entry_value_size
-                + entry_count * key_size
-                + entry_count * 5;
-
-            {
-                let mut series = collect_obs(&ret.clone(), CHARGE_VALIDATE, &label, len);
-                series = eliminate_outliers(series, 0.02, Eliminate::Top);
-                validate_obs.extend(series);
-            };
-
-            {
-                let mut series = collect_obs(&ret.clone(), CHARGE_ACCEPT, &label, len);
-                series = eliminate_outliers(series, 0.02, Eliminate::Top);
-                accept_obs.extend(series);
-            };
+            let mut series = collect_obs(&ret.clone(), CHARGE, &label, total_value_size);
+            series = eliminate_outliers(series, 0.02, Eliminate::Top);
+            obs.extend(series);
         }
     }
 
-    for (obs, name) in vec![(validate_obs, CHARGE_VALIDATE), (accept_obs, CHARGE_ACCEPT)].iter() {
-        let regression = run_linear_regression(obs);
+    let regression = run_linear_regression(&obs);
 
-        export(name, obs, &regression).unwrap();
-    }
+    export("OnActorEventValue", &obs, &regression).unwrap();
 }
 
-// intentionally left disabled since we're not interested in these observations at this stage.
-#[allow(dead_code)]
-fn on_event_target_size() {
-    const CHARGE_VALIDATE: &str = "OnActorEventValidate";
-    const CHARGE_ACCEPT: &str = "OnActorEventAccept";
-    const METHOD: Method = Method::OnEvent;
-
-    use calibration::*;
+#[test]
+#[cfg(feature = "calibration")]
+fn on_event_by_entry_count() {
     use fvm_shared::event::Flags;
     use rand::{thread_rng, Rng};
 
-    let mut config: Vec<(usize, usize)> = vec![];
-    // 1 entry, ranging 8..1024 bytes
-    config.extend((3u32..=10).map(|n| (1usize, u64::pow(2, n) as usize)));
-    // 2 entry, ranging 16..1024 bytes
-    config.extend((4u32..=10).map(|n| (2usize, u64::pow(2, n) as usize)));
-    // 4 entries, ranging 32..1024 bytes
-    config.extend((5u32..=10).map(|n| (4usize, u64::pow(2, n) as usize)));
-    // 8 entries, ranging 64..1024 bytes
-    config.extend((6u32..=10).map(|n| (8usize, u64::pow(2, n) as usize)));
-    // 16 entries, ranging 128..1024 bytes
-    config.extend((7u32..=10).map(|n| (16usize, u64::pow(2, n) as usize)));
-    // 32 entries, ranging 256..1024 bytes
-    config.extend((8u32..=10).map(|n| (32usize, u64::pow(2, n) as usize)));
-    // 64 entries, ranging 512..1024 bytes
-    config.extend((9u32..=10).map(|n| (64usize, u64::pow(2, n) as usize)));
+    const CHARGE: &str = "OnActorEvent";
+    const METHOD: Method = Method::OnEvent;
 
     let iterations = 500;
-
-    let (mut validate_obs, mut accept_obs) = (Vec::new(), Vec::new());
-
     let mut te = instantiate_tester();
-
     let mut rng = thread_rng();
 
-    for (entries, target_size) in config.iter() {
-        let label = format!("{entries:?}entries");
-        let params = OnEventParams {
-            iterations,
-            // number of entries to emit
-            entries: *entries,
-            // target size of the encoded CBOR; this is approximate.
-            mode: EventCalibrationMode::TargetSize(*target_size),
-            flags: Flags::FLAG_INDEXED_ALL,
-            seed: rng.gen(),
-        };
+    let mut obs = Vec::new();
 
-        let ret = te.execute_or_die(METHOD as u64, &params);
+    let total_value_sizes = &[255, 1024, 4096, 8192];
+    for &total_value_size in total_value_sizes {
+        for entries in (1..=8).map(|x| usize::pow(2, x) - 1) {
+            let label = format!("{total_value_size}-size");
+            let params = OnEventParams {
+                iterations,
+                // number of entries to emit
+                entries,
+                total_value_size,
+                flags: Flags::FLAG_INDEXED_ALL,
+                seed: rng.gen(),
+            };
 
-        {
-            let mut series = collect_obs(&ret.clone(), CHARGE_VALIDATE, &label, *target_size);
+            let ret = te.execute_or_die(METHOD as u64, &params);
+
+            let mut series = collect_obs(&ret.clone(), CHARGE, &label, entries);
             series = eliminate_outliers(series, 0.02, Eliminate::Top);
-            validate_obs.extend(series);
-        };
-
-        {
-            let mut series = collect_obs(&ret.clone(), CHARGE_ACCEPT, &label, *target_size);
-            series = eliminate_outliers(series, 0.02, Eliminate::Top);
-            accept_obs.extend(series);
-        };
+            obs.extend(series);
+        }
     }
 
-    for (obs, name) in vec![(validate_obs, CHARGE_VALIDATE), (accept_obs, CHARGE_ACCEPT)].iter() {
-        let regression = run_linear_regression(obs);
+    let regression = run_linear_regression(&obs);
 
-        export(name, obs, &regression).unwrap();
+    export("OnActorEventEntries", &obs, &regression).unwrap();
+}
+
+#[test]
+#[cfg(feature = "calibration")]
+fn utf8_validation() {
+    use fvm::gas::price_list_by_network_version;
+    use fvm_shared::version::NetworkVersion;
+    use rand::{distributions::Standard, thread_rng, Rng};
+
+    let mut chars = thread_rng().sample_iter(Standard);
+    const CHARGE: &str = "OnUtf8Validate";
+
+    let iterations = 500;
+    let price_list = price_list_by_network_version(NetworkVersion::V21);
+
+    let mut obs = Vec::new();
+    #[derive(Debug, Copy, Clone)]
+    enum Kind {
+        Ascii,
+        MaxUtf8,
+        RandomUtf8,
     }
+    use Kind::*;
+    for size in (0..=8).map(|x| usize::pow(2, x)) {
+        for kind in [Ascii, RandomUtf8, MaxUtf8] {
+            let mut series = Vec::new();
+            for _ in 0..iterations {
+                let rand_str: String = match kind {
+                    Ascii => "a".repeat(size),
+                    MaxUtf8 => char::REPLACEMENT_CHARACTER.to_string().repeat(size / 2),
+                    RandomUtf8 => chars
+                        .by_ref()
+                        .take_while({
+                            let mut total: usize = 0;
+                            move |c: &char| {
+                                total += c.len_utf8();
+                                total < size
+                            }
+                        })
+                        .collect(),
+                };
+                let charge = price_list.on_utf8_validation(rand_str.len());
+                let start = minstant::Instant::now();
+                let _ = std::hint::black_box(std::str::from_utf8(std::hint::black_box(
+                    rand_str.as_bytes(),
+                )));
+                let time = start.elapsed();
+                series.push(Obs {
+                    charge: CHARGE.into(),
+                    label: format!("{:?}-validate", kind),
+                    elapsed_nanos: time.as_nanos(),
+                    variables: vec![rand_str.len()],
+                    compute_gas: charge.compute_gas.as_milligas(),
+                })
+            }
+            obs.extend(eliminate_outliers(series, 0.02, Eliminate::Both));
+        }
+    }
+
+    let regression = run_linear_regression(&obs);
+
+    export(CHARGE, &obs, &regression).unwrap();
 }
 
 #[test]
@@ -431,4 +440,151 @@ fn on_verify_signature() {
     let regression = run_linear_regression(&obs);
 
     export(CHARGE_NAME, &obs, &regression).unwrap();
+}
+
+// Scan CBOR Fields with no links.
+#[test]
+#[cfg(feature = "calibration")]
+fn on_scan_cbor_fields() {
+    use std::collections::HashMap;
+
+    use fvm::trace::ExecutionEvent;
+    use fvm_shared::error::ExitCode;
+    use rand::{thread_rng, Rng};
+
+    let field_counts = [2, 5, 10, 50, 100, 1000, 2500, 5000, 7500, 10_000];
+    let iterations = 500;
+
+    let mut all_obs: HashMap<String, Vec<Obs>> = Default::default();
+    let mut te = instantiate_tester();
+
+    let mut rng = thread_rng();
+
+    for fc in field_counts.iter().copied() {
+        let params = OnScanIpldLinksParams {
+            cbor_link_count: 0,
+            cbor_field_count: fc,
+            iterations,
+            seed: rng.gen(),
+        };
+
+        let ret = te.execute_or_die(Method::OnScanIpldLinks as u64, &params);
+
+        if let Some(failure) = ret.failure_info {
+            panic!("message execution failed: {failure}");
+        }
+        assert_eq!(ret.msg_receipt.exit_code, ExitCode::OK);
+
+        let mut iter_obs: HashMap<String, Vec<Obs>> = Default::default();
+
+        for event in ret.exec_trace {
+            if let ExecutionEvent::GasCharge(charge) = event {
+                if charge.name.starts_with("OnScanIpldLinks") {
+                    if let Some(t) = charge.elapsed.get() {
+                        let ob = Obs {
+                            charge: charge.name.into(),
+                            label: "n/a".into(),
+                            elapsed_nanos: t.as_nanos(),
+                            variables: vec![fc],
+                            compute_gas: charge.compute_gas.as_milligas(),
+                        };
+                        iter_obs
+                            .entry("OnScanCborFields".into())
+                            .or_default()
+                            .push(ob);
+                    }
+                }
+            }
+        }
+
+        for (name, mut obs) in iter_obs {
+            if !obs.is_empty() {
+                // According to the charts, there are odd outliers.
+                obs = eliminate_outliers(obs, 0.02, Eliminate::Top);
+
+                all_obs.entry(name).or_default().extend(obs);
+            }
+        }
+    }
+
+    for (name, obs) in all_obs {
+        let regs = vec![least_squares("".into(), &obs, 0)];
+        export(&name, &obs, &regs).unwrap();
+    }
+}
+
+// Scan CBOR Links, keeping the fields constant (10,000).
+#[test]
+#[cfg(feature = "calibration")]
+fn on_scan_cbor_links() {
+    use std::collections::HashMap;
+
+    use fvm::trace::ExecutionEvent;
+    use fvm_shared::error::ExitCode;
+    use rand::{thread_rng, Rng};
+
+    let field_count = 10_000;
+    let link_counts = [1, 10, 20, 50, 100, 500, 1000, 2500];
+    let iterations = 250;
+
+    let mut all_obs: HashMap<String, Vec<Obs>> = Default::default();
+    let mut te = instantiate_tester();
+
+    let mut rng = thread_rng();
+
+    for lc in link_counts.iter().copied() {
+        let params = OnScanIpldLinksParams {
+            cbor_link_count: lc,
+            cbor_field_count: field_count,
+            iterations,
+            seed: rng.gen(),
+        };
+
+        let ret = te.execute_or_die(Method::OnScanIpldLinks as u64, &params);
+
+        if let Some(failure) = ret.failure_info {
+            panic!("message execution failed: {failure}");
+        }
+        assert_eq!(ret.msg_receipt.exit_code, ExitCode::OK);
+
+        let mut iter_obs: HashMap<String, Vec<Obs>> = Default::default();
+
+        for event in ret.exec_trace {
+            let ExecutionEvent::GasCharge(charge) = event else { continue };
+            for (key, name) in [
+                ("OnScanIpldLinks", "OnScanIpldLinks"),
+                ("OnTrackLinks", "OnBlockOpen"),
+                ("OnCheckLinks", "OnBlockCreate"),
+            ] {
+                if charge.name != name {
+                    continue;
+                }
+                let Some(t) = charge.elapsed.get() else { continue };
+
+                let ob = Obs {
+                    charge: charge.name.into(),
+                    label: "n/a".into(),
+                    elapsed_nanos: t.as_nanos(),
+                    variables: vec![lc],
+                    compute_gas: charge.compute_gas.as_milligas(),
+                };
+                iter_obs.entry(key.into()).or_default().push(ob);
+                break;
+            }
+        }
+
+        for (name, mut obs) in iter_obs {
+            if !obs.is_empty() {
+                // According to the charts, there are odd outliers.
+                obs = eliminate_outliers(obs, 0.02, Eliminate::Top);
+
+                all_obs.entry(name).or_default().extend(obs);
+            }
+        }
+    }
+
+    for (name, obs) in all_obs {
+        let regs = vec![least_squares("".into(), &obs, 0)];
+        export(&name, &obs, &regs).unwrap();
+    }
 }

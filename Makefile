@@ -1,5 +1,3 @@
-RUSTFLAGS="-C target-feature=+crt-static"
-
 all: build
 .PHONY: all
 
@@ -11,8 +9,8 @@ clean:
 	cargo clean
 
 lint:
-	cargo fmt --all
-	cargo clippy --all --all-targets -- -D warnings -A clippy::upper_case_acronyms
+	cargo fmt --all --check
+	cargo clippy --all --all-targets -- -D warnings
 
 license:
 	./scripts/add_license.sh

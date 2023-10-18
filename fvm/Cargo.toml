@@ -1,7 +1,7 @@
 [package]
 name = "fvm"
 description = "Filecoin Virtual Machine reference implementation"
-version = "3.7.0"
+version = "4.0.0-alpha.4"
 license = "MIT OR Apache-2.0"
 authors = ["Protocol Labs", "Filecoin Core Devs"]
 edition = "2021"
@@ -16,10 +16,10 @@ anyhow = { version = "1.0.71", features = ["backtrace"] }
 thiserror = "1.0.40"
 num-traits = "0.2"
 cid = { workspace = true, features = ["serde-codec"] }
-multihash = { workspace = true }
-fvm_shared = { version = "3.5.0", path = "../shared", features = ["crypto"] }
+multihash = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
+fvm_shared = { version = "4.0.0-alpha.4", path = "../shared", features = ["crypto"] }
 fvm_ipld_hamt = { version = "0.8.0", path = "../ipld/hamt" }
-fvm_ipld_amt = { version = "0.6.1", path = "../ipld/amt" }
+fvm_ipld_amt = { version = "0.6.2", path = "../ipld/amt" }
 fvm_ipld_blockstore = { version = "0.2.0", path = "../ipld/blockstore" }
 fvm_ipld_encoding = { version = "0.4.0", path = "../ipld/encoding" }
 serde = { version = "1.0", features = ["derive"] }
@@ -27,7 +27,7 @@ serde_tuple = "0.5"
 lazy_static = "1.4.0"
 derive_more = "0.99.17"
 replace_with = "0.1.7"
-filecoin-proofs-api = { version = "14", default-features = false }
+filecoin-proofs-api = { version = "16", default-features = false }
 rayon = "1"
 num_cpus = "1.15.0"
 log = "0.4.19"
@@ -40,29 +40,30 @@ once_cell = "1.18"
 minstant = "0.1.2"
 blake2b_simd = "1.0.0"
 byteorder = "1.4.3"
+static_assertions = "1.1.0"
 
 [dev-dependencies]
 pretty_assertions = "1.3.0"
 fvm = { path = ".", features = ["testing"], default-features = false }
 
 [dependencies.wasmtime]
-version = "10.0.1"
+version = "12.0.2"
 default-features = false
 features = ["cranelift", "pooling-allocator", "parallel-compilation"]
 
 [dependencies.wasmtime-environ]
-version = "10.0.1"
+version = "12.0.1"
 
 [dependencies.wasmtime-runtime]
-version = "10.0.1"
+version = "12.0.1"
 default-features = false
 
 [features]
 default = ["opencl"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
+cuda-supraseal = ["filecoin-proofs-api/cuda-supraseal"]
 testing = []
 arb = ["arbitrary", "quickcheck", "fvm_shared/arb", "cid/arb"]
 m2-native = []
 gas_calibration = []
-nv21-dev = []

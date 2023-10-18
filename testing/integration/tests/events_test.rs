@@ -7,10 +7,11 @@ use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::IntegrationExecutor;
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
-use fvm_ipld_encoding::to_vec;
+use fvm_ipld_encoding::{to_vec, IPLD_RAW};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::event::{Entry, Flags, StampedEvent};
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
@@ -36,12 +37,49 @@ fn events_test() {
         .execute_message(message.clone(), ApplyKind::Explicit, 100)
         .unwrap();
 
-    assert_eq!(ExitCode::OK, res.msg_receipt.exit_code);
+    assert!(
+        res.msg_receipt.exit_code.is_success(),
+        "{:?}",
+        res.failure_info
+    );
 
     let gas_used = res.msg_receipt.gas_used;
 
-    // Check that we got two events.
-    assert_eq!(2, res.events.len());
+    // Assert that we got the correct events.
+    let actor_id = actor_address.id().unwrap();
+    assert_eq!(
+        &res.events,
+        &[
+            StampedEvent {
+                emitter: actor_id,
+                event: vec![Entry {
+                    flags: Flags::all(),
+                    key: "foo".to_owned(),
+                    codec: IPLD_RAW,
+                    value: "abc".into(),
+                },]
+                .into(),
+            },
+            StampedEvent {
+                emitter: actor_id,
+                event: vec![
+                    Entry {
+                        flags: Flags::all(),
+                        key: "bar".to_owned(),
+                        codec: IPLD_RAW,
+                        value: "def".into(),
+                    },
+                    Entry {
+                        flags: Flags::FLAG_INDEXED_KEY | Flags::FLAG_INDEXED_VALUE,
+                        key: "👱".to_string(),
+                        codec: IPLD_RAW,
+                        value: "123456789 abcdefg 123456789".into(),
+                    },
+                ]
+                .into(),
+            },
+        ]
+    );
 
     // Check the events AMT.
     assert!(res.msg_receipt.events_root.is_some());
@@ -126,7 +164,7 @@ fn setup() -> (
 ) {
     // Instantiate tester
     let mut tester = new_tester(
-        NetworkVersion::V18,
+        NetworkVersion::V21,
         StateTreeVersion::V5,
         MemoryBlockstore::default(),
     )

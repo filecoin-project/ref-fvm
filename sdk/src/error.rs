@@ -16,12 +16,10 @@ pub enum StateUpdateError {
 
 #[derive(Copy, Clone, Debug, Error, Eq, PartialEq)]
 pub enum ActorDeleteError {
-    #[error("deletion beneficiary is the current actor")]
-    BeneficiaryIsSelf,
-    #[error("deletion beneficiary does not exist")]
-    BeneficiaryDoesNotExist,
-    #[error("current execution context is read-only")]
+    #[error("cannot self-destruct when read-only")]
     ReadOnly,
+    #[error("actor did not request unspent funds to be burnt")]
+    UnspentFunds,
 }
 
 #[derive(Copy, Clone, Debug, Error, Eq, PartialEq)]

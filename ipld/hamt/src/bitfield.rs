@@ -8,6 +8,9 @@ use byteorder::{BigEndian, ByteOrder};
 use fvm_ipld_encoding::de::{Deserialize, Deserializer};
 use fvm_ipld_encoding::ser::{Serialize, Serializer};
 use fvm_ipld_encoding::strict_bytes;
+use serde::de::Error;
+
+const MAX_LEN: usize = 4 * 8;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct Bitfield([u64; 4]);
@@ -17,7 +20,7 @@ impl Serialize for Bitfield {
     where
         S: Serializer,
     {
-        let mut v = [0u8; 4 * 8];
+        let mut v = [0u8; MAX_LEN];
         // Big endian ordering, to match go
         BigEndian::write_u64(&mut v[..8], self.0[3]);
         BigEndian::write_u64(&mut v[8..16], self.0[2]);
@@ -40,13 +43,16 @@ impl<'de> Deserialize<'de> for Bitfield {
         D: Deserializer<'de>,
     {
         let mut res = Bitfield::zero();
-        let bytes = strict_bytes::ByteBuf::deserialize(deserializer)?.into_vec();
-
-        let mut arr = [0u8; 4 * 8];
-        let len = bytes.len();
-        for (old, new) in bytes.iter().zip(arr[(32 - len)..].iter_mut()) {
-            *new = *old;
+        let strict_bytes::ByteBuf(bytes) = Deserialize::deserialize(deserializer)?;
+        if bytes.len() > MAX_LEN {
+            return Err(Error::invalid_length(
+                bytes.len(),
+                &"bitfield length exceeds maximum",
+            ));
         }
+
+        let mut arr = [0u8; MAX_LEN];
+        arr[MAX_LEN - bytes.len()..].copy_from_slice(&bytes);
         res.0[3] = BigEndian::read_u64(&arr[..8]);
         res.0[2] = BigEndian::read_u64(&arr[8..16]);
         res.0[1] = BigEndian::read_u64(&arr[16..24]);
@@ -63,20 +69,20 @@ impl Default for Bitfield {
 }
 
 impl Bitfield {
-    pub fn clear_bit(&mut self, idx: u32) {
+    pub fn clear_bit(&mut self, idx: u8) {
         let ai = idx / 64;
         let bi = idx % 64;
         self.0[ai as usize] &= u64::MAX - (1 << bi);
     }
 
-    pub fn test_bit(&self, idx: u32) -> bool {
+    pub fn test_bit(&self, idx: u8) -> bool {
         let ai = idx / 64;
         let bi = idx % 64;
 
         self.0[ai as usize] & (1 << bi) != 0
     }
 
-    pub fn set_bit(&mut self, idx: u32) {
+    pub fn set_bit(&mut self, idx: u8) {
         let ai = idx / 64;
         let bi = idx % 64;
 
@@ -100,14 +106,14 @@ impl Bitfield {
         Bitfield([0, 0, 0, 0])
     }
 
-    pub fn set_bits_le(self, bit: u32) -> Self {
+    pub fn set_bits_le(self, bit: u8) -> Self {
         if bit == 0 {
             return self;
         }
         self.set_bits_leq(bit - 1)
     }
 
-    pub fn set_bits_leq(mut self, bit: u32) -> Self {
+    pub fn set_bits_leq(mut self, bit: u8) -> Self {
         if bit < 64 {
             self.0[0] = set_bits_leq(self.0[0], bit);
         } else if bit < 128 {
@@ -129,7 +135,7 @@ impl Bitfield {
 }
 
 #[inline]
-fn set_bits_leq(v: u64, bit: u32) -> u64 {
+fn set_bits_leq(v: u64, bit: u8) -> u64 {
     (v as u128 | ((1u128 << (1 + bit)) - 1)) as u64
 }
 

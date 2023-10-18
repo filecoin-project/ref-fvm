@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## 4.0.0-alpha.4 (2023-09-28)
+
+- Add back some proof types that were mistakenly removed, and fix some of the constants.
+
+## 4.0.0-alpha.3 (2023-09-27)
+
+- Remove support for v1 proofs.
+
+## 4.0.0-alpha.2 (2023-09-21)
+
+- Implement FIP-0071, FIP-0072, FIP-0073, FIP-0075
+
+## 4.0.0-alpha.1 (2023-09-20)
+
+Unreleased. This release simply marks the change-over to v4.
+
+## 3.6.0 (2023-09-06)
+
+- BREAKING: Upgrade the proofs API to v16.
+- BREAKING (linking): upgrade blstrs to v0.7 and
+- BREAKING: update the minimum rust version to 1.70.0
+- Update & trim some dependencies.
+- Add support for the new proofs in v16.
+
 ## 3.5.0 [2023-08-18]
 
 - Add the V21 network version constant

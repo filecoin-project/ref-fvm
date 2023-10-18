@@ -159,9 +159,10 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             assert_eq!(err, ErrorNumber::ReadOnly);
 
             // Should not be able to delete self.
-            let err =
-                sdk::sself::self_destruct(&Address::new_id(sdk::message::origin())).unwrap_err();
-            assert_eq!(err, ActorDeleteError::ReadOnly);
+            assert_eq!(
+                sdk::sself::self_destruct(true).unwrap_err(),
+                ActorDeleteError::ReadOnly
+            );
         }
         4 => {
             assert!(sdk::vm::read_only());

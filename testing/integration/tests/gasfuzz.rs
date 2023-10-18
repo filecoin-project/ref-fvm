@@ -65,12 +65,22 @@ fn gasfuzz_fuzz(charge_points_milligas: Vec<u64>) {
         let gas_lo = (cpm - 500) / 1000;
         let invoke_res =
             testkit::fevm::invoke_contract(&mut tester, &mut account, actor, &[], gas_lo).unwrap();
-        assert_eq!(invoke_res.msg_receipt.exit_code, ExitCode::SYS_OUT_OF_GAS);
+        assert_eq!(
+            invoke_res.msg_receipt.exit_code,
+            ExitCode::SYS_OUT_OF_GAS,
+            "{:?}",
+            invoke_res.failure_info,
+        );
 
         let gas_hi = (cpm + 500) / 1000;
         let invoke_res =
             testkit::fevm::invoke_contract(&mut tester, &mut account, actor, &[], gas_hi).unwrap();
-        assert_eq!(invoke_res.msg_receipt.exit_code, ExitCode::SYS_OUT_OF_GAS);
+        assert_eq!(
+            invoke_res.msg_receipt.exit_code,
+            ExitCode::SYS_OUT_OF_GAS,
+            "{:?}",
+            invoke_res.failure_info
+        );
     }
 }
 
@@ -88,7 +98,11 @@ fn gasfuzz_get_exec_trace() -> ExecutionTrace {
         .unwrap();
 
     let create_res = testkit::fevm::create_contract(&mut tester, &mut account, &contract).unwrap();
-    assert!(create_res.msg_receipt.exit_code.is_success());
+    assert!(
+        create_res.msg_receipt.exit_code.is_success(),
+        "{:?}",
+        create_res.failure_info
+    );
 
     let create_return: testkit::fevm::CreateReturn =
         create_res.msg_receipt.return_data.deserialize().unwrap();
