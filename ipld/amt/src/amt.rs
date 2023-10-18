@@ -1,37 +1,37 @@
 // Copyright 2021-2023 Protocol Labs
 // Copyright 2019-2023 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
-//! In the context of this code, an Array Mapped Trie (AMT) is a data structure 
-//! utilizing an IPLD blockstore that solves the problem of referencing shared 
-//! data without copying an entire array. This implementation is similar to an 
-//! [IPLD vector](https://github.com/ipld/specs/blob/master/data-structures/vector.md) 
-//! but supports internal node compression and therefore sparse arrays. This is 
+//! In the context of this code, an Array Mapped Trie (AMT) is a data structure
+//! utilizing an IPLD blockstore that solves the problem of referencing shared
+//! data without copying an entire array. This implementation is similar to an
+//! [IPLD vector](https://github.com/ipld/specs/blob/master/data-structures/vector.md)
+//! but supports internal node compression and therefore sparse arrays. This is
 //! the Rust implementation of the Go implementation documented [here](https://pkg.go.dev/github.com/filecoin-project/go-amt-ipld/v4#section-readme):
-//! "The AMT algorithm produces a tree-like graph, with a single root node addressing 
-//! a collection of child nodes which connect downward toward leaf nodes which store 
-//! the actual entries. No terminal entries are stored in intermediate elements 
-//! of the tree... We can divide up the AMT tree structure into "levels" or "heights", 
-//! where a height of zero contains the terminal elements, and the maximum height 
-//! of the tree contains the single root node. Intermediate nodes are used to span 
+//! "The AMT algorithm produces a tree-like graph, with a single root node addressing
+//! a collection of child nodes which connect downward toward leaf nodes which store
+//! the actual entries. No terminal entries are stored in intermediate elements
+//! of the tree... We can divide up the AMT tree structure into "levels" or "heights",
+//! where a height of zero contains the terminal elements, and the maximum height
+//! of the tree contains the single root node. Intermediate nodes are used to span
 //! across the range of indexes."
 //!
-//! 
-//! The maximum width for any node in the AMT structure is determined by 
-//! `2 ^ branching_factor`, meaning a node with the default branching factor of 
-//! `3` has a maximum index range of `8` and can therefore be indexed from `0` 
-//! to `(2 ^ 3) - 1 = 7`. The maximum index range for the overall structure is 
-//! determined by both the branching factor and the height of the structure; the 
-//! width of this range is `branching_factor ^ (height + 1)`. The height is specified 
-//! using a bottom-up numbering scheme, with the terminal leaves at a height of 
-//! `0` and the root node at the maximum height. Nodes can be either a `Link` or 
-//! a `Leaf` variant, which are actually a vector of links or a vector of values, 
-//! respectively. Each entry in the `Link` variant's vector may contain a CID or 
-//! a cache which holds a pointer to another `Node`; the pointer's value can only 
-//! be written once. Clearing the value of the cache and updating the CID requires 
+//!
+//! The maximum width for any node in the AMT structure is determined by
+//! `2 ^ branching_factor`, meaning a node with the default branching factor of
+//! `3` has a maximum index range of `8` and can therefore be indexed from `0`
+//! to `(2 ^ 3) - 1 = 7`. The maximum index range for the overall structure is
+//! determined by both the branching factor and the height of the structure; the
+//! width of this range is `branching_factor ^ (height + 1)`. The height is specified
+//! using a bottom-up numbering scheme, with the terminal leaves at a height of
+//! `0` and the root node at the maximum height. Nodes can be either a `Link` or
+//! a `Leaf` variant, which are actually a vector of links or a vector of values,
+//! respectively. Each entry in the `Link` variant's vector may contain a CID or
+//! a cache which holds a pointer to another `Node`; the pointer's value can only
+//! be written once. Clearing the value of the cache and updating the CID requires
 //! flushing, which is discussed in more detail below.
 //!
-//! An example with a single root node that is also a leaf node. This AMT has the 
-//! default branching factor, a height of `0`, and contains a single element at 
+//! An example with a single root node that is also a leaf node. This AMT has the
+//! default branching factor, a height of `0`, and contains a single element at
 //! index `2`.
 //! ```text
 //!                    ____________
@@ -42,8 +42,8 @@
 //!         |None|None|Some|None|None|None|None|None|  <-- value
 //! ```
 //!
-//! A less trivial example is an AMT with a branching factor of `2` and a height 
-//! of `1`. The children nodes are leaf nodes in this example, and the leaves contain 
+//! A less trivial example is an AMT with a branching factor of `2` and a height
+//! of `1`. The children nodes are leaf nodes in this example, and the leaves contain
 //! values at indices `2`, `5`, `8`, and `15`.
 //! ```text
 //!                           ____________
@@ -59,9 +59,9 @@
 //! |None|None|Some|None|  |None|Some|None|None|  |Some|None|None|None|  |None|None|None|Some|  <-- value       
 //! ```
 //!
-//! Extending this example a bit further, let's say we create an empty AMT with 
-//! a branching factor of two using `Amt::new_with_branching_factor` and then 
-//! push a value to index `16` using `.set`. This will cause the AMT to expand 
+//! Extending this example a bit further, let's say we create an empty AMT with
+//! a branching factor of two using `Amt::new_with_branching_factor` and then
+//! push a value to index `16` using `.set`. This will cause the AMT to expand
 //! to a height of `2` with a structure as follows:
 //! ```text
 //!                           ____________
@@ -82,17 +82,17 @@
 //!                     | 16 | 17 | 18 | 19 |
 //!                     |Some|None|None|None|
 //! ```
-//! 
-//! In this example, the child node containing indices 16 to 19 is expanded to show 
-//! detail; other than the value at index 16, all the other child nodes at height 
+//!
+//! In this example, the child node containing indices 16 to 19 is expanded to show
+//! detail; other than the value at index 16, all the other child nodes at height
 //! `0` are functionally identical.
-//! 
-//! Each parent node contains a CID that represents a hash of the children nodes 
-//! (CIDs) or leaves (values) under that node. When adding nodes and/or leaves, 
-//! it would be inefficient to refresh all the parent node CIDs until necessary. 
-//! As a result, modified nodes are identified using the `Dirty` variant of the 
-//! `Link` enum; this way the cache can store the updated node information, and 
-//! the CIDs are only regenerated when the AMT is flushed, which empties the data 
+//!
+//! Each parent node contains a CID that represents a hash of the children nodes
+//! (CIDs) or leaves (values) under that node. When adding nodes and/or leaves,
+//! it would be inefficient to refresh all the parent node CIDs until necessary.
+//! As a result, modified nodes are identified using the `Dirty` variant of the
+//! `Link` enum; this way the cache can store the updated node information, and
+//! the CIDs are only regenerated when the AMT is flushed, which empties the data
 //! in the cache.
 
 use anyhow::anyhow;
