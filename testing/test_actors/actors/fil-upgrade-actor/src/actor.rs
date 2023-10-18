@@ -4,6 +4,8 @@ use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::{to_vec, CBOR};
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::upgrade::UpgradeInfo;
 use serde_tuple::*;
 #[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
@@ -95,6 +97,25 @@ pub fn invoke(_: u32) -> u32 {
             let _ = sdk::actor::upgrade_actor(new_code_cid, params);
             unreachable!("we should never return from a successful upgrade");
         }
+        // test sending a message to ourself (putting us on the call stack)
+        4 => {
+            sdk::send::send(
+                &Address::new_id(10000),
+                5,
+                Default::default(),
+                TokenAmount::from_atto(100),
+                None,
+                Default::default(),
+            )
+            .unwrap();
+        }
+        // test that calling an upgrade with actor already on the call stack fails
+        5 => {
+            let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
+            let res = sdk::actor::upgrade_actor(new_code_cid, None);
+            assert_eq!(res, Err(ErrorNumber::Forbidden));
+        }
+
         other => {
             sdk::vm::abort(
                 fvm_shared::error::ExitCode::FIRST_USER_EXIT_CODE,
