@@ -85,18 +85,6 @@ mod tests {
     use crate::Amt;
     use quickcheck_macros::quickcheck;
 
-    // #[test]
-    // fn foo() {
-    //     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-    //     let mut amt = Amt::new_with_branching_factor(&db, 2);
-    //     //amt.set(8, "foo".to_owned()).unwrap();
-    //     amt.set(16, "bar".to_owned()).unwrap();
-    //     //amt.set(1, "baz".to_owned()).unwrap();
-    //     dbg!(&amt);
-    //     amt.flush().unwrap();
-    //     //dbg!(amt);
-    // }
-
     #[quickcheck]
     fn vary_branching_factor(branching_factor: u32) {
         let branching_factor = branching_factor % 20;

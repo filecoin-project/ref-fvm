@@ -492,7 +492,7 @@ where
         F: FnMut(u64, &V) -> anyhow::Result<()>,
     {
         if let Some(start_at) = start_at {
-            if start_at >= nodes_for_height(self.bit_width(), self.height() + 1) {
+            if start_at >= nodes_for_height(self.branching_factor(), self.height() + 1) {
                 return Ok((0, None));
             }
         }
@@ -531,7 +531,7 @@ where
         F: FnMut(u64, &V) -> anyhow::Result<bool>,
     {
         if let Some(start_at) = start_at {
-            if start_at >= nodes_for_height(self.bit_width(), self.height() + 1) {
+            if start_at >= nodes_for_height(self.branching_factor(), self.height() + 1) {
                 return Ok((0, None));
             }
         }
