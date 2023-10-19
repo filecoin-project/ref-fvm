@@ -17,11 +17,11 @@
 //!
 //!
 //! The maximum width for any node in the AMT structure is determined by
-//! `2 ^ branching_factor`, meaning a node with the default branching factor of
+//! `2 ^ bit_width`, meaning a node with the default branching factor of
 //! `3` has a maximum index range of `8` and can therefore be indexed from `0`
 //! to `(2 ^ 3) - 1 = 7`. The maximum index range for the overall structure is
 //! determined by both the branching factor and the height of the structure; the
-//! width of this range is `branching_factor ^ (height + 1)`. The height is specified
+//! width of this range is `bit_width ^ (height + 1)`. The height is specified
 //! using a bottom-up numbering scheme, with the terminal leaves at a height of
 //! `0` and the root node at the maximum height. Nodes can be either a `Link` or
 //! a `Leaf` variant, which are actually a vector of links or a vector of values,
@@ -60,7 +60,7 @@
 //! ```
 //!
 //! Extending this example a bit further, let's say we create an empty AMT with
-//! a branching factor of two using `Amt::new_with_branching_factor` and then
+//! a branching factor of two using `Amt::new_with_bit_width` and then
 //! push a value to index `16` using `.set`. This will cause the AMT to expand
 //! to a height of `2` with a structure as follows:
 //! ```text
@@ -110,7 +110,7 @@ use crate::node::{CollapsedNode, Link};
 use crate::root::version::{Version as AmtVersion, V0, V3};
 use crate::root::RootImpl;
 use crate::{
-    init_sized_vec, nodes_for_height, Error, Node, DEFAULT_BRANCHING_FACTOR, MAX_HEIGHT, MAX_INDEX,
+    init_sized_vec, nodes_for_height, Error, Node, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
 };
 
 #[derive(Debug)]
@@ -160,20 +160,20 @@ where
 {
     /// Constructor for Root AMT node
     pub fn new(block_store: BS) -> Self {
-        Self::new_with_branching_factor(block_store, DEFAULT_BRANCHING_FACTOR)
+        Self::new_with_bit_width(block_store, DEFAULT_BIT_WIDTH)
     }
 
     /// Construct new Amt with given bit width
-    pub fn new_with_branching_factor(block_store: BS, branching_factor: u32) -> Self {
+    pub fn new_with_bit_width(block_store: BS, bit_width: u32) -> Self {
         Self {
-            root: RootImpl::new_with_branching_factor(branching_factor),
+            root: RootImpl::new_with_bit_width(bit_width),
             block_store,
             flushed_cid: None,
         }
     }
 
-    pub(super) fn branching_factor(&self) -> u32 {
-        self.root.branching_factor
+    pub(super) fn bit_width(&self) -> u32 {
+        self.root.bit_width
     }
 
     /// Gets the height of the `Amt`.
@@ -197,15 +197,15 @@ where
     ///
     /// This can be called with an iterator of _references_ to values to avoid copying.
     pub fn new_from_iter(block_store: BS, vals: impl IntoIterator<Item = V>) -> Result<Cid, Error> {
-        Self::new_from_iter_with_branching_factor(block_store, DEFAULT_BRANCHING_FACTOR, vals)
+        Self::new_from_iter_with_bit_width(block_store, DEFAULT_BIT_WIDTH, vals)
     }
 
     /// Generates an AMT with the requested bitwidth from an array of serializable objects.
     ///
     /// This can be called with an iterator of _references_ to values to avoid copying.
-    pub fn new_from_iter_with_branching_factor(
+    pub fn new_from_iter_with_bit_width(
         block_store: BS,
-        branching_factor: u32,
+        bit_width: u32,
         vals: impl IntoIterator<Item = V>,
     ) -> Result<Cid, Error> {
         #[derive(serde::Serialize)]
@@ -224,7 +224,7 @@ where
             }
         }
 
-        let mut t = AmtImpl::<_, BS, Ver>::new_with_branching_factor(block_store, branching_factor);
+        let mut t = AmtImpl::<_, BS, Ver>::new_with_bit_width(block_store, bit_width);
 
         t.batch_set(vals.into_iter().map(FakeDeserialize))?;
 
@@ -263,13 +263,13 @@ where
             return Err(Error::OutOfRange(i));
         }
 
-        if i >= nodes_for_height(self.branching_factor(), self.height() + 1) {
+        if i >= nodes_for_height(self.bit_width(), self.height() + 1) {
             return Ok(None);
         }
 
         self.root
             .node
-            .get(&self.block_store, self.height(), self.branching_factor(), i)
+            .get(&self.block_store, self.height(), self.bit_width(), i)
     }
 
     /// Set value at index
@@ -278,12 +278,11 @@ where
             return Err(Error::OutOfRange(i));
         }
 
-        while i >= nodes_for_height(self.branching_factor(), self.height() + 1) {
+        while i >= nodes_for_height(self.bit_width(), self.height() + 1) {
             // node at index exists
             if !self.root.node.is_empty() {
                 // Parent node for expansion
-                let mut new_links: Vec<Option<Link<V>>> =
-                    init_sized_vec(self.root.branching_factor);
+                let mut new_links: Vec<Option<Link<V>>> = init_sized_vec(self.root.bit_width);
 
                 // Take root node to be moved down
                 let node = std::mem::replace(&mut self.root.node, Node::empty());
@@ -295,7 +294,7 @@ where
             } else {
                 // If first expansion is before a value inserted, convert base node to Link
                 self.root.node = Node::Link {
-                    links: init_sized_vec(self.branching_factor()),
+                    links: init_sized_vec(self.bit_width()),
                 };
             }
             // Incrememnt height after each iteration
@@ -305,13 +304,7 @@ where
         if self
             .root
             .node
-            .set(
-                &self.block_store,
-                self.height(),
-                self.branching_factor(),
-                i,
-                val,
-            )?
+            .set(&self.block_store, self.height(), self.bit_width(), i, val)?
             .is_none()
         {
             self.root.count += 1;
@@ -339,7 +332,7 @@ where
             return Err(Error::OutOfRange(i));
         }
 
-        if i >= nodes_for_height(self.branching_factor(), self.height() + 1) {
+        if i >= nodes_for_height(self.bit_width(), self.height() + 1) {
             // Index was out of range of current AMT
             return Ok(None);
         }
@@ -348,7 +341,7 @@ where
         let deleted =
             self.root
                 .node
-                .delete(&self.block_store, self.height(), self.branching_factor(), i)?;
+                .delete(&self.block_store, self.height(), self.bit_width(), i)?;
 
         if deleted.is_none() {
             return Ok(None);
@@ -360,7 +353,7 @@ where
         if self.root.node.is_empty() {
             // Last link was removed, replace root with a leaf node and reset height.
             self.root.node = Node::Leaf {
-                vals: init_sized_vec(self.root.branching_factor),
+                vals: init_sized_vec(self.root.bit_width),
             };
             self.root.height = 0;
         } else {
@@ -381,7 +374,7 @@ where
                                 self.block_store
                                     .get_cbor::<CollapsedNode<V>>(cid)?
                                     .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
-                                    .expand(self.root.branching_factor)?
+                                    .expand(self.root.bit_width)?
                             }
                         }
                         _ => unreachable!("First index checked to be Some in `can_collapse`"),
@@ -443,7 +436,7 @@ where
             .for_each_while(
                 &self.block_store,
                 self.height(),
-                self.branching_factor(),
+                self.bit_width(),
                 0,
                 &mut f,
             )
@@ -492,7 +485,7 @@ where
         F: FnMut(u64, &V) -> anyhow::Result<()>,
     {
         if let Some(start_at) = start_at {
-            if start_at >= nodes_for_height(self.branching_factor(), self.height() + 1) {
+            if start_at >= nodes_for_height(self.bit_width(), self.height() + 1) {
                 return Ok((0, None));
             }
         }
@@ -502,7 +495,7 @@ where
             start_at,
             limit,
             self.height(),
-            self.branching_factor(),
+            self.bit_width(),
             0,
             &mut |i, v| {
                 f(i, v)?;
@@ -531,7 +524,7 @@ where
         F: FnMut(u64, &V) -> anyhow::Result<bool>,
     {
         if let Some(start_at) = start_at {
-            if start_at >= nodes_for_height(self.branching_factor(), self.height() + 1) {
+            if start_at >= nodes_for_height(self.bit_width(), self.height() + 1) {
                 return Ok((0, None));
             }
         }
@@ -541,7 +534,7 @@ where
             start_at,
             limit,
             self.height(),
-            self.branching_factor(),
+            self.bit_width(),
             0,
             &mut f,
         )?;
@@ -569,7 +562,7 @@ where
         let (_, did_mutate) = self.root.node.for_each_while_mut(
             &self.block_store,
             self.height(),
-            self.branching_factor(),
+            self.bit_width(),
             0,
             &mut f,
         )?;

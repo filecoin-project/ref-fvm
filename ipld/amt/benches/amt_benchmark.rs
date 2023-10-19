@@ -124,7 +124,8 @@ fn for_each(c: &mut Criterion) {
 
     c.bench_function("AMT for_each function", |b| {
         b.iter(|| {
-            let a: AmtImpl<ByteBuf, &MemoryBlockstore, fvm_ipld_amt::V3> = Amt::load(&cid, &db).unwrap();
+            let a: AmtImpl<ByteBuf, &MemoryBlockstore, fvm_ipld_amt::V3> =
+                Amt::load(&cid, &db).unwrap();
             black_box(a).iter().for_each(|_| ());
         })
     });

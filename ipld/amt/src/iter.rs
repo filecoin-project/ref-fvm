@@ -19,7 +19,7 @@ where
             current_nodes: None,
             stack: vec![&self.root.node],
             blockstore: &self.block_store,
-            branching_factor: self.branching_factor(),
+            bit_width: self.bit_width(),
         }
     }
 }
@@ -86,14 +86,14 @@ mod tests {
     use quickcheck_macros::quickcheck;
 
     #[quickcheck]
-    fn vary_branching_factor(branching_factor: u32) {
-        let branching_factor = branching_factor % 20;
+    fn vary_bit_width(bit_width: u32) {
+        let bit_width = bit_width % 20;
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt: crate::amt::AmtImpl<
             String,
             &fvm_ipld_blockstore::MemoryBlockstore,
             crate::root::version::V3,
-        > = Amt::new_with_branching_factor(&db, branching_factor);
+        > = Amt::new_with_bit_width(&db, bit_width);
         amt.set(0, "foo".to_owned()).unwrap();
         // dbg!(amt);
     }
@@ -107,36 +107,36 @@ mod tests {
     }
 
     #[quickcheck]
-    fn random_set_and_iterate(idx: u64, branching_factor: u32) {
-        // `branching_factor` is only limited due to the test taking too long to run at higher values.
-        let branching_factor = branching_factor % 20;
+    fn random_set_and_iterate(idx: u64, bit_width: u32) {
+        // `bit_width` is only limited due to the test taking too long to run at higher values.
+        let bit_width = bit_width % 20;
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt: crate::amt::AmtImpl<
             String,
             &fvm_ipld_blockstore::MemoryBlockstore,
             crate::root::version::V3,
-        > = Amt::new_with_branching_factor(&db, branching_factor);
-        let idx = match branching_factor {
+        > = Amt::new_with_bit_width(&db, bit_width);
+        let idx = match bit_width {
             0 => 0,
-            _ => idx % u64::pow(branching_factor as u64, (amt.height() + 1) - 1),
+            _ => idx % u64::pow(bit_width as u64, (amt.height() + 1) - 1),
         };
         amt.set(idx, "foo".to_owned()).unwrap();
         assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
     }
 
     #[quickcheck]
-    fn multiple_random_set_and_iterate(idx: u64, branching_factor: u32) {
-        // `branching_factor` is only limited due to the test taking too long to run at higher values.
-        let branching_factor = branching_factor % 20;
+    fn multiple_random_set_and_iterate(idx: u64, bit_width: u32) {
+        // `bit_width` is only limited due to the test taking too long to run at higher values.
+        let bit_width = bit_width % 20;
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt: crate::amt::AmtImpl<
             String,
             &fvm_ipld_blockstore::MemoryBlockstore,
             crate::root::version::V3,
-        > = Amt::new_with_branching_factor(&db, branching_factor);
-        let mut idx = match branching_factor {
+        > = Amt::new_with_bit_width(&db, bit_width);
+        let mut idx = match bit_width {
             0 => 0,
-            _ => idx % u64::pow(branching_factor as u64, (amt.height() + 1) - 1),
+            _ => idx % u64::pow(bit_width as u64, (amt.height() + 1) - 1),
         };
         while idx > 0 {
             idx -= 1;
@@ -156,7 +156,7 @@ pub struct Iter<'a, V, BS> {
     current_nodes: Option<std::iter::Flatten<std::slice::Iter<'a, Option<V>>>>,
     stack: Vec<&'a Node<V>>,
     blockstore: BS,
-    branching_factor: u32,
+    bit_width: u32,
 }
 
 impl<'a, V, BS> Iterator for Iter<'a, V, BS>
@@ -174,7 +174,7 @@ where
                             self.blockstore
                                 .get_cbor::<CollapsedNode<V>>(cid)?
                                 .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
-                                .expand(self.branching_factor)
+                                .expand(self.bit_width)
                                 .map(Box::new)
                         }) {
                             // failed to load from blockstore

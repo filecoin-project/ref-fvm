@@ -21,10 +21,10 @@ pub use self::diff::{diff, Change, ChangeType};
 pub use self::error::Error;
 pub use self::iter::Iter;
 pub(crate) use self::node::Node;
-pub use self::value_mut::ValueMut;
 pub use self::root::version::V3;
+pub use self::value_mut::ValueMut;
 
-const DEFAULT_BRANCHING_FACTOR: u32 = 3;
+const DEFAULT_BIT_WIDTH: u32 = 3;
 const MAX_HEIGHT: u32 = 64;
 
 /// MaxIndex is the maximum index for elements in the AMT. This u64::MAX-1 so we

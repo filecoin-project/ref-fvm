@@ -21,11 +21,11 @@ impl Arbitrary for BitWidth2to18 {
 }
 
 #[quickcheck]
-fn test_simple_equals(BitWidth2to18(branching_factor): BitWidth2to18) -> Result<()> {
+fn test_simple_equals(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     let prev_store = MemoryBlockstore::new();
     let curr_store = MemoryBlockstore::new();
-    let mut a: Amt<String, _> = Amt::new_with_branching_factor(prev_store, branching_factor);
-    let mut b: Amt<String, _> = Amt::new_with_branching_factor(curr_store, branching_factor);
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
 
     let changes = diff(&a, &b)?;
     ensure!(changes.is_empty());
@@ -42,11 +42,11 @@ fn test_simple_equals(BitWidth2to18(branching_factor): BitWidth2to18) -> Result<
 }
 
 #[quickcheck]
-fn test_simple_add(BitWidth2to18(branching_factor): BitWidth2to18) -> Result<()> {
+fn test_simple_add(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     let prev_store = MemoryBlockstore::new();
     let curr_store = MemoryBlockstore::new();
-    let mut a: Amt<String, _> = Amt::new_with_branching_factor(prev_store, branching_factor);
-    let mut b: Amt<String, _> = Amt::new_with_branching_factor(curr_store, branching_factor);
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
     a.set(2, "foo".into())?;
     a.flush()?;
     b.set(2, "foo".into())?;
@@ -68,11 +68,11 @@ fn test_simple_add(BitWidth2to18(branching_factor): BitWidth2to18) -> Result<()>
 }
 
 #[quickcheck]
-fn test_simple_remove(BitWidth2to18(branching_factor): BitWidth2to18) -> Result<()> {
+fn test_simple_remove(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     let prev_store = MemoryBlockstore::new();
     let curr_store = MemoryBlockstore::new();
-    let mut a: Amt<String, _> = Amt::new_with_branching_factor(prev_store, branching_factor);
-    let mut b: Amt<String, _> = Amt::new_with_branching_factor(curr_store, branching_factor);
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
     a.set(2, "foo".into())?;
     a.set(5, "bar".into())?;
     a.flush()?;
@@ -94,11 +94,11 @@ fn test_simple_remove(BitWidth2to18(branching_factor): BitWidth2to18) -> Result<
 }
 
 #[quickcheck]
-fn test_simple_modify(BitWidth2to18(branching_factor): BitWidth2to18) -> Result<()> {
+fn test_simple_modify(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     let prev_store = MemoryBlockstore::new();
     let curr_store = MemoryBlockstore::new();
-    let mut a: Amt<String, _> = Amt::new_with_branching_factor(prev_store, branching_factor);
-    let mut b: Amt<String, _> = Amt::new_with_branching_factor(curr_store, branching_factor);
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
     a.set(2, "foo".into())?;
     a.flush()?;
     b.set(2, "bar".into())?;
@@ -119,11 +119,11 @@ fn test_simple_modify(BitWidth2to18(branching_factor): BitWidth2to18) -> Result<
 }
 
 #[quickcheck]
-fn test_large_modify(BitWidth2to18(branching_factor): BitWidth2to18) -> Result<()> {
+fn test_large_modify(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     let prev_store = MemoryBlockstore::new();
     let curr_store = MemoryBlockstore::new();
-    let mut a: Amt<String, _> = Amt::new_with_branching_factor(prev_store, branching_factor);
-    let mut b: Amt<String, _> = Amt::new_with_branching_factor(curr_store, branching_factor);
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
     for i in 0..100 {
         a.set(i, format!("foo{i}"))?;
     }
@@ -155,11 +155,11 @@ fn test_large_modify(BitWidth2to18(branching_factor): BitWidth2to18) -> Result<(
 }
 
 #[quickcheck]
-fn test_large_additions(BitWidth2to18(branching_factor): BitWidth2to18) -> Result<()> {
+fn test_large_additions(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
     let prev_store = MemoryBlockstore::new();
     let curr_store = MemoryBlockstore::new();
-    let mut a: Amt<String, _> = Amt::new_with_branching_factor(prev_store, branching_factor);
-    let mut b: Amt<String, _> = Amt::new_with_branching_factor(curr_store, branching_factor);
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
     for i in 0..100 {
         a.set(i, format!("foo{i}"))?;
         b.set(i, format!("foo{i}"))?;
@@ -189,14 +189,14 @@ fn test_large_additions(BitWidth2to18(branching_factor): BitWidth2to18) -> Resul
 
 #[quickcheck]
 fn test_big_diff(
-    BitWidth2to18(branching_factor): BitWidth2to18,
+    BitWidth2to18(bit_width): BitWidth2to18,
     flush_a: bool,
     flush_b: bool,
 ) -> Result<()> {
     let prev_store = MemoryBlockstore::new();
     let curr_store = MemoryBlockstore::new();
-    let mut a: Amt<String, _> = Amt::new_with_branching_factor(prev_store, branching_factor);
-    let mut b: Amt<String, _> = Amt::new_with_branching_factor(curr_store, branching_factor);
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
     for i in 0..100 {
         a.set(i, format!("foo{i}"))?;
     }
@@ -272,12 +272,12 @@ fn test_big_diff(
 
 #[quickcheck]
 fn test_diff_empty_state_with_non_empty_state(
-    BitWidth2to18(branching_factor): BitWidth2to18,
+    BitWidth2to18(bit_width): BitWidth2to18,
 ) -> Result<()> {
     let prev_store = MemoryBlockstore::new();
     let curr_store = MemoryBlockstore::new();
-    let mut a: Amt<String, _> = Amt::new_with_branching_factor(prev_store, branching_factor);
-    let mut b: Amt<String, _> = Amt::new_with_branching_factor(curr_store, branching_factor);
+    let mut a: Amt<String, _> = Amt::new_with_bit_width(prev_store, bit_width);
+    let mut b: Amt<String, _> = Amt::new_with_bit_width(curr_store, bit_width);
 
     a.set(2, "foo".into())?;
     a.flush()?;
