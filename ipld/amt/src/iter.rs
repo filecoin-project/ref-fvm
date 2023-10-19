@@ -79,78 +79,6 @@ where
     }
 }
 
-// TODO(aatifsyed): is this guaranteed to be acyclic?
-#[cfg(test)]
-mod tests {
-    use crate::Amt;
-    use quickcheck_macros::quickcheck;
-
-    #[quickcheck]
-    fn vary_bit_width(bit_width: u32) {
-        let bit_width = bit_width % 20;
-        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-        let mut amt: crate::amt::AmtImpl<
-            String,
-            &fvm_ipld_blockstore::MemoryBlockstore,
-            crate::root::version::V3,
-        > = Amt::new_with_bit_width(&db, bit_width);
-        amt.set(0, "foo".to_owned()).unwrap();
-        // dbg!(amt);
-    }
-
-    #[quickcheck]
-    fn set_and_iterate() {
-        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-        let mut amt = Amt::new(&db);
-        amt.set(8, "foo".to_owned()).unwrap();
-        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
-    }
-
-    #[quickcheck]
-    fn random_set_and_iterate(idx: u64, bit_width: u32) {
-        // `bit_width` is only limited due to the test taking too long to run at higher values.
-        let bit_width = bit_width % 20;
-        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-        let mut amt: crate::amt::AmtImpl<
-            String,
-            &fvm_ipld_blockstore::MemoryBlockstore,
-            crate::root::version::V3,
-        > = Amt::new_with_bit_width(&db, bit_width);
-        let idx = match bit_width {
-            0 => 0,
-            _ => idx % u64::pow(bit_width as u64, (amt.height() + 1) - 1),
-        };
-        amt.set(idx, "foo".to_owned()).unwrap();
-        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
-    }
-
-    #[quickcheck]
-    fn multiple_random_set_and_iterate(idx: u64, bit_width: u32) {
-        // `bit_width` is only limited due to the test taking too long to run at higher values.
-        let bit_width = bit_width % 20;
-        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-        let mut amt: crate::amt::AmtImpl<
-            String,
-            &fvm_ipld_blockstore::MemoryBlockstore,
-            crate::root::version::V3,
-        > = Amt::new_with_bit_width(&db, bit_width);
-        let mut idx = match bit_width {
-            0 => 0,
-            _ => idx % u64::pow(bit_width as u64, (amt.height() + 1) - 1),
-        };
-        while idx > 0 {
-            idx -= 1;
-            amt.set(idx, "foo".to_owned() + &idx.to_string()).unwrap();
-        }
-        for item in amt.iter().enumerate() {
-            assert_eq!(
-                item.1.unwrap().to_owned(),
-                "foo".to_owned() + &item.0.to_string()
-            );
-        }
-    }
-}
-
 pub struct Iter<'a, V, BS> {
     current_links: Option<std::iter::Flatten<std::slice::Iter<'a, Option<Link<V>>>>>,
     current_nodes: Option<std::iter::Flatten<std::slice::Iter<'a, Option<V>>>>,
@@ -202,6 +130,78 @@ where
                 // all done!
                 None => return None,
             }
+        }
+    }
+}
+
+// TODO(aatifsyed): is this guaranteed to be acyclic?
+#[cfg(test)]
+mod tests {
+    use crate::Amt;
+    use quickcheck_macros::quickcheck;
+
+    #[quickcheck]
+    fn vary_bit_width(bit_width: u32) {
+        // `bit_width` is only limited due to the test taking too long to run at higher values.
+        let bit_width = bit_width % 20;
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt: crate::amt::AmtImpl<
+            String,
+            &fvm_ipld_blockstore::MemoryBlockstore,
+            crate::root::version::V3,
+        > = Amt::new_with_bit_width(&db, bit_width);
+        amt.set(0, "foo".to_owned()).unwrap();
+    }
+
+    #[quickcheck]
+    fn set_and_iterate() {
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt = Amt::new(&db);
+        amt.set(8, "foo".to_owned()).unwrap();
+        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+    }
+
+    #[quickcheck]
+    fn random_set_and_iterate(idx: u64, bit_width: u32) {
+        // `bit_width` is only limited due to the test taking too long to run at higher values.
+        let bit_width = bit_width % 20;
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt: crate::amt::AmtImpl<
+            String,
+            &fvm_ipld_blockstore::MemoryBlockstore,
+            crate::root::version::V3,
+        > = Amt::new_with_bit_width(&db, bit_width);
+        let idx = match bit_width {
+            0 => 0,
+            _ => idx % u64::pow(bit_width as u64, (amt.height() + 1) - 1),
+        };
+        amt.set(idx, "foo".to_owned()).unwrap();
+        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+    }
+
+    #[quickcheck]
+    fn multiple_random_set_and_iterate(idx: u64, bit_width: u32) {
+        // `bit_width` is only limited due to the test taking too long to run at higher values.
+        let bit_width = bit_width % 20;
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt: crate::amt::AmtImpl<
+            String,
+            &fvm_ipld_blockstore::MemoryBlockstore,
+            crate::root::version::V3,
+        > = Amt::new_with_bit_width(&db, bit_width);
+        let mut idx = match bit_width {
+            0 => 0,
+            _ => idx % u64::pow(bit_width as u64, (amt.height() + 1) - 1),
+        };
+        while idx > 0 {
+            idx -= 1;
+            amt.set(idx, "foo".to_owned() + &idx.to_string()).unwrap();
+        }
+        for item in amt.iter().enumerate() {
+            assert_eq!(
+                item.1.unwrap().to_owned(),
+                "foo".to_owned() + &item.0.to_string()
+            );
         }
     }
 }

@@ -605,19 +605,19 @@ fn tbytes(bz: &[u8]) -> BytesDe {
     BytesDe(bz.to_vec())
 }
 
-// #[test]
-// fn new_from_iter() {
-//     let mem = MemoryBlockstore::default();
-//     let data: Vec<String> = (0..1000).map(|i| format!("thing{i}")).collect();
-//     let k = Amt::<&str, _>::new_from_iter(&mem, data.iter().map(|s| &**s)).unwrap();
+#[test]
+fn new_from_iter() {
+    let mem = MemoryBlockstore::default();
+    let data: Vec<String> = (0..1000).map(|i| format!("thing{i}")).collect();
+    let k = Amt::<&str, _>::new_from_iter(&mem, data.iter().map(|s| &**s)).unwrap();
 
-//     let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
-//     let mut restored = Vec::new();
-//     a.for_each(|k, v| {
-//         restored.push((k as usize, v.clone()));
-//         Ok(())
-//     })
-//     .unwrap();
-//     let expected: Vec<_> = data.into_iter().enumerate().collect();
-//     assert_eq!(expected, restored);
-// }
+    let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
+    let mut restored = Vec::new();
+    a.for_each(|k, v| {
+        restored.push((k as usize, v.clone()));
+        Ok(())
+    })
+    .unwrap();
+    let expected: Vec<_> = data.into_iter().enumerate().collect();
+    assert_eq!(expected, restored);
+}
