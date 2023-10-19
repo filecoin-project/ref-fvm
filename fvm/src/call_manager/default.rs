@@ -14,7 +14,6 @@ use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, METHOD_SEND};
 use num_traits::Zero;
-use std::collections::HashMap;
 
 use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
 use super::{Backtrace, CallManager, Entrypoint, InvocationResult, NO_DATA_BLOCK_ID};
@@ -76,8 +75,8 @@ pub struct InnerDefaultCallManager<M: Machine> {
     limits: M::Limiter,
     /// Accumulator for events emitted in this call stack.
     events: EventsAccumulator,
-    /// A map of ActorID and how often they appear on the call stack.
-    actor_call_stack: HashMap<ActorID, i32>,
+    /// The actor call stack (ActorID and entrypoint name tuple).
+    actor_call_stack: Vec<(ActorID, &'static str)>,
 }
 
 #[doc(hidden)]
@@ -162,7 +161,7 @@ where
             limits,
             events: Default::default(),
             state_access_tracker,
-            actor_call_stack: HashMap::new(),
+            actor_call_stack: vec![],
         })))
     }
 
@@ -331,12 +330,16 @@ where
         self.nonce
     }
 
-    fn get_actor_call_stack(&self) -> &HashMap<ActorID, i32> {
+    fn get_actor_call_stack(&self) -> &Vec<(ActorID, &'static str)> {
         &self.actor_call_stack
     }
 
-    fn get_actor_call_stack_mut(&mut self) -> &mut HashMap<ActorID, i32> {
-        &mut self.actor_call_stack
+    fn actor_call_stack_push(&mut self, actor_id: ActorID, entrypoint: &Entrypoint) {
+        self.actor_call_stack
+            .push((actor_id, entrypoint.func_name()))
+    }
+    fn actor_call_stack_pop(&mut self) -> Option<(ActorID, &'static str)> {
+        self.actor_call_stack.pop()
     }
 
     fn next_actor_address(&self) -> Address {
@@ -639,7 +642,11 @@ where
             },
         };
 
-        self.send_resolved::<K>(from, to, entrypoint, params, value, read_only)
+        self.actor_call_stack_push(to, &entrypoint);
+        let res = self.send_resolved::<K>(from, to, entrypoint, params, value, read_only);
+        self.actor_call_stack_pop();
+
+        res
     }
 
     /// Send with resolved addresses.

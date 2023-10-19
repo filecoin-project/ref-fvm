@@ -7,7 +7,6 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{ActorID, MethodNum};
-use std::collections::HashMap;
 
 use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
@@ -120,8 +119,14 @@ pub trait CallManager: 'static {
         delegated_address: Option<Address>,
     ) -> Result<()>;
 
-    fn get_actor_call_stack(&self) -> &HashMap<ActorID, i32>;
-    fn get_actor_call_stack_mut(&mut self) -> &mut HashMap<ActorID, i32>;
+    // returns the actor call stack
+    fn get_actor_call_stack(&self) -> &Vec<(ActorID, &'static str)>;
+
+    /// add an actor to the calling stack.
+    fn actor_call_stack_push(&mut self, actor_id: ActorID, entrypoint: &Entrypoint);
+
+    /// pop an actor from the calling stack.
+    fn actor_call_stack_pop(&mut self) -> Option<(ActorID, &'static str)>;
 
     /// Resolve an address into an actor ID, charging gas as appropriate.
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
@@ -210,6 +215,9 @@ pub enum Entrypoint {
     Upgrade(UpgradeInfo),
 }
 
+pub static INVOKE_FUNC_NAME: &str = "invoke";
+pub static UPGRADE_FUNC_NAME: &str = "upgrade";
+
 impl std::fmt::Display for Entrypoint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -229,8 +237,8 @@ impl Entrypoint {
 
     fn func_name(&self) -> &'static str {
         match self {
-            Entrypoint::Invoke(_) => "invoke",
-            Entrypoint::Upgrade(_) => "upgrade",
+            Entrypoint::Invoke(_) => INVOKE_FUNC_NAME,
+            Entrypoint::Upgrade(_) => UPGRADE_FUNC_NAME,
         }
     }
 

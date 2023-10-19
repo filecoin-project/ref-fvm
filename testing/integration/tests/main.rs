@@ -1189,7 +1189,7 @@ fn upgrade_actor_test() {
             .unwrap();
 
         let val: i64 = res.msg_receipt.return_data.deserialize().unwrap();
-        assert_eq!(val, 444);
+        assert_eq!(val, 444, "{:?}", res.failure_info);
 
         assert!(
             res.msg_receipt.exit_code.is_success(),

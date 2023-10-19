@@ -303,8 +303,8 @@ where
         self.0.upgrade_actor::<Self>(new_code_cid, params_id)
     }
 
-    fn is_actor_on_call_stack(&self) -> bool {
-        self.0.is_actor_on_call_stack()
+    fn can_actor_upgrade(&self) -> bool {
+        self.0.can_actor_upgrade()
     }
 }
 

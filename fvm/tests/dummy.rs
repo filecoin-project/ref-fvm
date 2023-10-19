@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use anyhow::Context;
@@ -359,11 +358,15 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
-    fn get_actor_call_stack(&self) -> &HashMap<ActorID, i32> {
+    fn get_actor_call_stack(&self) -> &Vec<(ActorID, &'static str)> {
         todo!()
     }
 
-    fn get_actor_call_stack_mut(&mut self) -> &mut HashMap<ActorID, i32> {
+    fn actor_call_stack_push(&mut self, _actor_id: ActorID, _entrypoint: &Entrypoint) {
+        todo!()
+    }
+
+    fn actor_call_stack_pop(&mut self) -> Option<(ActorID, &'static str)> {
         todo!()
     }
 

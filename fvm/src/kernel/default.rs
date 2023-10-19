@@ -30,7 +30,10 @@ use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::hash::SupportedHashes;
 use super::*;
-use crate::call_manager::{CallManager, Entrypoint, InvocationResult, NO_DATA_BLOCK_ID};
+use crate::call_manager::{
+    CallManager, Entrypoint, InvocationResult, INVOKE_FUNC_NAME, NO_DATA_BLOCK_ID,
+    UPGRADE_FUNC_NAME,
+};
 use crate::externs::{Chain, Consensus, Rand};
 use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
@@ -136,12 +139,6 @@ where
         if self.blocks.is_full() {
             return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
         }
-
-        self.call_manager
-            .get_actor_call_stack_mut()
-            .entry(self.actor_id)
-            .and_modify(|count| *count += 1)
-            .or_insert(1);
 
         // Send.
         let result = self.call_manager.with_transaction(|cm| {
@@ -879,12 +876,24 @@ where
             .create_actor(code_id, actor_id, delegated_address)
     }
 
-    fn is_actor_on_call_stack(&self) -> bool {
-        self.call_manager
-            .get_actor_call_stack()
-            .get(&self.actor_id)
-            .map(|count| *count > 0)
-            .unwrap_or(false)
+    fn can_actor_upgrade(&self) -> bool {
+        let mut iter = self.call_manager.get_actor_call_stack().iter();
+
+        // find the first position of this actor on the call stack
+        let position = iter.position(|&tuple| tuple == (self.actor_id, INVOKE_FUNC_NAME));
+        if position.is_none() {
+            return true;
+        }
+
+        // make sure that no other actor appears on the call stack after 'position' (unless its
+        // a recursive upgrade call which is allowed)
+        for tuple in iter {
+            if tuple.0 != self.actor_id || tuple.1 != UPGRADE_FUNC_NAME {
+                return false;
+            }
+        }
+
+        true
     }
 
     fn upgrade_actor<K: Kernel>(
