@@ -330,16 +330,8 @@ where
         self.nonce
     }
 
-    fn get_actor_call_stack(&self) -> &Vec<(ActorID, &'static str)> {
+    fn get_actor_call_stack(&self) -> &[(ActorID, &'static str)] {
         &self.actor_call_stack
-    }
-
-    fn actor_call_stack_push(&mut self, actor_id: ActorID, entrypoint: &Entrypoint) {
-        self.actor_call_stack
-            .push((actor_id, entrypoint.func_name()))
-    }
-    fn actor_call_stack_pop(&mut self) -> Option<(ActorID, &'static str)> {
-        self.actor_call_stack.pop()
     }
 
     fn next_actor_address(&self) -> Address {
@@ -642,9 +634,9 @@ where
             },
         };
 
-        self.actor_call_stack_push(to, &entrypoint);
+        self.actor_call_stack.push((to, entrypoint.func_name()));
         let res = self.send_resolved::<K>(from, to, entrypoint, params, value, read_only);
-        self.actor_call_stack_pop();
+        self.actor_call_stack.pop();
 
         res
     }

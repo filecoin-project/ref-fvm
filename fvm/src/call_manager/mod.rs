@@ -120,13 +120,7 @@ pub trait CallManager: 'static {
     ) -> Result<()>;
 
     // returns the actor call stack
-    fn get_actor_call_stack(&self) -> &Vec<(ActorID, &'static str)>;
-
-    /// add an actor to the calling stack.
-    fn actor_call_stack_push(&mut self, actor_id: ActorID, entrypoint: &Entrypoint);
-
-    /// pop an actor from the calling stack.
-    fn actor_call_stack_pop(&mut self) -> Option<(ActorID, &'static str)>;
+    fn get_actor_call_stack(&self) -> &[(ActorID, &'static str)];
 
     /// Resolve an address into an actor ID, charging gas as appropriate.
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;

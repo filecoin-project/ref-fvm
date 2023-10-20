@@ -358,15 +358,7 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
-    fn get_actor_call_stack(&self) -> &Vec<(ActorID, &'static str)> {
-        todo!()
-    }
-
-    fn actor_call_stack_push(&mut self, _actor_id: ActorID, _entrypoint: &Entrypoint) {
-        todo!()
-    }
-
-    fn actor_call_stack_pop(&mut self) -> Option<(ActorID, &'static str)> {
+    fn get_actor_call_stack(&self) -> &[(ActorID, &'static str)] {
         todo!()
     }
 
