@@ -31,7 +31,7 @@ where
     BS: Blockstore,
 {
     type IntoIter = Iter<'a, V, &'a BS>;
-    type Item = anyhow::Result<&'a V>;
+    type Item = Result<&'a V, crate::Error>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
@@ -92,7 +92,7 @@ where
     BS: Blockstore,
     V: DeserializeOwned,
 {
-    type Item = anyhow::Result<&'a V>;
+    type Item = Result<&'a V, crate::Error>;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some(link) = self.current_links.as_mut().and_then(Iterator::next) {
