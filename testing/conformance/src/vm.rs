@@ -241,7 +241,7 @@ where
         value: &TokenAmount,
         gas_limit: Option<Gas>,
         flags: SendFlags,
-    ) -> Result<SendResult> {
+    ) -> Result<CallResult> {
         // Note that KK, the type of the kernel to crate for the receiving actor, is ignored,
         // and Self is passed as the type parameter for the nested call.
         // If we could find the correct bound to specify KK for the call, we would.
@@ -299,7 +299,7 @@ where
         self.0.lookup_delegated_address(actor_id)
     }
 
-    fn upgrade_actor<KK>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<SendResult> {
+    fn upgrade_actor<KK>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
         self.0.upgrade_actor::<Self>(new_code_cid, params_id)
     }
 }

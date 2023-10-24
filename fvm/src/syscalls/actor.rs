@@ -6,7 +6,7 @@ use fvm_shared::{sys, ActorID};
 use super::bind::ControlFlow;
 use super::error::Abort;
 use super::Context;
-use crate::kernel::{ClassifyResult, Result, SendResult};
+use crate::kernel::{CallResult, ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
 
 pub fn resolve_address(
@@ -122,7 +122,7 @@ pub fn upgrade_actor<K: Kernel>(
     };
 
     match context.kernel.upgrade_actor::<K>(cid, params_id) {
-        Ok(SendResult {
+        Ok(CallResult {
             block_id,
             block_stat,
             exit_code,

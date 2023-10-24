@@ -120,7 +120,7 @@ where
         value: &TokenAmount,
         gas_limit: Option<Gas>,
         flags: SendFlags,
-    ) -> Result<SendResult> {
+    ) -> Result<CallResult> {
         let from = self.actor_id;
         let read_only = self.read_only || flags.read_only();
 
@@ -169,7 +169,7 @@ where
                     .put_reachable(blk)
                     .or_fatal()
                     .context("failed to store a valid return value")?;
-                SendResult {
+                CallResult {
                     block_id,
                     block_stat,
                     exit_code,
@@ -178,7 +178,7 @@ where
             InvocationResult {
                 exit_code,
                 value: None,
-            } => SendResult {
+            } => CallResult {
                 block_id: NO_DATA_BLOCK_ID,
                 block_stat: BlockStat { codec: 0, size: 0 },
                 exit_code,
@@ -880,7 +880,7 @@ where
         &mut self,
         new_code_cid: Cid,
         params_id: BlockId,
-    ) -> Result<SendResult> {
+    ) -> Result<CallResult> {
         if self.read_only {
             return Err(
                 syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),
@@ -973,7 +973,7 @@ where
                     None => (BlockStat { codec: 0, size: 0 }, NO_DATA_BLOCK_ID),
                     Some(block) => (block.stat(), self.blocks.put_reachable(block)?),
                 };
-                Ok(SendResult {
+                Ok(CallResult {
                     block_id,
                     block_stat,
                     exit_code,
