@@ -49,6 +49,8 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
     ) -> anyhow::Result<&mut Self>;
 }
 
+/// ControlFlow is a general-purpose enum allowing us to pass syscall error up the
+/// stack to the actor and treat error handling there (decide when to abort, etc).
 pub enum ControlFlow<T> {
     Return(T),
     Error(SyscallError),

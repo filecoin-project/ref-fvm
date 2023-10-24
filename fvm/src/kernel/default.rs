@@ -923,7 +923,7 @@ where
 
             let state = cm
                 .get_actor(self.actor_id)?
-                .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?;
+                .ok_or_else(|| syscall_error!(IllegalOperation; "actor deleted"))?;
 
             // store the code cid of the calling actor before running the upgrade entrypoint
             // in case it was changed (which could happen if the target upgrade entrypoint

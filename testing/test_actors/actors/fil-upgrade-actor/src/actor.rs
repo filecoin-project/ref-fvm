@@ -101,7 +101,7 @@ pub fn invoke(_: u32) -> u32 {
         4 => {
             sdk::send::send(
                 &Address::new_id(10000),
-                5,
+                99,
                 Default::default(),
                 TokenAmount::from_atto(100),
                 None,
@@ -109,8 +109,15 @@ pub fn invoke(_: u32) -> u32 {
             )
             .unwrap();
         }
-        // test that calling an upgrade with actor already on the call stack fails
+        // test that calling an upgrade after self destruct fails with IllegalOperation
         5 => {
+            let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
+            sdk::sself::self_destruct(true).unwrap();
+            let res = sdk::actor::upgrade_actor(&new_code_cid, None);
+            assert_eq!(res, Err(ErrorNumber::IllegalOperation));
+        }
+        // test that calling an upgrade with actor already on the call stack fails
+        99 => {
             let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
             let res = sdk::actor::upgrade_actor(&new_code_cid, None);
             assert_eq!(res, Err(ErrorNumber::Forbidden));

@@ -1115,7 +1115,7 @@ fn upgrade_actor_test() {
     )
     .unwrap();
 
-    let sender: [Account; 4] = tester.create_accounts().unwrap();
+    let sender: [Account; 5] = tester.create_accounts().unwrap();
     let receiver = Address::new_id(10000);
     let state_cid = tester.set_state(&[(); 0]).unwrap();
 
@@ -1127,37 +1127,53 @@ fn upgrade_actor_test() {
 
     let executor = tester.executor.as_mut().unwrap();
 
-    {
-        // test a successful call to `upgrade` endpoint
-        let message = Message {
-            from: sender[0].1,
-            to: receiver,
-            gas_limit: 1000000000,
-            method_num: 1,
-            sequence: 0_u64,
-            value: TokenAmount::from_atto(100),
-            ..Message::default()
-        };
-
-        let res = executor
-            .execute_message(message, ApplyKind::Explicit, 100)
-            .unwrap();
-        assert!(
-            res.msg_receipt.exit_code.is_success(),
-            "{:?}",
-            res.failure_info
-        );
-        let val: i64 = res.msg_receipt.return_data.deserialize().unwrap();
-        assert_eq!(val, 666);
+    struct Case {
+        from: Address,
+        method_num: u64,
+        return_data: Option<i64>,
     }
 
-    {
-        // test that when `upgrade` endpoint rejects upgrade that we get the returned exit code
+    let cases = {
+        [
+            // test that successful calls to `upgrade_actor` does not return
+            Case {
+                from: sender[0].1,
+                method_num: 1,
+                return_data: Some(666),
+            },
+            // test that when `upgrade` endpoint rejects upgrade that we get the returned exit code
+            Case {
+                from: sender[1].1,
+                method_num: 2,
+                return_data: None,
+            },
+            // test recursive update
+            Case {
+                from: sender[2].1,
+                method_num: 3,
+                return_data: Some(444),
+            },
+            // test sending a message to ourself (putting us on the call stack)
+            Case {
+                from: sender[3].1,
+                method_num: 4,
+                return_data: None,
+            },
+            // test that calling an upgrade after self destruct fails with IllegalOperation
+            Case {
+                from: sender[4].1,
+                method_num: 5,
+                return_data: None,
+            },
+        ]
+    };
+
+    for case in cases.into_iter() {
         let message = Message {
-            from: sender[1].1,
+            from: case.from,
             to: receiver,
             gas_limit: 1000000000,
-            method_num: 2,
+            method_num: case.method_num,
             sequence: 0_u64,
             value: TokenAmount::from_atto(100),
             ..Message::default()
@@ -1172,55 +1188,11 @@ fn upgrade_actor_test() {
             "{:?}",
             res.failure_info
         );
-    }
 
-    {
-        // test recursive update
-        let message = Message {
-            from: sender[2].1,
-            to: receiver,
-            gas_limit: 1000000000,
-            method_num: 3,
-            sequence: 0_u64,
-            value: TokenAmount::from_atto(100),
-            ..Message::default()
-        };
-
-        let res = executor
-            .execute_message(message, ApplyKind::Explicit, 100)
-            .unwrap();
-
-        let val: i64 = res.msg_receipt.return_data.deserialize().unwrap();
-        assert_eq!(val, 444, "{:?}", res.failure_info);
-
-        assert!(
-            res.msg_receipt.exit_code.is_success(),
-            "{:?}",
-            res.failure_info
-        );
-    }
-
-    {
-        // test sending a message to ourself (putting us on the call stack)
-        let message = Message {
-            from: sender[3].1,
-            to: receiver,
-            gas_limit: 1000000000,
-            method_num: 4,
-            sequence: 0_u64,
-            value: TokenAmount::from_atto(100),
-            ..Message::default()
-        };
-
-        let res = executor
-            .execute_message(message, ApplyKind::Explicit, 100)
-            .unwrap();
-
-        assert!(
-            res.msg_receipt.exit_code.is_success(),
-            "{:?}",
-            res.failure_info
-        );
+        if let Some(return_data) = case.return_data {
+            let val: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+            assert_eq!(val, return_data);
+        }
     }
 }
 
