@@ -876,26 +876,6 @@ where
             .create_actor(code_id, actor_id, delegated_address)
     }
 
-    fn can_actor_upgrade(&self) -> bool {
-        let mut iter = self.call_manager.get_actor_call_stack().iter();
-
-        // find the first position of this actor on the call stack
-        let position = iter.position(|&tuple| tuple == (self.actor_id, INVOKE_FUNC_NAME));
-        if position.is_none() {
-            return true;
-        }
-
-        // make sure that no other actor appears on the call stack after 'position' (unless its
-        // a recursive upgrade call which is allowed)
-        for tuple in iter {
-            if tuple.0 != self.actor_id || tuple.1 != UPGRADE_FUNC_NAME {
-                return false;
-            }
-        }
-
-        true
-    }
-
     fn upgrade_actor<K: Kernel>(
         &mut self,
         new_code_cid: Cid,
@@ -905,6 +885,25 @@ where
             return Err(
                 syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),
             );
+        }
+
+        // check if this actor is already on the call stack
+        //
+        // We first find the first position of this actor on the call stack, and then make sure that
+        // no other actor appears on the call stack after 'position' (unless its a recursive upgrade
+        // call which is allowed)
+        let mut iter = self.call_manager.get_call_stack().iter();
+        let position = iter.position(|&tuple| tuple == (self.actor_id, INVOKE_FUNC_NAME));
+        if position.is_some() {
+            for tuple in iter {
+                if tuple.0 != self.actor_id || tuple.1 != UPGRADE_FUNC_NAME {
+                    return Err(syscall_error!(
+                        Forbidden,
+                        "calling upgrade on actor already on call stack is forbidden"
+                    )
+                    .into());
+                }
+            }
         }
 
         // Load parameters.

@@ -121,13 +121,6 @@ pub fn upgrade_actor<K: Kernel>(
         Err(err) => return err.into(),
     };
 
-    if !context.kernel.can_actor_upgrade() {
-        return ControlFlow::Error(syscall_error!(
-            Forbidden;
-            "calling upgrade on actor already on call stack is forbidden"
-        ));
-    };
-
     match context.kernel.upgrade_actor::<K>(cid, params_id) {
         Ok(SendResult {
             block_id,

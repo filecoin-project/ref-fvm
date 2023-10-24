@@ -302,10 +302,6 @@ where
     fn upgrade_actor<KK>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<SendResult> {
         self.0.upgrade_actor::<Self>(new_code_cid, params_id)
     }
-
-    fn can_actor_upgrade(&self) -> bool {
-        self.0.can_actor_upgrade()
-    }
 }
 
 impl<M, C, K> IpldBlockOps for TestKernel<K>

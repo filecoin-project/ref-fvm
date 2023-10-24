@@ -215,8 +215,6 @@ pub trait ActorOps {
         params_id: BlockId,
     ) -> Result<SendResult>;
 
-    fn can_actor_upgrade(&self) -> bool;
-
     /// Installs actor code pointed by cid
     #[cfg(feature = "m2-native")]
     fn install_actor(&mut self, code_cid: Cid) -> Result<()>;

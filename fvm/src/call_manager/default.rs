@@ -140,7 +140,7 @@ where
         // different matter.
         //
         // NOTE: Technically, we should be _caching_ the existence of the receiver, so we can skip
-        // this step on `send` and create the target actor immediately. By not doing that, we're not
+        // this step on `call_actor` and create the target actor immediately. By not doing that, we're not
         // being perfectly efficient and are technically under-charging gas. HOWEVER, this behavior
         // cannot be triggered by an actor on-chain, so it's not a concern (for now).
         state_access_tracker.record_lookup_address(&receiver_address);
@@ -203,7 +203,7 @@ where
         }
 
         let mut result = self.with_stack_frame(|s| {
-            s.send_unchecked::<K>(from, to, entrypoint, params, value, read_only)
+            s.call_actor_unchecked::<K>(from, to, entrypoint, params, value, read_only)
         });
 
         // If we pushed a limit, pop it.
@@ -330,7 +330,7 @@ where
         self.nonce
     }
 
-    fn get_actor_call_stack(&self) -> &[(ActorID, &'static str)] {
+    fn get_call_stack(&self) -> &[(ActorID, &'static str)] {
         &self.actor_call_stack
     }
 
@@ -574,7 +574,7 @@ where
             syscall_error!(IllegalArgument; "failed to serialize params: {}", e)
         })?;
 
-        self.send_resolved::<K>(
+        self.call_actor_resolved::<K>(
             system_actor::SYSTEM_ACTOR_ID,
             id,
             Entrypoint::Invoke(fvm_shared::METHOD_CONSTRUCTOR),
@@ -594,9 +594,9 @@ where
         self.create_actor_from_send(addr, state)
     }
 
-    /// Send without checking the call depth and/or dealing with transactions. This must _only_ be
-    /// called from `send`.
-    fn send_unchecked<K>(
+    /// Call actor without checking the call depth and/or dealing with transactions. This must _only_ be
+    /// called from `call_actor`.
+    fn call_actor_unchecked<K>(
         &mut self,
         from: ActorID,
         to: Address,
@@ -635,14 +635,14 @@ where
         };
 
         self.actor_call_stack.push((to, entrypoint.func_name()));
-        let res = self.send_resolved::<K>(from, to, entrypoint, params, value, read_only);
+        let res = self.call_actor_resolved::<K>(from, to, entrypoint, params, value, read_only);
         self.actor_call_stack.pop();
 
         res
     }
 
-    /// Send with resolved addresses.
-    fn send_resolved<K>(
+    /// Call actor with resolved addresses.
+    fn call_actor_resolved<K>(
         &mut self,
         from: ActorID,
         to: ActorID,
@@ -787,19 +787,28 @@ where
             let last_error = invocation_data.last_error;
             let (mut cm, block_registry) = invocation_data.kernel.into_inner();
 
+            // Resolve the return block's ID into an actual block, converting to an abort if it
+            // doesn't exist.
+            let result = result.and_then(|ret_id| {
+                Ok(if ret_id == NO_DATA_BLOCK_ID {
+                    None
+                } else {
+                    Some(block_registry.get(ret_id).map_err(|_| {
+                        Abort::Exit(
+                            ExitCode::SYS_MISSING_RETURN,
+                            String::from("returned block does not exist"),
+                            NO_DATA_BLOCK_ID,
+                        )
+                    })?)
+                })
+            });
+
             // Process the result, updating the backtrace if necessary.
             let mut ret = match result {
-                Ok(NO_DATA_BLOCK_ID) => Ok(InvocationResult {
+                Ok(ret) => Ok(InvocationResult {
                     exit_code: ExitCode::OK,
-                    value: None,
+                    value: ret.cloned(),
                 }),
-                Ok(block_id) => match block_registry.get(block_id) {
-                    Ok(blk) => Ok(InvocationResult {
-                        exit_code: ExitCode::OK,
-                        value: Some(blk.clone()),
-                    }),
-                    Err(e) => Err(ExecutionError::Fatal(anyhow!(e))),
-                },
                 Err(abort) => {
                     let (code, message, res) = match abort {
                         Abort::Exit(code, message, NO_DATA_BLOCK_ID) => (
@@ -811,6 +820,11 @@ where
                             }),
                         ),
                         Abort::Exit(code, message, blk_id) => match block_registry.get(blk_id) {
+                            Err(e) => (
+                                ExitCode::SYS_MISSING_RETURN,
+                                "error getting exit data block".to_owned(),
+                                Err(ExecutionError::Fatal(anyhow!(e))),
+                            ),
                             Ok(blk) => (
                                 code,
                                 message,
@@ -818,11 +832,6 @@ where
                                     exit_code: code,
                                     value: Some(blk.clone()),
                                 }),
-                            ),
-                            Err(e) => (
-                                ExitCode::SYS_MISSING_RETURN,
-                                "error getting exit data block".to_owned(),
-                                Err(ExecutionError::Fatal(anyhow!(e))),
                             ),
                         },
                         Abort::OutOfGas => (

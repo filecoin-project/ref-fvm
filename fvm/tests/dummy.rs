@@ -358,7 +358,7 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
-    fn get_actor_call_stack(&self) -> &[(ActorID, &'static str)] {
+    fn get_call_stack(&self) -> &[(ActorID, &'static str)] {
         todo!()
     }
 

@@ -1152,6 +1152,7 @@ fn upgrade_actor_test() {
     }
 
     {
+        // test that when `upgrade` endpoint rejects upgrade that we get the returned exit code
         let message = Message {
             from: sender[1].1,
             to: receiver,
@@ -1174,6 +1175,7 @@ fn upgrade_actor_test() {
     }
 
     {
+        // test recursive update
         let message = Message {
             from: sender[2].1,
             to: receiver,
@@ -1199,6 +1201,7 @@ fn upgrade_actor_test() {
     }
 
     {
+        // test sending a message to ourself (putting us on the call stack)
         let message = Message {
             from: sender[3].1,
             to: receiver,

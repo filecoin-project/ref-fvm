@@ -35,13 +35,13 @@ pub const NO_DATA_BLOCK_ID: u32 = 0;
 ///
 /// 1. The [`crate::executor::Executor`] creates a [`CallManager`] for that message, giving itself
 ///    to the [`CallManager`].
-/// 2. The [`crate::executor::Executor`] calls the specified actor/method using
-///    [`CallManager::send()`].
+/// 2. The [`crate::executor::Executor`] calls the specified actor/entrypoint using
+///    [`CallManager::call_actor()`].
 /// 3. The [`CallManager`] then constructs a [`Kernel`] and executes the actual actor code on that
 ///    kernel.
 /// 4. If an actor calls another actor, the [`Kernel`] will:
 ///    1. Detach the [`CallManager`] from itself.
-///    2. Call [`CallManager::send()`] to execute the new message.
+///    2. Call [`CallManager::call_actor()`] to execute the new message.
 ///    3. Re-attach the [`CallManager`].
 ///    4. Return.
 pub trait CallManager: 'static {
@@ -62,7 +62,7 @@ pub trait CallManager: 'static {
         gas_premium: TokenAmount,
     ) -> Self;
 
-    /// Send a message. The type parameter `K` specifies the the _kernel_ on top of which the target
+    /// Calls an actor at the given address and entrypoint. The type parameter `K` specifies the the _kernel_ on top of which the target
     /// actor should execute.
     #[allow(clippy::too_many_arguments)]
     fn call_actor<K: Kernel<CallManager = Self>>(
@@ -76,7 +76,7 @@ pub trait CallManager: 'static {
         read_only: bool,
     ) -> Result<InvocationResult>;
 
-    /// Execute some operation (usually a send) within a transaction.
+    /// Execute some operation (usually a call_actor) within a transaction.
     fn with_transaction(
         &mut self,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
@@ -120,7 +120,7 @@ pub trait CallManager: 'static {
     ) -> Result<()>;
 
     // returns the actor call stack
-    fn get_actor_call_stack(&self) -> &[(ActorID, &'static str)];
+    fn get_call_stack(&self) -> &[(ActorID, &'static str)];
 
     /// Resolve an address into an actor ID, charging gas as appropriate.
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
@@ -176,7 +176,7 @@ pub trait CallManager: 'static {
     fn append_event(&mut self, evt: StampedEvent);
 }
 
-/// The result of a method invocation.
+/// The result of calling actor's entrypoint
 #[derive(Clone, Debug)]
 pub struct InvocationResult {
     /// The exit code (0 for success).
@@ -212,6 +212,8 @@ pub enum Entrypoint {
 pub static INVOKE_FUNC_NAME: &str = "invoke";
 pub static UPGRADE_FUNC_NAME: &str = "upgrade";
 
+const METHOD_UPGRADE: MethodNum = 932083;
+
 impl std::fmt::Display for Entrypoint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -225,7 +227,7 @@ impl Entrypoint {
     fn method_num(&self) -> MethodNum {
         match self {
             Entrypoint::Invoke(num) => *num,
-            Entrypoint::Upgrade(_) => fvm_shared::METHOD_UPGRADE,
+            Entrypoint::Upgrade(_) => METHOD_UPGRADE,
         }
     }
 
