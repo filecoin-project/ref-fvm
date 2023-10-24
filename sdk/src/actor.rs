@@ -108,7 +108,7 @@ pub fn create_actor(
 }
 
 /// Upgrades an actor using the given block which includes the old code cid and the upgrade params
-pub fn upgrade_actor(new_code_cid: Cid, params: Option<IpldBlock>) -> SyscallResult<Response> {
+pub fn upgrade_actor(new_code_cid: &Cid, params: Option<IpldBlock>) -> SyscallResult<Response> {
     unsafe {
         let cid = new_code_cid.to_bytes();
 

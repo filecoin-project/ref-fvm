@@ -50,7 +50,7 @@ pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
             sdk::debug::log("[upgrade] params:3, calling upgrade within an upgrade".to_string());
             let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
             let params = IpldBlock::serialize_cbor(&SomeStruct { value: 4 }).unwrap();
-            let _ = sdk::actor::upgrade_actor(new_code_cid, params);
+            let _ = sdk::actor::upgrade_actor(&new_code_cid, params);
             unreachable!("we should never return from a successful upgrade");
         }
         4 => {
@@ -76,14 +76,14 @@ pub fn invoke(_: u32) -> u32 {
         1 => {
             let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
             let params = IpldBlock::serialize_cbor(&SomeStruct { value: 1 }).unwrap();
-            let _ = sdk::actor::upgrade_actor(new_code_cid, params);
+            let _ = sdk::actor::upgrade_actor(&new_code_cid, params);
             unreachable!("we should never return from a successful upgrade");
         }
         // test that when `upgrade` endpoint rejects upgrade that we get the returned exit code
         2 => {
             let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
             let params = IpldBlock::serialize_cbor(&SomeStruct { value: 2 }).unwrap();
-            let res = sdk::actor::upgrade_actor(new_code_cid, params).unwrap();
+            let res = sdk::actor::upgrade_actor(&new_code_cid, params).unwrap();
             assert_eq!(
                 UPGRADE_FAILED_EXIT_CODE,
                 res.exit_code.value(),
@@ -94,7 +94,7 @@ pub fn invoke(_: u32) -> u32 {
         3 => {
             let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
             let params = IpldBlock::serialize_cbor(&SomeStruct { value: 3 }).unwrap();
-            let _ = sdk::actor::upgrade_actor(new_code_cid, params);
+            let _ = sdk::actor::upgrade_actor(&new_code_cid, params);
             unreachable!("we should never return from a successful upgrade");
         }
         // test sending a message to ourself (putting us on the call stack)
@@ -112,7 +112,7 @@ pub fn invoke(_: u32) -> u32 {
         // test that calling an upgrade with actor already on the call stack fails
         5 => {
             let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
-            let res = sdk::actor::upgrade_actor(new_code_cid, None);
+            let res = sdk::actor::upgrade_actor(&new_code_cid, None);
             assert_eq!(res, Err(ErrorNumber::Forbidden));
         }
 
