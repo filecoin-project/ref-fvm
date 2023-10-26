@@ -7,8 +7,9 @@ use std::rc::Rc;
 use anyhow::anyhow;
 use cid::Cid;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
+use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
-use fvm_integration_tests::tester::{Account, IntegrationExecutor};
+use fvm_integration_tests::tester::{Account, IntegrationExecutor, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::RawBytes;
@@ -19,8 +20,10 @@ use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_test_actors::wasm_bin::{
-    CREATE_ACTOR_BINARY, EXIT_DATA_ACTOR_BINARY, HELLO_WORLD_ACTOR_BINARY, IPLD_ACTOR_BINARY,
-    OOM_ACTOR_BINARY, SSELF_ACTOR_BINARY, STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY,
+    ADDRESS_ACTOR_BINARY, CREATE_ACTOR_BINARY, EXIT_DATA_ACTOR_BINARY, HELLO_WORLD_ACTOR_BINARY,
+    IPLD_ACTOR_BINARY, OOM_ACTOR_BINARY, READONLY_ACTOR_BINARY, SSELF_ACTOR_BINARY,
+    STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY, UPGRADE_ACTOR_BINARY,
+    UPGRADE_RECEIVE_ACTOR_BINARY,
 };
 use num_traits::Zero;
 
@@ -1000,6 +1003,261 @@ fn test_oom4() {
         .unwrap();
 
     assert_eq!(res.msg_receipt.exit_code, ExitCode::SYS_ILLEGAL_INSTRUCTION);
+}
+
+#[test]
+fn basic_address_tests() {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V21,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let [(_sender_id, sender_address)] = tester.create_accounts().unwrap();
+
+    let wasm_bin = ADDRESS_ACTOR_BINARY;
+
+    // Set actor state
+    let actor_state = [(); 0];
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    let executor = tester.executor.as_mut().unwrap();
+
+    // Test all methods.
+    for (seq, method) in (2..=5).enumerate() {
+        let message = Message {
+            from: sender_address,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: method,
+            sequence: seq as u64,
+            ..Message::default()
+        };
+
+        let res = executor
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+        assert!(
+            res.msg_receipt.exit_code.is_success(),
+            "{:?}",
+            res.failure_info
+        );
+    }
+}
+
+#[test]
+fn readonly_actor_tests() {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V21,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let [(_sender_id, sender_address)] = tester.create_accounts().unwrap();
+
+    let wasm_bin = READONLY_ACTOR_BINARY;
+
+    // Set actor state
+    let actor_state = [(); 0];
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    let executor = tester.executor.as_mut().unwrap();
+
+    let message = Message {
+        from: sender_address,
+        to: actor_address,
+        gas_limit: 1000000000,
+        method_num: 2,
+        sequence: 0,
+        value: TokenAmount::from_atto(100),
+        ..Message::default()
+    };
+
+    let res = executor
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+    assert!(
+        res.msg_receipt.exit_code.is_success(),
+        "{:?}",
+        res.failure_info
+    );
+    assert!(res.msg_receipt.events_root.is_none());
+}
+
+#[test]
+fn upgrade_actor_test() {
+    // inline function to calculate cid from address
+    let calc_cid_func = |bytes: &[u8]| -> Cid {
+        fvm_ipld_blockstore::Block {
+            codec: fvm_shared::IPLD_RAW,
+            data: bytes,
+        }
+        .cid(multihash::Code::Blake2b256)
+    };
+
+    let receiver = Address::new_id(10000);
+    let receiver2 = Address::new_id(10001);
+    let receiver3 = Address::new_id(10002);
+
+    // inline function to reset the tester framework so we can have clean slate between test cases
+    let init_tester = || -> (Tester<MemoryBlockstore, DummyExterns>, [Account; 1]) {
+        let mut tester = new_tester(
+            NetworkVersion::V21,
+            StateTreeVersion::V5,
+            MemoryBlockstore::default(),
+        )
+        .unwrap();
+
+        let sender: [Account; 1] = tester.create_accounts().unwrap();
+
+        let state_cid = tester.set_state(&[(); 0]).unwrap();
+
+        // UPGRADE_ACTOR_BINARY is our main actor where we will do the upgrade tests
+        tester
+            .set_actor_from_bin(
+                UPGRADE_ACTOR_BINARY,
+                state_cid,
+                receiver,
+                TokenAmount::zero(),
+            )
+            .unwrap();
+
+        // UPGRADE_RECEIVE_ACTOR_BINARY is another actor to test recursive upgrade calls
+        tester
+            .set_actor_from_bin(
+                UPGRADE_RECEIVE_ACTOR_BINARY,
+                state_cid,
+                receiver2,
+                TokenAmount::zero(),
+            )
+            .unwrap();
+
+        // lets have a third actor that will reject the upgrade (since it does not have
+        // an upgrade entrypoint)
+        tester
+            .set_actor_from_bin(
+                HELLO_WORLD_ACTOR_BINARY,
+                state_cid,
+                receiver3,
+                TokenAmount::zero(),
+            )
+            .unwrap();
+
+        tester.instantiate_machine(DummyExterns).unwrap();
+
+        (tester, sender)
+    };
+
+    struct Case {
+        // the method inside invoke
+        method_num: u64,
+        // if set, this is the expected receipt data
+        return_data: Option<i64>,
+        // if set, this is the expected code cid after the upgrade
+        expected_cid: Option<Cid>,
+    }
+
+    let cases = {
+        [
+            // test that successful calls to `upgrade_actor` does not return and that the
+            // code cid is updated to the UPGRADE_RECEIVE_ACTOR_BINARY)
+            Case {
+                method_num: 1,
+                return_data: Some(666),
+                expected_cid: Some(calc_cid_func(UPGRADE_RECEIVE_ACTOR_BINARY)),
+            },
+            // test that when `upgrade` endpoint rejects upgrade that we get the returned exit code
+            Case {
+                method_num: 2,
+                return_data: None,
+                expected_cid: None,
+            },
+            // test recursive update
+            Case {
+                method_num: 3,
+                return_data: Some(444),
+                expected_cid: Some(calc_cid_func(UPGRADE_RECEIVE_ACTOR_BINARY)),
+            },
+            // test sending a message to ourself (putting us on the call stack)
+            Case {
+                method_num: 4,
+                return_data: None,
+                expected_cid: None,
+            },
+            // test that calling an upgrade after self destruct fails with IllegalOperation
+            Case {
+                method_num: 5,
+                return_data: None,
+                expected_cid: None,
+            },
+        ]
+    };
+
+    for case in cases.into_iter() {
+        let (mut tester, sender) = init_tester();
+        let executor = tester.executor.as_mut().unwrap();
+
+        let message = Message {
+            from: sender[0].1,
+            to: receiver,
+            gas_limit: 1000000000,
+            method_num: case.method_num,
+            sequence: 0_u64,
+            value: TokenAmount::from_atto(100),
+            ..Message::default()
+        };
+
+        let res = executor
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        assert!(
+            res.msg_receipt.exit_code.is_success(),
+            "{:?}",
+            res.failure_info
+        );
+
+        // if this test case should return some data, check that it did
+        if let Some(return_data) = case.return_data {
+            let val: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+            assert_eq!(val, return_data);
+        }
+
+        // if this test case should have changed the code cid, check that it did
+        if let Some(expected_cid) = case.expected_cid {
+            let code = executor
+                .state_tree()
+                .get_actor(receiver.id().unwrap())
+                .unwrap()
+                .unwrap()
+                .code;
+            assert_eq!(code, expected_cid);
+        }
+    }
 }
 
 #[derive(Default)]

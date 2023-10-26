@@ -54,16 +54,6 @@ impl ExecutionError {
             OutOfGas | Syscall(_) => false,
         }
     }
-
-    /// Returns true if an actor can catch the error. All errors except fatal and out of gas errors
-    /// are recoverable.
-    pub fn is_recoverable(&self) -> bool {
-        use ExecutionError::*;
-        match self {
-            OutOfGas | Fatal(_) => false,
-            Syscall(_) => true,
-        }
-    }
 }
 
 // NOTE: this is the _only_ from impl we provide. Otherwise, we expect the user to explicitly

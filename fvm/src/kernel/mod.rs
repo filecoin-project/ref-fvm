@@ -38,7 +38,7 @@ use crate::gas::{Gas, GasTimer, PriceList};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
 
-pub struct SendResult {
+pub struct CallResult {
     pub block_id: BlockId,
     pub block_stat: BlockStat,
     pub exit_code: ExitCode,
@@ -112,7 +112,7 @@ pub trait Kernel:
         value: &TokenAmount,
         gas_limit: Option<Gas>,
         flags: SendFlags,
-    ) -> Result<SendResult>;
+    ) -> Result<CallResult>;
 }
 
 /// Network-related operations.
@@ -208,6 +208,12 @@ pub trait ActorOps {
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()>;
+
+    fn upgrade_actor<K: Kernel>(
+        &mut self,
+        new_code_cid: Cid,
+        params_id: BlockId,
+    ) -> Result<CallResult>;
 
     /// Installs actor code pointed by cid
     #[cfg(feature = "m2-native")]

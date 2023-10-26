@@ -31,6 +31,8 @@ const ACTORS: &[(&str, &str)] = &[
     ("CREATE_ACTOR_BINARY", "fil_create_actor"),
     ("OOM_ACTOR_BINARY", "fil_oom_actor"),
     ("SSELF_ACTOR_BINARY", "fil_sself_actor"),
+    ("UPGRADE_ACTOR_BINARY", "fil_upgrade_actor"),
+    ("UPGRADE_RECEIVE_ACTOR_BINARY", "fil_upgrade_receive_actor"),
 ];
 
 const WASM_TARGET: &str = "wasm32-unknown-unknown";

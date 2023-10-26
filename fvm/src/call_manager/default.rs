@@ -12,11 +12,11 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
 use fvm_shared::event::StampedEvent;
 use fvm_shared::sys::BlockId;
-use fvm_shared::{ActorID, MethodNum, METHOD_SEND};
+use fvm_shared::{ActorID, METHOD_SEND};
 use num_traits::Zero;
 
 use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
-use super::{Backtrace, CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use super::{Backtrace, CallManager, Entrypoint, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::blockstore::DiscardBlockstore;
 use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
@@ -75,6 +75,8 @@ pub struct InnerDefaultCallManager<M: Machine> {
     limits: M::Limiter,
     /// Accumulator for events emitted in this call stack.
     events: EventsAccumulator,
+    /// The actor call stack (ActorID and entrypoint name tuple).
+    actor_call_stack: Vec<(ActorID, &'static str)>,
 }
 
 #[doc(hidden)]
@@ -138,7 +140,7 @@ where
         // different matter.
         //
         // NOTE: Technically, we should be _caching_ the existence of the receiver, so we can skip
-        // this step on `send` and create the target actor immediately. By not doing that, we're not
+        // this step on `call_actor` and create the target actor immediately. By not doing that, we're not
         // being perfectly efficient and are technically under-charging gas. HOWEVER, this behavior
         // cannot be triggered by an actor on-chain, so it's not a concern (for now).
         state_access_tracker.record_lookup_address(&receiver_address);
@@ -159,6 +161,7 @@ where
             limits,
             events: Default::default(),
             state_access_tracker,
+            actor_call_stack: vec![],
         })))
     }
 
@@ -166,11 +169,11 @@ where
         &mut self.limits
     }
 
-    fn send<K>(
+    fn call_actor<K>(
         &mut self,
         from: ActorID,
         to: Address,
-        method: MethodNum,
+        entrypoint: Entrypoint,
         params: Option<Block>,
         value: &TokenAmount,
         gas_limit: Option<Gas>,
@@ -183,7 +186,7 @@ where
             self.trace(ExecutionEvent::Call {
                 from,
                 to,
-                method,
+                entrypoint,
                 params: params.as_ref().map(Into::into),
                 value: value.clone(),
                 gas_limit: std::cmp::min(
@@ -199,44 +202,13 @@ where
             self.gas_tracker.push_limit(limit);
         }
 
-        if self.call_stack_depth >= self.machine.context().max_call_depth {
-            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
-            if self.machine.context().tracing {
-                self.trace(ExecutionEvent::CallError(sys_err.clone()));
-            }
-            return Err(sys_err.into());
-        }
+        let mut result = self.with_stack_frame(|s| {
+            s.call_actor_unchecked::<K>(from, to, entrypoint, params, value, read_only)
+        });
 
-        self.state_tree_mut().begin_transaction();
-        self.events.begin_transaction();
-        self.state_access_tracker.begin_transaction();
-        self.call_stack_depth += 1;
-
-        let (revert, mut result) = match <<Self::Machine as Machine>::Limiter>::with_stack_frame(
-            self,
-            |s| s.limiter_mut(),
-            |s| s.send_unchecked::<K>(from, to, method, params, value, read_only),
-        ) {
-            Ok(v) => (!v.exit_code.is_success(), Ok(v)),
-            Err(e) => (true, Err(e)),
-        };
-
-        self.call_stack_depth -= 1;
-        // Return the _first_ error (if any). We don't expect any errors here anyways as all error
-        // cases are fatal.
-        if let Some(err) = [
-            // End all transactions
-            self.state_access_tracker.end_transaction(revert).err(),
-            self.events.end_transaction(revert).err(),
-            self.state_tree_mut().end_transaction(revert).err(),
-            // If we pushed a gas limit, pop it.
-            gas_limit.and_then(|_| self.gas_tracker.pop_limit().err()),
-        ]
-        .into_iter()
-        .flatten() // Iterator<Option<Error>> -> Iterator<Error>
-        .next()
-        {
-            return Err(err);
+        // If we pushed a limit, pop it.
+        if gas_limit.is_some() {
+            self.gas_tracker.pop_limit()?;
         }
 
         // If we're not out of gas but the error is "out of gas" (e.g., due to a gas limit), replace
@@ -266,6 +238,26 @@ where
         }
 
         result
+    }
+
+    fn with_transaction(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
+    ) -> Result<InvocationResult> {
+        self.state_tree_mut().begin_transaction();
+        self.events.begin_transaction();
+        self.state_access_tracker.begin_transaction();
+
+        let (revert, res) = match f(self) {
+            Ok(v) => (!v.exit_code.is_success(), Ok(v)),
+            Err(e) => (true, Err(e)),
+        };
+
+        self.state_tree_mut().end_transaction(revert)?;
+        self.events.end_transaction(revert)?;
+        self.state_access_tracker.end_transaction(revert)?;
+
+        res
     }
 
     fn finish(mut self) -> (Result<FinishRet>, Self::Machine) {
@@ -336,6 +328,10 @@ where
 
     fn nonce(&self) -> u64 {
         self.nonce
+    }
+
+    fn get_call_stack(&self) -> &[(ActorID, &'static str)] {
+        &self.actor_call_stack
     }
 
     fn next_actor_address(&self) -> Address {
@@ -578,10 +574,10 @@ where
             syscall_error!(IllegalArgument; "failed to serialize params: {}", e)
         })?;
 
-        self.send_resolved::<K>(
+        self.call_actor_resolved::<K>(
             system_actor::SYSTEM_ACTOR_ID,
             id,
-            fvm_shared::METHOD_CONSTRUCTOR,
+            Entrypoint::Invoke(fvm_shared::METHOD_CONSTRUCTOR),
             Some(Block::new(CBOR, params, Vec::new())),
             &TokenAmount::zero(),
             false,
@@ -598,13 +594,13 @@ where
         self.create_actor_from_send(addr, state)
     }
 
-    /// Send without checking the call depth and/or dealing with transactions. This must _only_ be
-    /// called from `send`.
-    fn send_unchecked<K>(
+    /// Call actor without checking the call depth and/or dealing with transactions. This must _only_ be
+    /// called from `call_actor`.
+    fn call_actor_unchecked<K>(
         &mut self,
         from: ActorID,
         to: Address,
-        method: MethodNum,
+        entrypoint: Entrypoint,
         params: Option<Block>,
         value: &TokenAmount,
         read_only: bool,
@@ -638,15 +634,19 @@ where
             },
         };
 
-        self.send_resolved::<K>(from, to, method, params, value, read_only)
+        self.actor_call_stack.push((to, entrypoint.func_name()));
+        let res = self.call_actor_resolved::<K>(from, to, entrypoint, params, value, read_only);
+        self.actor_call_stack.pop();
+
+        res
     }
 
-    /// Send with resolved addresses.
-    fn send_resolved<K>(
+    /// Call actor with resolved addresses.
+    fn call_actor_resolved<K>(
         &mut self,
         from: ActorID,
         to: ActorID,
-        method: MethodNum,
+        entrypoint: Entrypoint,
         params: Option<Block>,
         value: &TokenAmount,
         read_only: bool,
@@ -671,7 +671,7 @@ where
         }
 
         // Abort early if we have a send.
-        if method == METHOD_SEND {
+        if entrypoint.invokes(METHOD_SEND) {
             log::trace!("sent {} -> {}: {}", from, to, &value);
             return Ok(InvocationResult::default());
         }
@@ -694,6 +694,10 @@ where
             NO_DATA_BLOCK_ID
         };
 
+        // additional_params takes care of adding entrypoint specific params to the block
+        // registry and passing them to wasmtime
+        let additional_params = entrypoint.into_params(&mut block_registry)?;
+
         // Increment invocation count
         self.invocation_count += 1;
 
@@ -707,7 +711,7 @@ where
                 |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
             )?;
 
-        log::trace!("calling {} -> {}::{}", from, to, method);
+        log::trace!("calling {} -> {}::{}", from, to, entrypoint);
         self.map_mut(|cm| {
             let engine = cm.engine.clone(); // reference the RC.
 
@@ -717,7 +721,7 @@ where
                 block_registry,
                 from,
                 to,
-                method,
+                entrypoint.method_num(),
                 value.clone(),
                 read_only,
             );
@@ -727,9 +731,10 @@ where
 
             // From this point on, there are no more syscall errors, only aborts.
             let result: std::result::Result<BlockId, Abort> = (|| {
+                let code = &state.code;
                 // Instantiate the module.
                 let instance = engine
-                    .instantiate(&mut store, &state.code)?
+                    .instantiate(&mut store, code)?
                     .context("actor not found")
                     .map_err(Abort::Fatal)?;
 
@@ -741,18 +746,26 @@ where
 
                 store.data_mut().memory = memory;
 
-                // Lookup the invoke method.
-                let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
-                    .get_typed_func(&mut store, "invoke")
-                    // All actors will have an invoke method.
-                    .map_err(Abort::Fatal)?;
+                let func = match instance.get_func(&mut store, entrypoint.func_name()) {
+                    Some(func) => func,
+                    None => {
+                        return Err(Abort::Exit(
+                            ExitCode::SYS_INVALID_RECEIVER,
+                            format!("cannot upgrade to {code}"),
+                            0,
+                        ));
+                    }
+                };
+
+                let mut params = vec![wasmtime::Val::I32(params_id as i32)];
+                params.extend_from_slice(additional_params.as_slice());
 
                 // Set the available gas.
                 update_gas_available(&mut store)?;
 
-                // Invoke it.
+                let mut out = [wasmtime::Val::I32(0)];
                 let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    invoke.call(&mut store, (params_id,))
+                    func.call(&mut store, params.as_slice(), &mut out)
                 }))
                 .map_err(|panic| Abort::Fatal(anyhow!("panic within actor: {:?}", panic)))?;
 
@@ -764,7 +777,10 @@ where
                 // detected it and returned OutOfGas above. Any other invocation failure is returned
                 // here as an Abort
 
-                Ok(res?)
+                match res {
+                    Ok(_) => Ok(out[0].unwrap_i32() as u32),
+                    Err(e) => Err(e.into()),
+                }
             })();
 
             let invocation_data = store.into_data();
@@ -837,7 +853,7 @@ where
 
                         cm.backtrace.push_frame(Frame {
                             source: to,
-                            method,
+                            entrypoint,
                             message,
                             code,
                         });
@@ -872,11 +888,11 @@ where
                     Ok(val) => log::trace!(
                         "returning {}::{} -> {} ({})",
                         to,
-                        method,
+                        entrypoint,
                         from,
                         val.exit_code
                     ),
-                    Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, method, from, e),
+                    Err(e) => log::trace!("failing {}::{} -> {} (err:{})", to, entrypoint, from, e),
                 }
             }
 
@@ -893,6 +909,31 @@ where
         F: FnOnce(Self) -> (T, Self),
     {
         replace_with::replace_with_and_return(self, || DefaultCallManager(None), f)
+    }
+
+    /// Check that we're not violating the call stack depth, then envelope a call
+    /// with an increase/decrease of the depth to make sure none of them are missed.
+    fn with_stack_frame<F, V>(&mut self, f: F) -> Result<V>
+    where
+        F: FnOnce(&mut Self) -> Result<V>,
+    {
+        if self.call_stack_depth >= self.machine.context().max_call_depth {
+            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
+            if self.machine.context().tracing {
+                self.trace(ExecutionEvent::CallError(sys_err.clone()));
+            }
+            return Err(sys_err.into());
+        }
+
+        self.call_stack_depth += 1;
+        let res =
+        <<<DefaultCallManager<M> as CallManager>::Machine as Machine>::Limiter>::with_stack_frame(
+            self,
+            |s| s.limiter_mut(),
+            f,
+        );
+        self.call_stack_depth -= 1;
+        res
     }
 }
 

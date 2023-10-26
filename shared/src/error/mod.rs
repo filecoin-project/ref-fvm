@@ -64,7 +64,8 @@ impl ExitCode {
     //pub const SYS_RESERVED_3 ExitCode = ExitCode::new(3);
     /// The message receiver trapped (panicked).
     pub const SYS_ILLEGAL_INSTRUCTION: ExitCode = ExitCode::new(4);
-    /// The message receiver doesn't exist and can't be automatically created
+    /// The message receiver either doesn't exist and can't be automatically created or it doesn't
+    /// implement the required entrypoint.
     pub const SYS_INVALID_RECEIVER: ExitCode = ExitCode::new(5);
     /// The message sender didn't have the requisite funds.
     pub const SYS_INSUFFICIENT_FUNDS: ExitCode = ExitCode::new(6);

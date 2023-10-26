@@ -4,8 +4,9 @@ use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
-use fvm_shared::{ActorID, MethodNum};
+use fvm_shared::ActorID;
 
+use crate::call_manager::Entrypoint;
 use crate::gas::GasCharge;
 use crate::kernel::SyscallError;
 use crate::Cid;
@@ -25,7 +26,7 @@ pub enum ExecutionEvent {
     Call {
         from: ActorID,
         to: Address,
-        method: MethodNum,
+        entrypoint: Entrypoint,
         params: Option<IpldBlock>,
         value: TokenAmount,
         gas_limit: u64,

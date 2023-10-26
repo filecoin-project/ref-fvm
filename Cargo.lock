@@ -1930,6 +1930,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "fil_upgrade_actor"
+version = "0.1.0"
+dependencies = [
+ "cid 0.10.1",
+ "fvm_ipld_encoding 0.4.0",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
+ "serde",
+ "serde_tuple",
+]
+
+[[package]]
+name = "fil_upgrade_receive_actor"
+version = "0.1.0"
+dependencies = [
+ "cid 0.10.1",
+ "fvm_ipld_encoding 0.4.0",
+ "fvm_sdk 4.0.0-alpha.4",
+ "fvm_shared 4.0.0-alpha.4",
+ "serde",
+ "serde_tuple",
+]
+
+[[package]]
 name = "filecoin-hashers"
 version = "11.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
