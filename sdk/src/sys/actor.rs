@@ -152,13 +152,15 @@ super::fvm_syscalls! {
     ///
     /// # Errors
     ///
-    /// | Error                 | Reason                                               |
-    /// |-----------------------|------------------------------------------------------|
-    /// | [`NotFound`]          | there's no actor deployed with the target code cid.  |
-    /// | [`InvalidHandle`]     | parameters block not found.                          |
-    /// | [`LimitExceeded`]     | recursion limit reached.                             |
-    /// | [`IllegalArgument`]   | invalid code cid buffer.                             |
-    /// | [`Forbidden`]         | target actor doesn't have an upgrade endpoint.       |
+    /// | Error                 | Reason                                                          |
+    /// |-----------------------|-----------------------------------------------------------------|
+    /// | [`NotFound`]          | no code with the specified CID has been deployed.               |
+    /// | [`IllegalOperation`]  | the actor has been deleted.                                     |
+    /// | [`InvalidHandle`]     | parameters block not found.                                     |
+    /// | [`LimitExceeded`]     | recursion limit reached.                                        |
+    /// | [`IllegalArgument`]   | invalid code cid buffer.                                        |
+    /// | [`Forbidden`]         | the actor is not allowed to upgrade (e.g., due to re-entrency). |
+    /// | [`ReadOnly`]          | the actor is executing in read-only mode.                       |
     pub fn upgrade_actor(
         new_code_cid_off: *const u8,
         params: u32,
