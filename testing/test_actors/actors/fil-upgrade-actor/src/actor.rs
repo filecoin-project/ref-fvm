@@ -48,8 +48,8 @@ pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
         }
         3 => {
             sdk::debug::log("[upgrade] params:3, calling upgrade within an upgrade".to_string());
-            let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
-            let params = IpldBlock::serialize_cbor(&SomeStruct { value: 4 }).unwrap();
+            let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10001)).unwrap();
+            let params = IpldBlock::serialize_cbor(&SomeStruct { value: 2 }).unwrap();
             let _ = sdk::actor::upgrade_actor(&new_code_cid, params);
             unreachable!("we should never return from a successful upgrade");
         }
@@ -74,7 +74,7 @@ pub fn invoke(_: u32) -> u32 {
     match sdk::message::method_number() {
         // test that successful calls to `upgrade_actor` does not return
         1 => {
-            let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10000)).unwrap();
+            let new_code_cid = sdk::actor::get_actor_code_cid(&Address::new_id(10001)).unwrap();
             let params = IpldBlock::serialize_cbor(&SomeStruct { value: 1 }).unwrap();
             let _ = sdk::actor::upgrade_actor(&new_code_cid, params);
             unreachable!("we should never return from a successful upgrade");

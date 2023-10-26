@@ -951,17 +951,6 @@ where
                 false,
             )?;
 
-            if result.exit_code.is_success() {
-                // after running the upgrade, our code cid must not have changed
-                let code_after_upgrade = cm
-                    .get_actor(self.actor_id)?
-                    .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
-                    .code;
-                if code != code_after_upgrade {
-                    return Err(syscall_error!(Forbidden; "re-entrant upgrade detected").into());
-                }
-            }
-
             Ok(result)
         });
 
