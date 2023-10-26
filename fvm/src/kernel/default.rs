@@ -919,8 +919,6 @@ where
         }
 
         let result = self.call_manager.with_transaction(|cm| {
-            let origin = cm.origin();
-
             let state = cm
                 .get_actor(self.actor_id)?
                 .ok_or_else(|| syscall_error!(IllegalOperation; "actor deleted"))?;
@@ -932,7 +930,7 @@ where
 
             // update the code cid of the actor to new_code_cid
             cm.set_actor(
-                origin,
+                self.actor_id,
                 ActorState::new(
                     new_code_cid,
                     state.state,
