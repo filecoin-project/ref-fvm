@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 4.0.0 (2023-10-31)
+
+Final release, no changes.
+
 ## 4.0.0-alpha.4 (2023-09-28)
 
 - Add back some proof types that were mistakenly removed, and fix some of the constants.
