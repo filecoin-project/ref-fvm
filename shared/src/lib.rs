@@ -124,7 +124,7 @@ pub struct Response {
 // This is a somewhat nasty hack that lets us unwrap in a const function.
 const fn const_unwrap<T: Copy, E>(r: Result<T, E>) -> T {
     let v = match r {
-        Ok(r) => r,
+        Ok(v) => v,
         Err(_) => panic!(), // aborts at compile time
     };
     // given the match above, this will _only_ drop `Ok(T)` where `T` is copy, so it won't actually
