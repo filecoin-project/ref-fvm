@@ -18,7 +18,6 @@ use crate::machine::limiter::DefaultMemoryLimiter;
 use crate::machine::Manifest;
 use crate::state_tree::StateTree;
 use crate::system_actor::State as SystemActorState;
-use crate::EMPTY_ARR_CID;
 
 lazy_static::lazy_static! {
     /// Pre-serialized block containing the empty array
@@ -187,10 +186,11 @@ where
 // Helper method that puts certain "empty" types in the blockstore.
 // These types are privileged by some parts of the system (eg. as the default actor state).
 fn put_empty_blocks<B: Blockstore>(blockstore: B) -> anyhow::Result<()> {
+    use fvm_shared::EMPTY_ARR_CID;
     let empty_arr_cid = blockstore.put(Blake2b256, &EMPTY_ARRAY_BLOCK)?;
 
     debug_assert!(
-        empty_arr_cid == *EMPTY_ARR_CID,
+        empty_arr_cid == EMPTY_ARR_CID,
         "empty CID sanity check failed",
     );
 

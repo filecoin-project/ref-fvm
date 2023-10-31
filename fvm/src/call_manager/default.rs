@@ -500,8 +500,9 @@ where
             || syscall_error!(NotFound; "transfer recipient {to} does not exist in state-tree"),
         )?;
 
-        from_actor.deduct_funds(value)?;
-        to_actor.deposit_funds(value);
+        // We've already checked the balances/value, so any errors here are fatal.
+        from_actor.deduct_funds(value).or_fatal()?;
+        to_actor.deposit_funds(value).or_fatal()?;
 
         self.set_actor(from, from_actor)?;
         self.set_actor(to, to_actor)?;

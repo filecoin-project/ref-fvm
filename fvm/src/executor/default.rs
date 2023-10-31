@@ -499,10 +499,7 @@ where
             }
 
             self.state_tree_mut()
-                .mutate_actor(addr, |act| {
-                    act.deposit_funds(amt);
-                    Ok(())
-                })
+                .mutate_actor(addr, |act| act.deposit_funds(amt).or_fatal())
                 .context("failed to lookup actor for transfer")?;
             Ok(())
         };

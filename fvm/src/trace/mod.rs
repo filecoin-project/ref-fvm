@@ -1,3 +1,4 @@
+use cid::Cid;
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::ipld_block::IpldBlock;
@@ -9,7 +10,6 @@ use fvm_shared::ActorID;
 use crate::call_manager::Entrypoint;
 use crate::gas::GasCharge;
 use crate::kernel::SyscallError;
-use crate::Cid;
 
 /// Execution Trace, only for informational and debugging purposes.
 pub type ExecutionTrace = Vec<ExecutionEvent>;
