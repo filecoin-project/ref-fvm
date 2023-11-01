@@ -105,7 +105,6 @@ lazy_static! {
         bls_pairing_cost: Gas::new(8299302),
         bls_hashing_cost: ScalingCost {
             flat: Gas::zero(),
-            // TODO: Can we just use the "sha256" number below?
             scale: Gas::new(7),
         },
 

@@ -518,7 +518,7 @@ where
                 let start = offset;
                 offset = start
                     .checked_add(len as usize)
-                    .context("invalid bls signature length")
+                    .context("invalid bls plaintext length")
                     .or_illegal_argument()?;
                 plaintexts_concat
                     .get(start..offset)
