@@ -396,6 +396,14 @@ mod tests {
     use crate::address::{from_leb_bytes, to_leb_bytes};
 
     #[test]
+    fn test_debug() {
+        assert_eq!(
+            "Address(\"f01\")",
+            format!("{:?}", super::Address::new_id(1))
+        )
+    }
+
+    #[test]
     fn test_from_leb_bytes_passing() {
         let passing = vec![67];
         assert_eq!(to_leb_bytes(from_leb_bytes(&passing).unwrap()), vec![67]);
