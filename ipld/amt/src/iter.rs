@@ -109,7 +109,7 @@ where
                                 .map(Box::new)
                         }) {
                             // failed to load from blockstore
-                            Err(e) => return Some(Err(e.into())),
+                            Err(e) => return Some(Err(e)),
                             Ok(node) => self.stack.push(node),
                         }
                     }
