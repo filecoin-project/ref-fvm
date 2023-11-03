@@ -16,9 +16,7 @@ where
 {
     pub fn iter(&self) -> Iter<'_, V, &BS, Ver> {
         Iter {
-            current_links: None,
-            current_nodes: None,
-            stack: vec![&self.root.node],
+            stack: vec![IterStack { node: &self.root.node, idx: 0 }],
             blockstore: &self.block_store,
             bit_width: self.bit_width(),
             ver: PhantomData,
@@ -82,12 +80,15 @@ where
 }
 
 pub struct Iter<'a, V, BS, Ver> {
-    current_links: Option<std::iter::Flatten<std::slice::Iter<'a, Option<Link<V>>>>>,
-    current_nodes: Option<std::iter::Flatten<std::slice::Iter<'a, Option<V>>>>,
-    stack: Vec<&'a Node<V>>,
+    stack: Vec<IterStack<'a, V>>,
     blockstore: BS,
     bit_width: u32,
     ver: PhantomData<Ver>,
+}
+
+pub struct IterStack<'a, V> {
+    pub(crate) node: &'a Node<V>,
+    pub(crate) idx: usize,
 }
 
 impl<'a, V, BS, Ver> Iterator for Iter<'a, V, BS, Ver>
@@ -98,40 +99,48 @@ where
     type Item = Result<&'a V, crate::Error>;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if let Some(link) = self.current_links.as_mut().and_then(Iterator::next) {
-                match link {
-                    Link::Cid { cid, cache } => {
-                        match cache.get_or_try_init(|| {
-                            self.blockstore
-                                .get_cbor::<CollapsedNode<V>>(cid)?
-                                .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
-                                .expand(self.bit_width)
-                                .map(Box::new)
-                        }) {
-                            // failed to load from blockstore
-                            Err(e) => return Some(Err(e)),
-                            Ok(node) => self.stack.push(node),
-                        }
+            let stack = self.stack.last_mut()?;
+            match stack.node {
+                Node::Leaf { vals } => {
+                    let idx = stack.idx;
+                    stack.idx += 1;
+                    if idx < vals.len() {
+                        return vals[idx].as_ref().map(Ok);
                     }
-                    Link::Dirty(dirty) => self.stack.push(dirty),
-                };
-            }
-
-            if let Some(node) = self.current_nodes.as_mut().and_then(Iterator::next) {
-                return Some(Ok(node));
-            }
-            match self.stack.pop() {
-                Some(Node::Link { links }) => {
-                    // if there are children, expand the stack and continue
-                    self.current_links = Some(links.iter().flatten());
-                    continue;
                 }
-                Some(Node::Leaf { vals }) => {
-                    self.current_nodes = Some(vals.iter().flatten());
-                    continue;
+                Node::Link { links } => {
+                    let idx = stack.idx;
+                    stack.idx += 1;
+                    if idx < links.len() {
+                        let link = &links[idx];
+                        match link {
+                            Some(Link::Cid { cid, cache }) => {
+                                match cache.get_or_try_init(|| {
+                                    self.blockstore
+                                        .get_cbor::<CollapsedNode<V>>(cid)?
+                                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                        .expand(self.bit_width)
+                                        .map(Box::new)
+                                }) {
+                                    Ok(node) => {
+                                        self.stack.push(IterStack {
+                                            node: node.as_ref(),
+                                            idx: idx,
+                                        });
+                                    }
+                                    Err(e) => return Some(Err(e)),
+                                }
+                            },
+                            Some(Link::Dirty(node)) => {
+                                self.stack.push(IterStack {
+                                    node: node.as_ref(),
+                                    idx: idx,
+                                });
+                            }
+                            None => return None,
+                        };
+                    }
                 }
-                // all done!
-                None => return None,
             }
         }
     }
