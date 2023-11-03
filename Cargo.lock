@@ -2390,7 +2390,7 @@ name = "fvm_gas_calibration_shared"
 version = "0.1.0"
 dependencies = [
  "fvm_shared 4.0.0",
- "num-derive 0.4.0",
+ "num-derive 0.4.1",
  "num-traits",
  "serde",
  "serde_json",
