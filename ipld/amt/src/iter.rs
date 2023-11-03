@@ -7,19 +7,21 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::CborStore;
 use serde::de::DeserializeOwned;
+use std::marker::PhantomData;
 
 impl<V, BS, Ver> crate::AmtImpl<V, BS, Ver>
 where
     V: DeserializeOwned,
     Ver: crate::root::version::Version,
 {
-    pub fn iter(&self) -> Iter<'_, V, &BS> {
+    pub fn iter(&self) -> Iter<'_, V, &BS, Ver> {
         Iter {
             current_links: None,
             current_nodes: None,
             stack: vec![&self.root.node],
             blockstore: &self.block_store,
             bit_width: self.bit_width(),
+            ver: PhantomData,
         }
     }
 }
@@ -30,7 +32,7 @@ where
     Ver: crate::root::version::Version,
     BS: Blockstore,
 {
-    type IntoIter = Iter<'a, V, &'a BS>;
+    type IntoIter = Iter<'a, V, &'a BS, Ver>;
     type Item = Result<&'a V, crate::Error>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -79,15 +81,16 @@ where
     }
 }
 
-pub struct Iter<'a, V, BS> {
+pub struct Iter<'a, V, BS, Ver> {
     current_links: Option<std::iter::Flatten<std::slice::Iter<'a, Option<Link<V>>>>>,
     current_nodes: Option<std::iter::Flatten<std::slice::Iter<'a, Option<V>>>>,
     stack: Vec<&'a Node<V>>,
     blockstore: BS,
     bit_width: u32,
+    ver: PhantomData<Ver>,
 }
 
-impl<'a, V, BS> Iterator for Iter<'a, V, BS>
+impl<'a, V, BS, Ver> Iterator for Iter<'a, V, BS, Ver>
 where
     BS: Blockstore,
     V: DeserializeOwned,
