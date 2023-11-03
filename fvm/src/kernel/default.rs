@@ -19,6 +19,7 @@ use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::sys::out::vm::ContextFlags;
+use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
 use multihash::MultihashDigest;
@@ -29,7 +30,10 @@ use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::hash::SupportedHashes;
 use super::*;
-use crate::call_manager::{CallManager, InvocationResult, NO_DATA_BLOCK_ID};
+use crate::call_manager::{
+    CallManager, Entrypoint, InvocationResult, INVOKE_FUNC_NAME, NO_DATA_BLOCK_ID,
+    UPGRADE_FUNC_NAME,
+};
 use crate::externs::{Chain, Consensus, Rand};
 use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
@@ -116,7 +120,7 @@ where
         value: &TokenAmount,
         gas_limit: Option<Gas>,
         flags: SendFlags,
-    ) -> Result<SendResult> {
+    ) -> Result<CallResult> {
         let from = self.actor_id;
         let read_only = self.read_only || flags.read_only();
 
@@ -137,9 +141,17 @@ where
         }
 
         // Send.
-        let result = self.call_manager.send::<K>(
-            from, *recipient, method, params, value, gas_limit, read_only,
-        )?;
+        let result = self.call_manager.with_transaction(|cm| {
+            cm.call_actor::<K>(
+                from,
+                *recipient,
+                Entrypoint::Invoke(method),
+                params,
+                value,
+                gas_limit,
+                read_only,
+            )
+        })?;
 
         // Store result and return.
         Ok(match result {
@@ -157,7 +169,7 @@ where
                     .put_reachable(blk)
                     .or_fatal()
                     .context("failed to store a valid return value")?;
-                SendResult {
+                CallResult {
                     block_id,
                     block_stat,
                     exit_code,
@@ -166,7 +178,7 @@ where
             InvocationResult {
                 exit_code,
                 value: None,
-            } => SendResult {
+            } => CallResult {
                 block_id: NO_DATA_BLOCK_ID,
                 block_stat: BlockStat { codec: 0, size: 0 },
                 exit_code,
@@ -862,6 +874,100 @@ where
 
         self.call_manager
             .create_actor(code_id, actor_id, delegated_address)
+    }
+
+    fn upgrade_actor<K: Kernel>(
+        &mut self,
+        new_code_cid: Cid,
+        params_id: BlockId,
+    ) -> Result<CallResult> {
+        if self.read_only {
+            return Err(
+                syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),
+            );
+        }
+
+        // check if this actor is already on the call stack
+        //
+        // We first find the first position of this actor on the call stack, and then make sure that
+        // no other actor appears on the call stack after 'position' (unless its a recursive upgrade
+        // call which is allowed)
+        let mut iter = self.call_manager.get_call_stack().iter();
+        let position = iter.position(|&tuple| tuple == (self.actor_id, INVOKE_FUNC_NAME));
+        if position.is_some() {
+            for tuple in iter {
+                if tuple.0 != self.actor_id || tuple.1 != UPGRADE_FUNC_NAME {
+                    return Err(syscall_error!(
+                        Forbidden,
+                        "calling upgrade on actor already on call stack is forbidden"
+                    )
+                    .into());
+                }
+            }
+        }
+
+        // Load parameters.
+        let params = if params_id == NO_DATA_BLOCK_ID {
+            None
+        } else {
+            Some(self.blocks.get(params_id)?.clone())
+        };
+
+        // Make sure we can actually store the return block.
+        if self.blocks.is_full() {
+            return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
+        }
+
+        let result = self.call_manager.with_transaction(|cm| {
+            let state = cm
+                .get_actor(self.actor_id)?
+                .ok_or_else(|| syscall_error!(IllegalOperation; "actor deleted"))?;
+
+            // store the code cid of the calling actor before running the upgrade entrypoint
+            // in case it was changed (which could happen if the target upgrade entrypoint
+            // sent a message to this actor which in turn called upgrade)
+            let code = state.code;
+
+            // update the code cid of the actor to new_code_cid
+            cm.set_actor(
+                self.actor_id,
+                ActorState::new(
+                    new_code_cid,
+                    state.state,
+                    state.balance,
+                    state.sequence,
+                    None,
+                ),
+            )?;
+
+            // run the upgrade entrypoint
+            let result = cm.call_actor::<Self>(
+                self.caller,
+                Address::new_id(self.actor_id),
+                Entrypoint::Upgrade(UpgradeInfo { old_code_cid: code }),
+                params,
+                &TokenAmount::from_whole(0),
+                None,
+                false,
+            )?;
+
+            Ok(result)
+        });
+
+        match result {
+            Ok(InvocationResult { exit_code, value }) => {
+                let (block_stat, block_id) = match value {
+                    None => (BlockStat { codec: 0, size: 0 }, NO_DATA_BLOCK_ID),
+                    Some(block) => (block.stat(), self.blocks.put_reachable(block)?),
+                };
+                Ok(CallResult {
+                    block_id,
+                    block_stat,
+                    exit_code,
+                })
+            }
+            Err(err) => Err(err),
+        }
     }
 
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {

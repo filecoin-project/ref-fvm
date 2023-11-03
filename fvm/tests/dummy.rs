@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use anyhow::Context;
 use cid::Cid;
-use fvm::call_manager::{Backtrace, CallManager, FinishRet, InvocationResult};
+use fvm::call_manager::{Backtrace, CallManager, Entrypoint, FinishRet, InvocationResult};
 use fvm::engine::Engine;
 use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
@@ -274,15 +274,23 @@ impl CallManager for DummyCallManager {
         }
     }
 
-    fn send<K: Kernel<CallManager = Self>>(
+    fn call_actor<K: Kernel<CallManager = Self>>(
         &mut self,
         _from: fvm_shared::ActorID,
         _to: Address,
-        _method: fvm_shared::MethodNum,
+        _entrypoint: Entrypoint,
         _params: Option<kernel::Block>,
         _value: &fvm_shared::econ::TokenAmount,
         _gas_limit: Option<Gas>,
         _read_only: bool,
+    ) -> kernel::Result<InvocationResult> {
+        // Ok(InvocationResult::Return(None))
+        todo!()
+    }
+
+    fn with_transaction(
+        &mut self,
+        _f: impl FnOnce(&mut Self) -> kernel::Result<InvocationResult>,
     ) -> kernel::Result<InvocationResult> {
         // Ok(InvocationResult::Return(None))
         todo!()
@@ -347,6 +355,10 @@ impl CallManager for DummyCallManager {
         _actor_id: ActorID,
         _delegated_address: Option<Address>,
     ) -> kernel::Result<()> {
+        todo!()
+    }
+
+    fn get_call_stack(&self) -> &[(ActorID, &'static str)] {
         todo!()
     }
 

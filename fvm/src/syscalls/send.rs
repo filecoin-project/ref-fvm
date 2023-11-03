@@ -7,7 +7,7 @@ use fvm_shared::sys::{self, SendFlags};
 
 use super::Context;
 use crate::gas::Gas;
-use crate::kernel::{ClassifyResult, Result, SendResult};
+use crate::kernel::{CallResult, ClassifyResult, Result};
 use crate::Kernel;
 
 /// Send a message to another actor. The result is placed as a CBOR-encoded
@@ -37,7 +37,7 @@ pub fn send<K: Kernel>(
 
     // An execution error here means that something went wrong in the FVM.
     // Actor errors are communicated in the receipt.
-    let SendResult {
+    let CallResult {
         block_id,
         block_stat,
         exit_code,

@@ -43,18 +43,6 @@ mod history_map;
 mod ipld;
 pub mod trace;
 
-use cid::multihash::{Code, MultihashDigest};
-use cid::Cid;
-use fvm_ipld_encoding::{to_vec, DAG_CBOR};
-
-lazy_static::lazy_static! {
-    /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
-    pub static ref EMPTY_ARR_CID: Cid = {
-        let empty = to_vec::<[(); 0]>(&[]).unwrap();
-        Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(&empty))
-    };
-}
-
 #[cfg(test)]
 mod test {
     use cid::Cid;

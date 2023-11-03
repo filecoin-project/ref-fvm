@@ -1,14 +1,16 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
+use fvm_ipld_encoding::{to_vec, CBOR};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
+use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
-use crate::kernel::{self, Result};
+use crate::kernel::{self, BlockRegistry, ClassifyResult, Context, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::ActorState;
 use crate::Kernel;
@@ -33,13 +35,13 @@ pub const NO_DATA_BLOCK_ID: u32 = 0;
 ///
 /// 1. The [`crate::executor::Executor`] creates a [`CallManager`] for that message, giving itself
 ///    to the [`CallManager`].
-/// 2. The [`crate::executor::Executor`] calls the specified actor/method using
-///    [`CallManager::send()`].
+/// 2. The [`crate::executor::Executor`] calls the specified actor/entrypoint using
+///    [`CallManager::call_actor()`].
 /// 3. The [`CallManager`] then constructs a [`Kernel`] and executes the actual actor code on that
 ///    kernel.
 /// 4. If an actor calls another actor, the [`Kernel`] will:
 ///    1. Detach the [`CallManager`] from itself.
-///    2. Call [`CallManager::send()`] to execute the new message.
+///    2. Call [`CallManager::call_actor()`] to execute the new message.
 ///    3. Re-attach the [`CallManager`].
 ///    4. Return.
 pub trait CallManager: 'static {
@@ -60,18 +62,24 @@ pub trait CallManager: 'static {
         gas_premium: TokenAmount,
     ) -> Self;
 
-    /// Send a message. The type parameter `K` specifies the the _kernel_ on top of which the target
+    /// Calls an actor at the given address and entrypoint. The type parameter `K` specifies the the _kernel_ on top of which the target
     /// actor should execute.
     #[allow(clippy::too_many_arguments)]
-    fn send<K: Kernel<CallManager = Self>>(
+    fn call_actor<K: Kernel<CallManager = Self>>(
         &mut self,
         from: ActorID,
         to: Address,
-        method: MethodNum,
+        entrypoint: Entrypoint,
         params: Option<kernel::Block>,
         value: &TokenAmount,
         gas_limit: Option<Gas>,
         read_only: bool,
+    ) -> Result<InvocationResult>;
+
+    /// Execute some operation (usually a call_actor) within a transaction.
+    fn with_transaction(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
     ) -> Result<InvocationResult>;
 
     /// Finishes execution, returning the gas used, machine, and exec trace if requested.
@@ -110,6 +118,9 @@ pub trait CallManager: 'static {
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()>;
+
+    // returns the actor call stack
+    fn get_call_stack(&self) -> &[(ActorID, &'static str)];
 
     /// Resolve an address into an actor ID, charging gas as appropriate.
     fn resolve_address(&self, address: &Address) -> Result<Option<ActorID>>;
@@ -165,7 +176,7 @@ pub trait CallManager: 'static {
     fn append_event(&mut self, evt: StampedEvent);
 }
 
-/// The result of a method invocation.
+/// The result of calling actor's entrypoint
 #[derive(Clone, Debug)]
 pub struct InvocationResult {
     /// The exit code (0 for success).
@@ -190,4 +201,61 @@ pub struct FinishRet {
     pub exec_trace: ExecutionTrace,
     pub events: Vec<StampedEvent>,
     pub events_root: Option<Cid>,
+}
+
+#[derive(Clone, Debug, Copy)]
+pub enum Entrypoint {
+    Invoke(MethodNum),
+    Upgrade(UpgradeInfo),
+}
+
+pub static INVOKE_FUNC_NAME: &str = "invoke";
+pub static UPGRADE_FUNC_NAME: &str = "upgrade";
+
+const METHOD_UPGRADE: MethodNum = 932083;
+
+impl std::fmt::Display for Entrypoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Entrypoint::Invoke(method) => write!(f, "invoke({})", method),
+            Entrypoint::Upgrade(_) => write!(f, "upgrade"),
+        }
+    }
+}
+
+impl Entrypoint {
+    fn method_num(&self) -> MethodNum {
+        match self {
+            Entrypoint::Invoke(num) => *num,
+            Entrypoint::Upgrade(_) => METHOD_UPGRADE,
+        }
+    }
+
+    fn func_name(&self) -> &'static str {
+        match self {
+            Entrypoint::Invoke(_) => INVOKE_FUNC_NAME,
+            Entrypoint::Upgrade(_) => UPGRADE_FUNC_NAME,
+        }
+    }
+
+    fn invokes(&self, method: MethodNum) -> bool {
+        match self {
+            Entrypoint::Invoke(num) => *num == method,
+            Entrypoint::Upgrade(_) => false,
+        }
+    }
+
+    fn into_params(self, br: &mut BlockRegistry) -> Result<Vec<wasmtime::Val>> {
+        match self {
+            Entrypoint::Invoke(_) => Ok(Vec::new()),
+            Entrypoint::Upgrade(ui) => {
+                let ui_params = to_vec(&ui)
+                    .or_fatal()
+                    .context("failed to serialize upgrade params")?;
+                // This is CBOR instead of DAG_CBOR because these params are not reachable
+                let block_id = br.put_reachable(kernel::Block::new(CBOR, ui_params, Vec::new()))?;
+                Ok(vec![wasmtime::Val::I32(block_id as i32)])
+            }
+        }
+    }
 }

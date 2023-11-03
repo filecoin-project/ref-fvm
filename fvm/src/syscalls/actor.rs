@@ -3,8 +3,10 @@
 use anyhow::{anyhow, Context as _};
 use fvm_shared::{sys, ActorID};
 
+use super::bind::ControlFlow;
+use super::error::Abort;
 use super::Context;
-use crate::kernel::{ClassifyResult, Result};
+use crate::kernel::{CallResult, ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
 
 pub fn resolve_address(
@@ -107,6 +109,37 @@ pub fn create_actor(
         .transpose()?;
 
     context.kernel.create_actor(typ, actor_id, addr)
+}
+
+pub fn upgrade_actor<K: Kernel>(
+    context: Context<'_, K>,
+    new_code_cid_off: u32,
+    params_id: u32,
+) -> ControlFlow<sys::out::send::Send> {
+    let cid = match context.memory.read_cid(new_code_cid_off) {
+        Ok(cid) => cid,
+        Err(err) => return err.into(),
+    };
+
+    match context.kernel.upgrade_actor::<K>(cid, params_id) {
+        Ok(CallResult {
+            block_id,
+            block_stat,
+            exit_code,
+        }) => {
+            if exit_code.is_success() {
+                ControlFlow::Abort(Abort::Exit(exit_code, String::new(), block_id))
+            } else {
+                ControlFlow::Return(sys::out::send::Send {
+                    exit_code: exit_code.value(),
+                    return_id: block_id,
+                    return_codec: block_stat.codec,
+                    return_size: block_stat.size,
+                })
+            }
+        }
+        Err(err) => err.into(),
+    }
 }
 
 pub fn get_builtin_actor_type(

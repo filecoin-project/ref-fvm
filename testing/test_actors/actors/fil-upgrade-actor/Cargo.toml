@@ -1,14 +1,16 @@
 [package]
-name = "fil_sself_actor"
+name = "fil_upgrade_actor"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-fvm_sdk = { version = "4.0.0", path = "../../../../sdk" }
-fvm_shared = { version = "4.0.0", path = "../../../../shared" }
+fvm_sdk = { version = "4.0.0-alpha.4", path = "../../../../sdk" }
+fvm_shared = { version = "4.0.0-alpha.4", path = "../../../../shared" }
 fvm_ipld_encoding = { version = "0.4.0", path = "../../../../ipld/encoding" }
 cid = { workspace = true }
+serde = { version = "1.0.164", features = ["derive"] }
+serde_tuple = "0.5.0"
 
 [lib]
 crate-type = ["cdylib"] ## cdylib is necessary for Wasm build

@@ -78,6 +78,7 @@ impl From<anyhow::Error> for Abort {
                 _ => Abort::Fatal(anyhow!("unexpected wasmtime trap: {}", trap)),
             };
         };
+
         match e.downcast::<Abort>() {
             Ok(abort) => abort,
             Err(e) => Abort::Fatal(e),
