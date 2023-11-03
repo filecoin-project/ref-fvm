@@ -613,6 +613,7 @@ fn new_from_iter() {
 
     let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
     let mut restored = Vec::new();
+    #[allow(deprecated)]
     a.for_each(|k, v| {
         restored.push((k as usize, v.clone()));
         Ok(())
