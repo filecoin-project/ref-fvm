@@ -79,6 +79,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct Iter<'a, V, BS, Ver> {
     stack: Vec<IterStack<'a, V>>,
     blockstore: BS,
@@ -86,6 +87,7 @@ pub struct Iter<'a, V, BS, Ver> {
     ver: PhantomData<Ver>,
 }
 
+#[derive(Debug)]
 pub struct IterStack<'a, V> {
     pub(crate) node: &'a Node<V>,
     pub(crate) idx: usize,
@@ -102,16 +104,21 @@ where
             let stack = self.stack.last_mut()?;
             match stack.node {
                 Node::Leaf { vals } => {
-                    let idx = stack.idx;
+                    let mut idx = 0;
                     stack.idx += 1;
-                    if idx < vals.len() {
-                        return vals[idx].as_ref().map(Ok);
+                    while idx < vals.len() {
+                        match vals[idx] {
+                            Some(ref v) => return Some(Ok(v)),
+                            None => {idx += 1;},
+                        }
                     }
                 }
                 Node::Link { links } => {
-                    let idx = stack.idx;
+                    let mut idx = 0;
                     stack.idx += 1;
-                    if idx < links.len() {
+                    while idx < links.len() {
+                        dbg!(idx);
+                        dbg!("matching link");
                         let link = &links[idx];
                         match link {
                             Some(Link::Cid { cid, cache }) => {
@@ -130,14 +137,18 @@ where
                                     }
                                     Err(e) => return Some(Err(e)),
                                 }
+                                break;
                             },
                             Some(Link::Dirty(node)) => {
                                 self.stack.push(IterStack {
                                     node: node.as_ref(),
                                     idx: idx,
                                 });
+                                break;
                             }
-                            None => return None,
+                            None => {
+                                idx += 1;
+                            },
                         };
                     }
                 }
@@ -151,6 +162,45 @@ where
 mod tests {
     use crate::Amt;
     use quickcheck_macros::quickcheck;
+
+    #[test]
+    fn check_iter() {
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt = Amt::new_with_bit_width(&db, 1);
+        amt.set(0, "foo".to_owned()).unwrap();
+        dbg!(amt.iter());
+    }
+
+    #[test]
+    fn check_iter_next_single_element() {
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt = Amt::new_with_bit_width(&db, 1);
+        amt.set(0, "foo".to_owned()).unwrap();
+        dbg!(amt.iter().next().unwrap().unwrap());
+        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+    }
+
+    #[test]
+    fn check_iter_next_with_none() {
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt = Amt::new_with_bit_width(&db, 1);
+        amt.set(1, "foo".to_owned()).unwrap();
+        dbg!(&amt);
+        dbg!(amt.iter());
+        dbg!(amt.iter().next());
+        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+    }
+
+    #[test]
+    fn check_iter_next_with_links() {
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt = Amt::new(&db);
+        amt.set(8, "foo".to_owned()).unwrap();
+        dbg!(&amt);
+        dbg!(amt.iter());
+        dbg!(amt.iter().next());
+        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+    }
 
     #[quickcheck]
     fn vary_bit_width(bit_width: u32) {
