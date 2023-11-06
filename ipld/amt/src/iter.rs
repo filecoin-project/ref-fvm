@@ -16,7 +16,10 @@ where
 {
     pub fn iter(&self) -> Iter<'_, V, &BS, Ver> {
         Iter {
-            stack: vec![IterStack { node: &self.root.node, idx: 0 }],
+            stack: vec![IterStack {
+                node: &self.root.node,
+                idx: 0,
+            }],
             blockstore: &self.block_store,
             bit_width: self.bit_width(),
             ver: PhantomData,
@@ -109,7 +112,9 @@ where
                     while idx < vals.len() {
                         match vals[idx] {
                             Some(ref v) => return Some(Ok(v)),
-                            None => {idx += 1;},
+                            None => {
+                                idx += 1;
+                            }
                         }
                     }
                 }
@@ -138,7 +143,7 @@ where
                                     Err(e) => return Some(Err(e)),
                                 }
                                 break;
-                            },
+                            }
                             Some(Link::Dirty(node)) => {
                                 self.stack.push(IterStack {
                                     node: node.as_ref(),
@@ -148,7 +153,7 @@ where
                             }
                             None => {
                                 idx += 1;
-                            },
+                            }
                         };
                     }
                 }
