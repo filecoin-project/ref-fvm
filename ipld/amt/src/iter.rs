@@ -74,12 +74,8 @@ where
     where
         F: FnMut(u64, &V) -> anyhow::Result<()>,
     {
-        let mut idx = 0;
-        for res in self {
-            dbg!(idx);
-            let v = res?;
-            f(idx, v)?;
-            idx += 1;
+        for (i, v) in self.iter().enumerate() {
+            f(i as u64, v?)?;
         }
         Ok(())
     }
@@ -110,28 +106,22 @@ where
             let stack = self.stack.last_mut()?;
             match stack.node {
                 Node::Leaf { vals } => {
-                    dbg!(&vals);
-                    let mut idx = 0;
-                    stack.idx += 1;
-                    while idx < vals.len() {
-                        match vals[idx] {
+                    while stack.idx < vals.len() {
+                        match vals[stack.idx] {
                             Some(ref v) => {
+                                stack.idx += 1;
                                 return Some(Ok(v));
-                            },
+                            }
                             None => {
-                                idx += 1;
+                                stack.idx += 1;
                             }
                         }
                     }
                     self.stack.pop();
                 }
                 Node::Link { links } => {
-                    let mut idx = 0;
-                    stack.idx += 1;
-                    while idx < links.len() {
-                        dbg!(idx);
-                        dbg!("matching link");
-                        let link = &links[idx];
+                    while stack.idx < links.len() {
+                        let link = &links[stack.idx];
                         match link {
                             Some(Link::Cid { cid, cache }) => {
                                 match cache.get_or_try_init(|| {
@@ -144,22 +134,22 @@ where
                                     Ok(node) => {
                                         self.stack.push(IterStack {
                                             node: node.as_ref(),
-                                            idx,
+                                            idx: 0,
                                         });
+                                        break;
                                     }
                                     Err(e) => return Some(Err(e)),
                                 }
-                                break;
                             }
                             Some(Link::Dirty(node)) => {
                                 self.stack.push(IterStack {
                                     node: node.as_ref(),
-                                    idx,
+                                    idx: 0,
                                 });
                                 break;
                             }
                             None => {
-                                idx += 1;
+                                stack.idx += 1;
                             }
                         };
                     }
@@ -173,8 +163,8 @@ where
 #[cfg(test)]
 mod tests {
     use crate::Amt;
-    use quickcheck_macros::quickcheck;
     use fvm_ipld_blockstore::MemoryBlockstore;
+    use quickcheck_macros::quickcheck;
 
     #[test]
     fn check_iter_empty() {
@@ -182,7 +172,6 @@ mod tests {
         let mut amt = Amt::new_with_bit_width(&db, 1);
         amt.set(0, "foo".to_owned()).unwrap();
         amt.delete(0).unwrap();
-        // dbg!(amt.iter());
         assert!(amt.iter().next().is_none());
     }
 
@@ -191,7 +180,6 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new_with_bit_width(&db, 1);
         amt.set(0, "foo".to_owned()).unwrap();
-        // dbg!(amt.iter().next().unwrap().unwrap());
         assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
     }
 
@@ -200,9 +188,6 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new_with_bit_width(&db, 1);
         amt.set(1, "foo".to_owned()).unwrap();
-        // dbg!(&amt);
-        // dbg!(amt.iter());
-        // dbg!(amt.iter().next());
         assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
     }
 
@@ -212,12 +197,17 @@ mod tests {
         let mut amt = Amt::new_with_bit_width(&db, 2);
         amt.set(1, "foo".to_owned()).unwrap();
         amt.set(2, "bar".to_owned()).unwrap();
-        dbg!(&amt);
-        dbg!(amt.iter());
-        dbg!(amt.iter().next());
-        dbg!(amt.iter().next());
-        // assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
-        // assert_eq!(amt.iter().next().unwrap().unwrap(), "bar");
+        let mut amt_iter = amt.iter();
+        assert_eq!(amt_iter.next().unwrap().unwrap(), "foo");
+        assert_eq!(amt_iter.next().unwrap().unwrap(), "bar");
+    }
+
+    #[test]
+    fn check_iter_next_with_link() {
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt = Amt::new(&db);
+        amt.set(8, "foo".to_owned()).unwrap();
+        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
     }
 
     #[test]
@@ -225,24 +215,18 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new(&db);
         amt.set(8, "foo".to_owned()).unwrap();
-        // dbg!(&amt);
-        // dbg!(amt.iter());
-        // dbg!(amt.iter().next());
-        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+        amt.set(64, "bar".to_owned()).unwrap();
+        let mut amt_iter = amt.iter();
+        assert_eq!(amt_iter.next().unwrap().unwrap(), "foo");
+        assert_eq!(amt_iter.next().unwrap().unwrap(), "bar");
     }
 
     #[test]
-    fn new_from_iter() {
+    fn minimal_new_from_iter() {
         let mem = MemoryBlockstore::default();
         let data: Vec<String> = (0..1).map(|i| format!("thing{i}")).collect();
         let k = Amt::<&str, _>::new_from_iter(&mem, data.iter().map(|s| &**s)).unwrap();
-        // dbg!(k);
-
         let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
-        dbg!(&a.iter().enumerate());
-        // for (i, _v) in a.iter().enumerate() {
-        //     dbg!(i);
-        // }
         let mut restored = Vec::new();
         #[allow(deprecated)]
         a.for_each(|i, v| {
@@ -250,7 +234,6 @@ mod tests {
             Ok(())
         })
         .unwrap();
-        dbg!(&a);
         let expected: Vec<_> = data.into_iter().enumerate().collect();
         assert_eq!(expected, restored);
     }
@@ -273,6 +256,7 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new(&db);
         amt.set(8, "foo".to_owned()).unwrap();
+        dbg!(&amt);
         assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
     }
 
@@ -294,7 +278,6 @@ mod tests {
         assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
     }
 
-    // TODO: fix this test
     // #[quickcheck]
     // fn multiple_random_set_and_iterate(idx: u64, bit_width: u32) {
     //     // `bit_width` is only limited due to the test taking too long to run at higher values.
@@ -304,8 +287,6 @@ mod tests {
     //         0 => 1,
     //         _ => bit_width,
     //     };
-    //     dbg!(bit_width);
-    //     dbg!(idx);
     //     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
     //     let mut amt: crate::amt::AmtImpl<
     //         String,
@@ -318,7 +299,6 @@ mod tests {
     //         idx -= 1;
     //         amt.set(idx, "foo".to_owned() + &idx.to_string()).unwrap();
     //     }
-    //     dbg!(&amt);
     //     for item in amt.iter().enumerate() {
     //         assert_eq!(
     //             item.1.unwrap().to_owned(),
