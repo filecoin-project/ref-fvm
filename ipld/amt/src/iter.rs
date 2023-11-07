@@ -29,7 +29,7 @@ where
 
 impl<'a, V, BS, Ver> IntoIterator for &'a crate::AmtImpl<V, BS, Ver>
 where
-    V: DeserializeOwned,
+    V: Serialize + DeserializeOwned + std::fmt::Debug,
     Ver: crate::root::version::Version,
     BS: Blockstore,
 {
@@ -42,7 +42,7 @@ where
 
 impl<V, BS> crate::Amt<V, BS>
 where
-    V: DeserializeOwned + Serialize,
+    V: DeserializeOwned + Serialize + std::fmt::Debug,
     BS: Blockstore,
 {
     /// Iterates over each value in the Amt and runs a function on the values.
@@ -74,9 +74,12 @@ where
     where
         F: FnMut(u64, &V) -> anyhow::Result<()>,
     {
-        for (ix, res) in self.iter().enumerate() {
+        let mut idx = 0;
+        for res in self {
+            dbg!(idx);
             let v = res?;
-            f(ix as u64, v)?;
+            f(idx, v)?;
+            idx += 1;
         }
         Ok(())
     }
@@ -99,7 +102,7 @@ pub struct IterStack<'a, V> {
 impl<'a, V, BS, Ver> Iterator for Iter<'a, V, BS, Ver>
 where
     BS: Blockstore,
-    V: DeserializeOwned,
+    V: Serialize + DeserializeOwned + std::fmt::Debug,
 {
     type Item = Result<&'a V, crate::Error>;
     fn next(&mut self) -> Option<Self::Item> {
@@ -107,16 +110,20 @@ where
             let stack = self.stack.last_mut()?;
             match stack.node {
                 Node::Leaf { vals } => {
+                    dbg!(&vals);
                     let mut idx = 0;
                     stack.idx += 1;
                     while idx < vals.len() {
                         match vals[idx] {
-                            Some(ref v) => return Some(Ok(v)),
+                            Some(ref v) => {
+                                return Some(Ok(v));
+                            },
                             None => {
                                 idx += 1;
                             }
                         }
                     }
+                    self.stack.pop();
                 }
                 Node::Link { links } => {
                     let mut idx = 0;
@@ -137,7 +144,7 @@ where
                                     Ok(node) => {
                                         self.stack.push(IterStack {
                                             node: node.as_ref(),
-                                            idx: idx,
+                                            idx,
                                         });
                                     }
                                     Err(e) => return Some(Err(e)),
@@ -147,7 +154,7 @@ where
                             Some(Link::Dirty(node)) => {
                                 self.stack.push(IterStack {
                                     node: node.as_ref(),
-                                    idx: idx,
+                                    idx,
                                 });
                                 break;
                             }
@@ -167,13 +174,16 @@ where
 mod tests {
     use crate::Amt;
     use quickcheck_macros::quickcheck;
+    use fvm_ipld_blockstore::MemoryBlockstore;
 
     #[test]
-    fn check_iter() {
+    fn check_iter_empty() {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new_with_bit_width(&db, 1);
         amt.set(0, "foo".to_owned()).unwrap();
-        dbg!(amt.iter());
+        amt.delete(0).unwrap();
+        // dbg!(amt.iter());
+        assert!(amt.iter().next().is_none());
     }
 
     #[test]
@@ -181,7 +191,7 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new_with_bit_width(&db, 1);
         amt.set(0, "foo".to_owned()).unwrap();
-        dbg!(amt.iter().next().unwrap().unwrap());
+        // dbg!(amt.iter().next().unwrap().unwrap());
         assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
     }
 
@@ -190,10 +200,24 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new_with_bit_width(&db, 1);
         amt.set(1, "foo".to_owned()).unwrap();
+        // dbg!(&amt);
+        // dbg!(amt.iter());
+        // dbg!(amt.iter().next());
+        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+    }
+
+    #[test]
+    fn check_iter_next_with_two_sets() {
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt = Amt::new_with_bit_width(&db, 2);
+        amt.set(1, "foo".to_owned()).unwrap();
+        amt.set(2, "bar".to_owned()).unwrap();
         dbg!(&amt);
         dbg!(amt.iter());
         dbg!(amt.iter().next());
-        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+        dbg!(amt.iter().next());
+        // assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+        // assert_eq!(amt.iter().next().unwrap().unwrap(), "bar");
     }
 
     #[test]
@@ -201,10 +225,34 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new(&db);
         amt.set(8, "foo".to_owned()).unwrap();
-        dbg!(&amt);
-        dbg!(amt.iter());
-        dbg!(amt.iter().next());
+        // dbg!(&amt);
+        // dbg!(amt.iter());
+        // dbg!(amt.iter().next());
         assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+    }
+
+    #[test]
+    fn new_from_iter() {
+        let mem = MemoryBlockstore::default();
+        let data: Vec<String> = (0..1).map(|i| format!("thing{i}")).collect();
+        let k = Amt::<&str, _>::new_from_iter(&mem, data.iter().map(|s| &**s)).unwrap();
+        // dbg!(k);
+
+        let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
+        dbg!(&a.iter().enumerate());
+        // for (i, _v) in a.iter().enumerate() {
+        //     dbg!(i);
+        // }
+        let mut restored = Vec::new();
+        #[allow(deprecated)]
+        a.for_each(|i, v| {
+            restored.push((i as usize, v.clone()));
+            Ok(())
+        })
+        .unwrap();
+        dbg!(&a);
+        let expected: Vec<_> = data.into_iter().enumerate().collect();
+        assert_eq!(expected, restored);
     }
 
     #[quickcheck]

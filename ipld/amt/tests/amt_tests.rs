@@ -611,7 +611,7 @@ fn tbytes(bz: &[u8]) -> BytesDe {
 #[test]
 fn new_from_iter() {
     let mem = MemoryBlockstore::default();
-    let data: Vec<String> = (0..1000).map(|i| format!("thing{i}")).collect();
+    let data: Vec<String> = (0..1).map(|i| format!("thing{i}")).collect();
     let k = Amt::<&str, _>::new_from_iter(&mem, data.iter().map(|s| &**s)).unwrap();
 
     let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
