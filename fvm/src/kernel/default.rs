@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
+use fvm_ipld_encoding::{bytes_32, CBOR, IPLD_RAW};
 use fvm_shared::address::Payload;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
@@ -1085,12 +1085,13 @@ where
                 .context("event entry value out of range")
                 .or_illegal_argument()?;
 
-            // Check the codec. We currently only allow IPLD_RAW.
-            if header.codec != IPLD_RAW {
+            // Check the codec. We currently only allow IPLD_RAW and CBOR.
+            if header.codec != IPLD_RAW && header.codec != CBOR {
                 let tmp = header.codec;
                 return Err(
-                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", tmp)
-                        .into(),
+                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW or CBOR, \
+                    was: {}", tmp)
+                    .into(),
                 );
             }
 
