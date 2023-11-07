@@ -120,7 +120,7 @@ where
                     self.stack.pop();
                 }
                 Node::Link { links } => {
-                    while stack.idx < links.len() {
+                    if stack.idx < links.len() {
                         let link = &links[stack.idx];
                         match link {
                             Some(Link::Cid { cid, cache }) => {
@@ -132,26 +132,28 @@ where
                                         .map(Box::new)
                                 }) {
                                     Ok(node) => {
+                                        stack.idx += 1;
                                         self.stack.push(IterStack {
                                             node: node.as_ref(),
                                             idx: 0,
                                         });
-                                        break;
                                     }
                                     Err(e) => return Some(Err(e)),
                                 }
                             }
                             Some(Link::Dirty(node)) => {
+                                stack.idx += 1;
                                 self.stack.push(IterStack {
                                     node: node.as_ref(),
                                     idx: 0,
                                 });
-                                break;
                             }
                             None => {
                                 stack.idx += 1;
                             }
                         };
+                    } else {
+                        self.stack.pop();
                     }
                 }
             }
@@ -278,32 +280,32 @@ mod tests {
         assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
     }
 
-    // #[quickcheck]
-    // fn multiple_random_set_and_iterate(idx: u64, bit_width: u32) {
-    //     // `bit_width` is only limited due to the test taking too long to run at higher values.
-    //     let bit_width = bit_width % 3;
-    //     // Starting at a bit_width of 0 causes the test to take too long to run.
-    //     let bit_width = match bit_width {
-    //         0 => 1,
-    //         _ => bit_width,
-    //     };
-    //     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-    //     let mut amt: crate::amt::AmtImpl<
-    //         String,
-    //         &fvm_ipld_blockstore::MemoryBlockstore,
-    //         crate::root::version::V3,
-    //     > = Amt::new_with_bit_width(&db, bit_width);
-    //     // We don't want the test to take too long at higher indexes.
-    //     let mut idx = idx % 42;
-    //     while idx > 0 {
-    //         idx -= 1;
-    //         amt.set(idx, "foo".to_owned() + &idx.to_string()).unwrap();
-    //     }
-    //     for item in amt.iter().enumerate() {
-    //         assert_eq!(
-    //             item.1.unwrap().to_owned(),
-    //             "foo".to_owned() + &item.0.to_string()
-    //         );
-    //     }
-    // }
+    #[quickcheck]
+    fn multiple_random_set_and_iterate(idx: u64, bit_width: u32) {
+        // `bit_width` is only limited due to the test taking too long to run at higher values.
+        let bit_width = bit_width % 3;
+        // Starting at a bit_width of 0 causes the test to take too long to run.
+        let bit_width = match bit_width {
+            0 => 1,
+            _ => bit_width,
+        };
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt: crate::amt::AmtImpl<
+            String,
+            &fvm_ipld_blockstore::MemoryBlockstore,
+            crate::root::version::V3,
+        > = Amt::new_with_bit_width(&db, bit_width);
+        // We don't want the test to take too long at higher indexes.
+        let mut idx = idx % 42;
+        while idx > 0 {
+            idx -= 1;
+            amt.set(idx, "foo".to_owned() + &idx.to_string()).unwrap();
+        }
+        for item in amt.iter().enumerate() {
+            assert_eq!(
+                item.1.unwrap().to_owned(),
+                "foo".to_owned() + &item.0.to_string()
+            );
+        }
+    }
 }
