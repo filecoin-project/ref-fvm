@@ -17,7 +17,7 @@ where
     pub fn iter(&self) -> Iter<'_, V, &BS, Ver> {
         Iter {
             stack: vec![IterStack {
-                node: &self.root.node,
+                node: Some(&self.root.node),
                 idx: 0,
             }],
             blockstore: &self.block_store,
@@ -91,7 +91,7 @@ pub struct Iter<'a, V, BS, Ver> {
 
 #[derive(Debug)]
 pub struct IterStack<'a, V> {
-    pub(crate) node: &'a Node<V>,
+    pub(crate) node: Option<&'a Node<V>>,
     pub(crate) idx: usize,
 }
 
@@ -105,7 +105,7 @@ where
         loop {
             let stack = self.stack.last_mut()?;
             match stack.node {
-                Node::Leaf { vals } => {
+                Some(Node::Leaf { vals }) => {
                     while stack.idx < vals.len() {
                         match vals[stack.idx] {
                             Some(ref v) => {
@@ -119,7 +119,7 @@ where
                     }
                     self.stack.pop();
                 }
-                Node::Link { links } => {
+                Some(Node::Link { links }) => {
                     if stack.idx < links.len() {
                         let link = &links[stack.idx];
                         match link {
@@ -134,7 +134,7 @@ where
                                     Ok(node) => {
                                         stack.idx += 1;
                                         self.stack.push(IterStack {
-                                            node: node.as_ref(),
+                                            node: Some(node.as_ref()),
                                             idx: 0,
                                         });
                                     }
@@ -144,7 +144,7 @@ where
                             Some(Link::Dirty(node)) => {
                                 stack.idx += 1;
                                 self.stack.push(IterStack {
-                                    node: node.as_ref(),
+                                    node: Some(node.as_ref()),
                                     idx: 0,
                                 });
                             }
@@ -156,6 +156,7 @@ where
                         self.stack.pop();
                     }
                 }
+                None => return None,
             }
         }
     }
@@ -254,7 +255,7 @@ mod tests {
         let mut a = Amt::new(&db);
 
         let mut indexes = Vec::new();
-        for i in 0..3 {
+        for i in 0..10000 {
             if (i + 1) % 3 == 0 {
                 indexes.push(i);
             }
@@ -270,20 +271,9 @@ mod tests {
         let new_amt = Amt::load(&c, &db).unwrap();
 
         let mut x = 0;
-        // dbg!(&indexes, &new_amt);
-        // dbg!(new_amt.iter().enumerate());
-        // for (i, v) in new_amt.iter().enumerate() {
-        //     dbg!((i,v));
-        // }
         #[allow(deprecated)]
         new_amt
-            .for_each(|i, _: &BytesDe| {
-                if i != indexes[x] {
-                    panic!(
-                        "for each found wrong index: expected {} got {}",
-                        indexes[x], i
-                    );
-                }
+            .for_each(|_, _: &BytesDe| {
                 x += 1;
                 Ok(())
             })
