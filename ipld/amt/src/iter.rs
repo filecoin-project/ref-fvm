@@ -165,7 +165,6 @@ where
 #[cfg(test)]
 mod tests {
     use crate::Amt;
-    use fvm_ipld_blockstore::tracking::BSStats;
     use fvm_ipld_blockstore::tracking::TrackingBlockstore;
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::BytesDe;

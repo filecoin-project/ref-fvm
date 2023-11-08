@@ -3,14 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::fmt::Debug;
-
-use fvm_ipld_amt::AmtImpl;
 use fvm_ipld_amt::{Amt, Amtv0, Error, MAX_INDEX};
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::ser::Serialize;
-use fvm_ipld_encoding::strict_bytes::ByteBuf;
 use fvm_ipld_encoding::BytesDe;
 
 fn assert_get<V, BS>(a: &Amt<V, BS>, i: u64, v: &V)
@@ -623,7 +620,7 @@ fn tbytes(bz: &[u8]) -> BytesDe {
 #[test]
 fn new_from_iter() {
     let mem = MemoryBlockstore::default();
-    let data: Vec<String> = (0..10).map(|i| format!("thing{i}")).collect();
+    let data: Vec<String> = (0..1000).map(|i| format!("thing{i}")).collect();
     let k = Amt::<&str, _>::new_from_iter(&mem, data.iter().map(|s| &**s)).unwrap();
 
     let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
