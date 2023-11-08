@@ -165,7 +165,10 @@ where
 #[cfg(test)]
 mod tests {
     use crate::Amt;
+    use fvm_ipld_blockstore::tracking::BSStats;
+    use fvm_ipld_blockstore::tracking::TrackingBlockstore;
     use fvm_ipld_blockstore::MemoryBlockstore;
+    use fvm_ipld_encoding::BytesDe;
     use quickcheck_macros::quickcheck;
 
     #[test]
@@ -238,6 +241,55 @@ mod tests {
         .unwrap();
         let expected: Vec<_> = data.into_iter().enumerate().collect();
         assert_eq!(expected, restored);
+    }
+
+    // Helper function for `for_each` test
+    fn tbytes(bz: &[u8]) -> BytesDe {
+        BytesDe(bz.to_vec())
+    }
+
+    #[test]
+    fn minimal_for_each() {
+        let mem = MemoryBlockstore::default();
+        let db = TrackingBlockstore::new(&mem);
+        let mut a = Amt::new(&db);
+
+        let mut indexes = Vec::new();
+        for i in 0..3 {
+            if (i + 1) % 3 == 0 {
+                indexes.push(i);
+            }
+        }
+
+        // Set all indices in the Amt
+        for i in indexes.iter() {
+            a.set(*i, tbytes(b"value")).unwrap();
+        }
+
+        // Flush and regenerate amt
+        let c = a.flush().unwrap();
+        let new_amt = Amt::load(&c, &db).unwrap();
+
+        let mut x = 0;
+        // dbg!(&indexes, &new_amt);
+        // dbg!(new_amt.iter().enumerate());
+        // for (i, v) in new_amt.iter().enumerate() {
+        //     dbg!((i,v));
+        // }
+        #[allow(deprecated)]
+        new_amt
+            .for_each(|i, _: &BytesDe| {
+                if i != indexes[x] {
+                    panic!(
+                        "for each found wrong index: expected {} got {}",
+                        indexes[x], i
+                    );
+                }
+                x += 1;
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(x, indexes.len());
     }
 
     #[quickcheck]
