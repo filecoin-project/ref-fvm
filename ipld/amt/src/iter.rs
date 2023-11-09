@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 
 impl<V, BS, Ver> crate::AmtImpl<V, BS, Ver>
 where
-    V: DeserializeOwned + std::fmt::Debug + Serialize,
+    V: DeserializeOwned + Serialize,
     BS: Blockstore,
     Ver: crate::root::version::Version,
 {
@@ -39,7 +39,7 @@ where
 
 impl<'a, V, BS, Ver> IntoIterator for &'a crate::AmtImpl<V, BS, Ver>
 where
-    V: Serialize + DeserializeOwned + std::fmt::Debug,
+    V: Serialize + DeserializeOwned,
     Ver: crate::root::version::Version,
     BS: Blockstore,
 {
@@ -52,7 +52,7 @@ where
 
 impl<V, BS> crate::Amt<V, BS>
 where
-    V: DeserializeOwned + Serialize + std::fmt::Debug,
+    V: DeserializeOwned + Serialize,
     BS: Blockstore,
 {
     /// Iterates over each value in the Amt and runs a function on the values.
@@ -92,7 +92,6 @@ where
     }
 }
 
-#[derive(Debug)]
 pub struct Iter<'a, V, BS, Ver> {
     stack: Vec<IterStack<'a, V>>,
     blockstore: BS,
@@ -101,7 +100,6 @@ pub struct Iter<'a, V, BS, Ver> {
     key: usize,
 }
 
-#[derive(Debug)]
 pub struct IterStack<'a, V> {
     pub(crate) node: Option<&'a Node<V>>,
     pub(crate) idx: usize,
@@ -110,7 +108,7 @@ pub struct IterStack<'a, V> {
 impl<'a, V, BS, Ver> Iterator for Iter<'a, V, BS, Ver>
 where
     BS: Blockstore,
-    V: Serialize + DeserializeOwned + std::fmt::Debug,
+    V: Serialize + DeserializeOwned,
 {
     type Item = Result<(usize, &'a V), crate::Error>;
     fn next(&mut self) -> Option<Self::Item> {

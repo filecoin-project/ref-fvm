@@ -429,18 +429,15 @@ where
     /// function keeps returning `true`.
     pub fn for_each_while<F>(&self, mut f: F) -> Result<(), Error>
     where
-        F: FnMut(u64, &V) -> anyhow::Result<bool>,
+        F: FnMut(usize, &V) -> anyhow::Result<bool>,
     {
-        self.root
-            .node
-            .for_each_while(
-                &self.block_store,
-                self.height(),
-                self.bit_width(),
-                0,
-                &mut f,
-            )
-            .map(|_| ())
+        for res in self.iter() {
+            let (i, v) = res?;
+            if !f(i, v)? {
+                break;
+            }
+        }
+        Ok(())
     }
 
     /// Iterates over values in the Amt and runs a function on the values.
