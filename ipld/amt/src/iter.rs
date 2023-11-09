@@ -11,7 +11,8 @@ use std::marker::PhantomData;
 
 impl<V, BS, Ver> crate::AmtImpl<V, BS, Ver>
 where
-    V: DeserializeOwned,
+    V: DeserializeOwned + std::fmt::Debug + Serialize,
+    BS: Blockstore,
     Ver: crate::root::version::Version,
 {
     pub fn iter(&self) -> Iter<'_, V, &BS, Ver> {
@@ -23,7 +24,16 @@ where
             blockstore: &self.block_store,
             bit_width: self.bit_width(),
             ver: PhantomData,
+            key: 0,
         }
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = Result<&V, Error>> {
+        self.iter().map(|res| res.map(|(_, v)| v))
+    }
+
+    pub fn keys(&self) -> impl Iterator<Item = Result<usize, Error>> + '_ {
+        self.iter().map(|res| res.map(|(k, _)| k))
     }
 }
 
@@ -34,7 +44,7 @@ where
     BS: Blockstore,
 {
     type IntoIter = Iter<'a, V, &'a BS, Ver>;
-    type Item = Result<&'a V, crate::Error>;
+    type Item = Result<(usize, &'a V), crate::Error>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
@@ -72,10 +82,11 @@ where
     #[deprecated = "use `.iter()` instead"]
     pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
     where
-        F: FnMut(u64, &V) -> anyhow::Result<()>,
+        F: FnMut(&usize, &V) -> anyhow::Result<()>,
     {
-        for (i, v) in self.iter().enumerate() {
-            f(i as u64, v?)?;
+        for res in self {
+            let (k, v) = res?;
+            (f)(&k, v)?;
         }
         Ok(())
     }
@@ -87,6 +98,7 @@ pub struct Iter<'a, V, BS, Ver> {
     blockstore: BS,
     bit_width: u32,
     ver: PhantomData<Ver>,
+    key: usize,
 }
 
 #[derive(Debug)]
@@ -100,7 +112,7 @@ where
     BS: Blockstore,
     V: Serialize + DeserializeOwned + std::fmt::Debug,
 {
-    type Item = Result<&'a V, crate::Error>;
+    type Item = Result<(usize, &'a V), crate::Error>;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let stack = self.stack.last_mut()?;
@@ -110,10 +122,12 @@ where
                         match vals[stack.idx] {
                             Some(ref v) => {
                                 stack.idx += 1;
-                                return Some(Ok(v));
+                                self.key += 1;
+                                return Some(Ok((self.key - 1, v)));
                             }
                             None => {
                                 stack.idx += 1;
+                                self.key += 1;
                             }
                         }
                     }
@@ -150,6 +164,7 @@ where
                             }
                             None => {
                                 stack.idx += 1;
+                                self.key += 2_usize.pow(self.bit_width);
                             }
                         };
                     } else {
@@ -178,6 +193,8 @@ mod tests {
         amt.set(0, "foo".to_owned()).unwrap();
         amt.delete(0).unwrap();
         assert!(amt.iter().next().is_none());
+        assert!(amt.values().next().is_none());
+        assert!(amt.keys().next().is_none());
     }
 
     #[test]
@@ -185,7 +202,8 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new_with_bit_width(&db, 1);
         amt.set(0, "foo".to_owned()).unwrap();
-        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+        assert_eq!(amt.values().next().unwrap().unwrap(), "foo");
+        assert_eq!(amt.keys().next().unwrap().unwrap(), 0);
     }
 
     #[test]
@@ -193,7 +211,8 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new_with_bit_width(&db, 1);
         amt.set(1, "foo".to_owned()).unwrap();
-        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+        assert_eq!(amt.values().next().unwrap().unwrap(), "foo");
+        assert_eq!(amt.keys().next().unwrap().unwrap(), 1);
     }
 
     #[test]
@@ -202,9 +221,12 @@ mod tests {
         let mut amt = Amt::new_with_bit_width(&db, 2);
         amt.set(1, "foo".to_owned()).unwrap();
         amt.set(2, "bar".to_owned()).unwrap();
-        let mut amt_iter = amt.iter();
-        assert_eq!(amt_iter.next().unwrap().unwrap(), "foo");
-        assert_eq!(amt_iter.next().unwrap().unwrap(), "bar");
+        let mut amt_values = amt.values();
+        let mut amt_keys = amt.keys();
+        assert_eq!(amt_values.next().unwrap().unwrap(), "foo");
+        assert_eq!(amt_values.next().unwrap().unwrap(), "bar");
+        assert_eq!(amt_keys.next().unwrap().unwrap(), 1);
+        assert_eq!(amt_keys.next().unwrap().unwrap(), 2);
     }
 
     #[test]
@@ -212,7 +234,9 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new(&db);
         amt.set(8, "foo".to_owned()).unwrap();
-        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+        dbg!(&amt);
+        assert_eq!(amt.values().next().unwrap().unwrap(), "foo");
+        assert_eq!(amt.keys().next().unwrap().unwrap(), 8);
     }
 
     #[test]
@@ -222,8 +246,14 @@ mod tests {
         amt.set(8, "foo".to_owned()).unwrap();
         amt.set(64, "bar".to_owned()).unwrap();
         let mut amt_iter = amt.iter();
-        assert_eq!(amt_iter.next().unwrap().unwrap(), "foo");
-        assert_eq!(amt_iter.next().unwrap().unwrap(), "bar");
+        assert_eq!(
+            amt_iter.next().unwrap().unwrap(),
+            (8_usize, &"foo".to_owned())
+        );
+        assert_eq!(
+            amt_iter.next().unwrap().unwrap(),
+            (64_usize, &"bar".to_owned())
+        );
     }
 
     #[test]
@@ -234,8 +264,8 @@ mod tests {
         let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
         let mut restored = Vec::new();
         #[allow(deprecated)]
-        a.for_each(|i, v| {
-            restored.push((i as usize, v.clone()));
+        a.for_each(|k, v| {
+            restored.push((*k, v.clone()));
             Ok(())
         })
         .unwrap();
@@ -273,7 +303,13 @@ mod tests {
         let mut x = 0;
         #[allow(deprecated)]
         new_amt
-            .for_each(|_, _: &BytesDe| {
+            .for_each(|k, _: &BytesDe| {
+                if *k as u64 != indexes[x] {
+                    panic!(
+                        "for each found wrong index: expected {} got {}",
+                        indexes[x], k
+                    );
+                }
                 x += 1;
                 Ok(())
             })
@@ -295,15 +331,6 @@ mod tests {
     }
 
     #[quickcheck]
-    fn set_and_iterate() {
-        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-        let mut amt = Amt::new(&db);
-        amt.set(8, "foo".to_owned()).unwrap();
-        dbg!(&amt);
-        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
-    }
-
-    #[quickcheck]
     fn random_set_and_iterate(idx: u64, bit_width: u32) {
         // `bit_width` is only limited due to the test taking too long to run at higher values.
         let bit_width = bit_width % 20;
@@ -318,7 +345,10 @@ mod tests {
             _ => idx % u64::pow(bit_width as u64, (amt.height() + 1) - 1),
         };
         amt.set(idx, "foo".to_owned()).unwrap();
-        assert_eq!(amt.iter().next().unwrap().unwrap(), "foo");
+        assert_eq!(
+            amt.iter().next().unwrap().unwrap(),
+            (idx as usize, &"foo".to_owned())
+        );
     }
 
     #[quickcheck]
@@ -342,11 +372,8 @@ mod tests {
             idx -= 1;
             amt.set(idx, "foo".to_owned() + &idx.to_string()).unwrap();
         }
-        for item in amt.iter().enumerate() {
-            assert_eq!(
-                item.1.unwrap().to_owned(),
-                "foo".to_owned() + &item.0.to_string()
-            );
+        for item in amt.values().enumerate() {
+            assert_eq!(item.1.unwrap(), &("foo".to_owned() + &item.0.to_string()));
         }
     }
 }

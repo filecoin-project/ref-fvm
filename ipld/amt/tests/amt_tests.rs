@@ -369,7 +369,13 @@ fn for_each() {
     let mut x = 0;
     #[allow(deprecated)]
     new_amt
-        .for_each(|_, _: &BytesDe| {
+        .for_each(|k, _: &BytesDe| {
+            if *k as u64 != indexes[x] {
+                panic!(
+                    "for each found wrong index: expected {} got {}",
+                    indexes[x], k
+                );
+            }
             x += 1;
             Ok(())
         })
@@ -621,7 +627,7 @@ fn new_from_iter() {
     let mut restored = Vec::new();
     #[allow(deprecated)]
     a.for_each(|k, v| {
-        restored.push((k as usize, v.clone()));
+        restored.push((*k, v.clone()));
         Ok(())
     })
     .unwrap();
