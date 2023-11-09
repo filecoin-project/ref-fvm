@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use crate::node::CollapsedNode;
 use crate::node::{Link, Node};
+use crate::AmtImpl;
 use crate::Error;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::ser::Serialize;
@@ -50,10 +51,11 @@ where
     }
 }
 
-impl<V, BS> crate::Amt<V, BS>
+impl<V, BS, Ver> AmtImpl<V, BS, Ver>
 where
     V: DeserializeOwned + Serialize,
     BS: Blockstore,
+    Ver: crate::root::version::Version,
 {
     /// Iterates over each value in the Amt and runs a function on the values.
     ///
@@ -71,9 +73,9 @@ where
     /// map.set(1, "One".to_owned()).unwrap();
     /// map.set(4, "Four".to_owned()).unwrap();
     ///
-    /// let mut values: Vec<(u64, String)> = Vec::new();
+    /// let mut values: Vec<(usize, String)> = Vec::new();
     /// map.for_each(|i, v| {
-    ///    values.push((i, v.clone()));
+    ///    values.push((*i, v.clone()));
     ///    Ok(())
     /// }).unwrap();
     /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
