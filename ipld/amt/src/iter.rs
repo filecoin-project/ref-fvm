@@ -52,12 +52,60 @@ where
         }
     }
 
-    pub fn values(&self) -> impl Iterator<Item = Result<&V, Error>> {
-        self.iter().map(|res| res.map(|(_, v)| v))
+    /// Generates an iterator containing the values of the AMT, in sorted order.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```rust
+    /// use fvm_ipld_amt::Amt;
+    /// use fvm_ipld_blockstore::MemoryBlockstore;
+    ///
+    /// let store = MemoryBlockstore::default();
+    ///
+    /// let mut amt = Amt::new(store);
+    /// amt.set(2, "two".to_owned());
+    /// amt.set(1, "one".to_owned());
+    ///
+    /// let vals = amt.values().collect::<Vec<_>>();
+    /// assert_eq!(vals, ["one", "two"]);
+    ///
+    /// # anyhow::Ok(())
+    /// ```
+    pub fn values(&self) -> impl Iterator<Item = &V> {
+        self.iter().map(|res| {
+            res.map(|(_, v)| v)
+                .expect("Failed to generate iterator from AMT values")
+        })
     }
 
-    pub fn keys(&self) -> impl Iterator<Item = Result<usize, Error>> + '_ {
-        self.iter().map(|res| res.map(|(k, _)| k))
+    /// Generates an iterator containing the keys of the AMT, in sorted order.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```rust
+    /// use fvm_ipld_amt::Amt;
+    /// use fvm_ipld_blockstore::MemoryBlockstore;
+    ///
+    /// let store = MemoryBlockstore::default();
+    ///
+    /// let mut amt = Amt::new(store);
+    /// amt.set(2, "two".to_owned());
+    /// amt.set(1, "one".to_owned());
+    ///
+    /// let keys = amt.keys().collect::<Vec<_>>();
+    /// assert_eq!(keys, [1, 2]);
+    ///
+    /// # anyhow::Ok(())
+    /// ```
+    pub fn keys(&self) -> impl Iterator<Item = usize> + '_ {
+        self.iter().map(|res| {
+            res.map(|(k, _)| k)
+                .expect("Failed to generate iterator from AMT keys")
+        })
     }
 
     /// Iterate over the AMT starting at the given key. This can be used to implement "ranged"
@@ -68,6 +116,7 @@ where
     /// use fvm_ipld_blockstore::MemoryBlockstore;
     ///
     /// let store = MemoryBlockstore::default();
+    ///
     /// // Create an AMT with 5 keys.
     /// let mut amt = Amt::new(store);
     /// let kvs: Vec<usize> = (0..=5).collect();
@@ -234,8 +283,8 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new_with_bit_width(&db, 1);
         amt.set(0, "foo".to_owned()).unwrap();
-        assert_eq!(amt.values().next().unwrap().unwrap(), "foo");
-        assert_eq!(amt.keys().next().unwrap().unwrap(), 0);
+        assert_eq!(amt.values().next().unwrap(), "foo");
+        assert_eq!(amt.keys().next().unwrap(), 0);
     }
 
     #[test]
@@ -243,8 +292,8 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new_with_bit_width(&db, 1);
         amt.set(1, "foo".to_owned()).unwrap();
-        assert_eq!(amt.values().next().unwrap().unwrap(), "foo");
-        assert_eq!(amt.keys().next().unwrap().unwrap(), 1);
+        assert_eq!(amt.values().next().unwrap(), "foo");
+        assert_eq!(amt.keys().next().unwrap(), 1);
     }
 
     #[test]
@@ -255,10 +304,10 @@ mod tests {
         amt.set(2, "bar".to_owned()).unwrap();
         let mut amt_values = amt.values();
         let mut amt_keys = amt.keys();
-        assert_eq!(amt_values.next().unwrap().unwrap(), "foo");
-        assert_eq!(amt_values.next().unwrap().unwrap(), "bar");
-        assert_eq!(amt_keys.next().unwrap().unwrap(), 1);
-        assert_eq!(amt_keys.next().unwrap().unwrap(), 2);
+        assert_eq!(amt_values.next().unwrap(), "foo");
+        assert_eq!(amt_values.next().unwrap(), "bar");
+        assert_eq!(amt_keys.next().unwrap(), 1);
+        assert_eq!(amt_keys.next().unwrap(), 2);
     }
 
     #[test]
@@ -267,8 +316,8 @@ mod tests {
         let mut amt = Amt::new(&db);
         amt.set(8, "foo".to_owned()).unwrap();
         dbg!(&amt);
-        assert_eq!(amt.values().next().unwrap().unwrap(), "foo");
-        assert_eq!(amt.keys().next().unwrap().unwrap(), 8);
+        assert_eq!(amt.values().next().unwrap(), "foo");
+        assert_eq!(amt.keys().next().unwrap(), 8);
     }
 
     #[test]
@@ -405,7 +454,7 @@ mod tests {
             amt.set(idx, "foo".to_owned() + &idx.to_string()).unwrap();
         }
         for item in amt.values().enumerate() {
-            assert_eq!(item.1.unwrap(), &("foo".to_owned() + &item.0.to_string()));
+            assert_eq!(item.1, &("foo".to_owned() + &item.0.to_string()));
         }
     }
 
