@@ -79,9 +79,8 @@ where
     /// # anyhow::Ok(())
     /// ```
     pub fn iter_from(&self, key: usize) -> Vec<Result<(usize, &V), crate::Error>> {
-        let iter = self.iter();
         let mut results = Vec::new();
-        for res in iter {
+        for res in self.iter() {
             let (k, v) = res.expect("Failed to generate iterator from AMT");
             if k >= key {
                 results.push(Ok((k, v)));
