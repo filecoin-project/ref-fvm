@@ -37,6 +37,47 @@ where
         self.iter().map(|res| res.map(|(k, _)| k))
     }
 
+    /// Iterate over the AMT starting at the given key. This can be used to implement "ranged"
+    /// iteration:
+    ///
+    /// ```rust
+    /// use fvm_ipld_amt::Amt;
+    /// use fvm_ipld_blockstore::MemoryBlockstore;
+    ///
+    /// let store = MemoryBlockstore::default();
+    /// // Create an AMT with 5 keys.
+    /// let mut amt = Amt::new(store);
+    /// let kvs: Vec<usize> = (0..=5).collect();
+    ///
+    /// let _ = kvs
+    ///     .iter()
+    ///     .map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string()))
+    ///     .collect::<Vec<_>>();
+    ///
+    /// let kvs = kvs
+    ///     .iter()
+    ///     .map(|k| (k.clone(), k.to_string()))
+    ///     .collect::<Vec<_>>();
+    ///
+    /// // Read 2 elements.
+    /// let mut results = amt.iter().take(2).collect::<Result<Vec<_>, _>>().unwrap();
+    /// assert_eq!(results.len(), 2);
+    ///
+    /// // Read the rest.
+    /// for res in amt.iter_from(results.last().unwrap().0 + 1) {
+    ///     results.push(res.unwrap());
+    /// }
+    ///
+    /// // Assert that we got out what we put in.
+    /// let results: Vec<_> = results
+    ///     .into_iter()
+    ///     .map(|(k, v)| (k.clone(), v.clone()))
+    ///     .collect();
+    ///
+    /// assert_eq!(kvs, results);
+    ///
+    /// # anyhow::Ok(())
+    /// ```
     pub fn iter_from(&self, key: usize) -> Vec<Result<(usize, &V), crate::Error>> {
         let mut iter = self.iter();
         let mut results = Vec::new();
@@ -393,28 +434,36 @@ mod tests {
     fn from_iter() {
         use crate::Amt;
         use fvm_ipld_blockstore::MemoryBlockstore;
-    
+
         let store = MemoryBlockstore::default();
-        
+
         // Create an AMT with 5 keys.
         let mut amt = Amt::new(store);
         let kvs: Vec<usize> = (0..=5).collect();
-        let _ = kvs.iter().map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string())).collect::<Vec<_>>();
-        let kvs = kvs.iter().map(|k| (k.clone(), k.to_string())).collect::<Vec<_>>();
-        
-    
+        let _ = kvs
+            .iter()
+            .map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string()))
+            .collect::<Vec<_>>();
+        let kvs = kvs
+            .iter()
+            .map(|k| (k.clone(), k.to_string()))
+            .collect::<Vec<_>>();
+
         // Read 2 elements.
         let mut results = amt.iter().take(2).collect::<Result<Vec<_>, _>>().unwrap();
         assert_eq!(results.len(), 2);
-    
+
         dbg!(results.last().unwrap().0);
         // Read the rest.
         for res in amt.iter_from(results.last().unwrap().0 + 1) {
             results.push(res.unwrap());
         }
-        
+
         // Assert that we got out what we put in.
-        let results: Vec<_> = results.into_iter().map(|(k, v)|(k.clone(), v.clone())).collect();
+        let results: Vec<_> = results
+            .into_iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
         assert_eq!(kvs, results);
     }
 }
