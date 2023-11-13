@@ -78,22 +78,6 @@ pub(super) enum Node<V> {
     Leaf { vals: Vec<Option<V>> },
 }
 
-impl<V> Iterator for Node<V> {
-    type Item = Option<V>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Node::Leaf { vals } => vals.iter_mut().next().map(|v| v.take()),
-            Node::Link { links } => links.iter_mut().next().map(|l| {
-                l.as_mut().and_then(|l| match l {
-                    Link::Cid { cache, .. } => cache.get_mut().and_then(|n| n.next()).flatten(),
-                    Link::Dirty(n) => n.next().flatten(),
-                })
-            }),
-        }
-    }
-}
-
 impl<V> Serialize for Node<V>
 where
     V: Serialize,

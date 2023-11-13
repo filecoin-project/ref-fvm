@@ -38,18 +38,6 @@ pub(crate) struct RootImpl<V, Ver> {
     ver: PhantomData<Ver>,
 }
 
-impl<V, Ver> Iterator for RootImpl<V, Ver>
-where
-    V: 'static,
-    Ver: version::Version,
-{
-    type Item = Option<V>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.node.next()
-    }
-}
-
 impl<V, Ver> RootImpl<V, Ver> {
     pub(crate) fn new_with_bit_width(bit_width: u32) -> Self {
         Self {
