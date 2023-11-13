@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fvm_ipld_amt::{Amt, AmtImpl};
-use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_ipld_encoding::strict_bytes::ByteBuf;
+use fvm_ipld_amt::Amt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 const ITEM_COUNT: usize = 60;
@@ -124,9 +122,9 @@ fn for_each(c: &mut Criterion) {
 
     c.bench_function("AMT for_each function", |b| {
         b.iter(|| {
-            let a: AmtImpl<ByteBuf, &MemoryBlockstore, fvm_ipld_amt::V3> =
-                Amt::load(&cid, &db).unwrap();
-            black_box(a).iter().for_each(|_| ());
+            let a = Amt::load(&cid, &db).unwrap();
+            #[allow(deprecated)]
+            black_box(a).for_each(|_, _v: &u64| Ok(())).unwrap();
         })
     });
 }
