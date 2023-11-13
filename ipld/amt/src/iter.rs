@@ -443,10 +443,7 @@ mod tests {
             .iter()
             .map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string()))
             .collect::<Vec<_>>();
-        let kvs = kvs
-            .iter()
-            .map(|k| (k.clone(), k.to_string()))
-            .collect::<Vec<_>>();
+        let kvs = kvs.iter().map(|k| (*k, k.to_string())).collect::<Vec<_>>();
 
         // Read 2 elements.
         let mut results = amt.iter().take(2).collect::<Result<Vec<_>, _>>().unwrap();
@@ -459,10 +456,7 @@ mod tests {
         }
 
         // Assert that we got out what we put in.
-        let results: Vec<_> = results
-            .into_iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
+        let results: Vec<_> = results.into_iter().map(|(k, v)| (k, v.clone())).collect();
         assert_eq!(kvs, results);
     }
 }
