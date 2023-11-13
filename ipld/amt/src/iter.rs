@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use crate::node::CollapsedNode;
 use crate::node::{Link, Node};
-use crate::AmtImpl;
 use crate::Error;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::ser::Serialize;
@@ -100,49 +99,6 @@ where
     type Item = Result<(usize, &'a V), crate::Error>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
-    }
-}
-
-impl<V, BS, Ver> AmtImpl<V, BS, Ver>
-where
-    V: DeserializeOwned + Serialize,
-    BS: Blockstore,
-    Ver: crate::root::version::Version,
-{
-    /// Iterates over each value in the Amt and runs a function on the values.
-    ///
-    /// The index in the amt is a `u64` and the value is the generic parameter `V` as defined
-    /// in the Amt.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use fvm_ipld_amt::Amt;
-    ///
-    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
-    ///
-    /// let mut map: Amt<String, _> = Amt::new(&store);
-    /// map.set(1, "One".to_owned()).unwrap();
-    /// map.set(4, "Four".to_owned()).unwrap();
-    ///
-    /// let mut values: Vec<(usize, String)> = Vec::new();
-    /// map.for_each(|i, v| {
-    ///    values.push((*i, v.clone()));
-    ///    Ok(())
-    /// }).unwrap();
-    /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
-    /// ```
-    #[inline]
-    #[deprecated = "use `.iter()` instead"]
-    pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
-    where
-        F: FnMut(&usize, &V) -> anyhow::Result<()>,
-    {
-        for res in self {
-            let (k, v) = res?;
-            (f)(&k, v)?;
-        }
-        Ok(())
     }
 }
 

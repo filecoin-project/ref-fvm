@@ -425,6 +425,42 @@ where
         Ok(cid)
     }
 
+    /// Iterates over each value in the Amt and runs a function on the values.
+    ///
+    /// The index in the amt is a `u64` and the value is the generic parameter `V` as defined
+    /// in the Amt.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fvm_ipld_amt::Amt;
+    ///
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
+    ///
+    /// let mut map: Amt<String, _> = Amt::new(&store);
+    /// map.set(1, "One".to_owned()).unwrap();
+    /// map.set(4, "Four".to_owned()).unwrap();
+    ///
+    /// let mut values: Vec<(usize, String)> = Vec::new();
+    /// map.for_each(|i, v| {
+    ///    values.push((*i, v.clone()));
+    ///    Ok(())
+    /// }).unwrap();
+    /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
+    /// ```
+    #[inline]
+    #[deprecated = "use `.iter()` instead"]
+    pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
+    where
+        F: FnMut(&usize, &V) -> anyhow::Result<()>,
+    {
+        for res in self {
+            let (k, v) = res?;
+            (f)(&k, v)?;
+        }
+        Ok(())
+    }
+
     /// Iterates over each value in the Amt and runs a function on the values, for as long as that
     /// function keeps returning `true`.
     pub fn for_each_while<F>(&self, mut f: F) -> Result<(), Error>
