@@ -1,4 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
+// Copyright 2019-2023 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 use crate::node::CollapsedNode;
 use crate::node::{Link, Node};
@@ -15,6 +16,29 @@ where
     BS: Blockstore,
     Ver: crate::root::version::Version,
 {
+    /// Iterate over the AMT. Alternatively, you can directly iterate over the AMT without calling
+    /// this method:
+    ///
+    /// ```rust
+    /// use fvm_ipld_amt::Amt;
+    /// use fvm_ipld_blockstore::MemoryBlockstore;
+    ///
+    /// let store = MemoryBlockstore::default();
+    ///
+    /// let mut amt = Amt::new(store);
+    /// let kvs: Vec<usize> = (0..=5).collect();
+    /// kvs
+    ///     .iter()
+    ///     .map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string()))
+    ///     .collect::<Vec<_>>();
+    ///
+    /// for kv in &amt {
+    ///     let (k, v) = kv?;
+    ///     println!("{k:?}: {v:?}");
+    /// }
+    ///
+    /// # anyhow::Ok(())
+    /// ```
     pub fn iter(&self) -> Iter<'_, V, &BS, Ver> {
         Iter {
             stack: vec![IterStack {
