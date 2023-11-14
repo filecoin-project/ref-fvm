@@ -26,7 +26,7 @@ where
     /// let store = MemoryBlockstore::default();
     ///
     /// let mut amt = Amt::new(store);
-    /// let kvs: Vec<usize> = (0..=5).collect();
+    /// let kvs: Vec<u64> = (0..=5).collect();
     /// kvs
     ///     .iter()
     ///     .map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string()))
@@ -101,7 +101,7 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-    pub fn keys(&self) -> impl Iterator<Item = usize> + '_ {
+    pub fn keys(&self) -> impl Iterator<Item = u64> + '_ {
         self.iter().map(|res| {
             res.map(|(k, _)| k)
                 .expect("Failed to generate iterator from AMT keys")
@@ -119,7 +119,7 @@ where
     ///
     /// // Create an AMT with 5 keys.
     /// let mut amt = Amt::new(store);
-    /// let kvs: Vec<usize> = (0..=5).collect();
+    /// let kvs: Vec<u64> = (0..=5).collect();
     ///
     /// let _ = kvs
     ///     .iter()
@@ -152,14 +152,14 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-    pub fn iter_from(&self, key: usize) -> Result<Iter<'_, V, &BS, Ver>, crate::Error> {
+    pub fn iter_from(&self, key: u64) -> Result<Iter<'_, V, &BS, Ver>, crate::Error> {
         let mut iter = self.iter();
         while key > iter.key {
             let stack = iter.stack.last_mut().expect("Stack is empty");
             match stack.node {
                 Some(Node::Leaf { vals }) => {
-                    while stack.idx < vals.len() {
-                        match vals[stack.idx] {
+                    while (stack.idx as usize) < vals.len() {
+                        match vals[stack.idx as usize] {
                             Some(_) => {
                                 stack.idx += 1;
                                 iter.key += 1;
@@ -176,8 +176,8 @@ where
                     iter.stack.pop();
                 }
                 Some(Node::Link { links }) => {
-                    if stack.idx < links.len() {
-                        let link = &links[stack.idx];
+                    if (stack.idx as usize) < links.len() {
+                        let link = &links[stack.idx as usize];
                         match link {
                             Some(Link::Cid { cid, cache }) => {
                                 match cache.get_or_try_init(|| {
@@ -206,7 +206,7 @@ where
                             }
                             None => {
                                 stack.idx += 1;
-                                iter.key += 2_usize.pow(iter.bit_width);
+                                iter.key += 2_u64.pow(iter.bit_width);
                             }
                         };
                     } else {
@@ -235,7 +235,7 @@ where
     BS: Blockstore,
 {
     type IntoIter = Iter<'a, V, &'a BS, Ver>;
-    type Item = Result<(usize, &'a V), crate::Error>;
+    type Item = Result<(u64, &'a V), crate::Error>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
@@ -246,12 +246,12 @@ pub struct Iter<'a, V, BS, Ver> {
     blockstore: BS,
     bit_width: u32,
     ver: PhantomData<Ver>,
-    key: usize,
+    key: u64,
 }
 
 pub struct IterStack<'a, V> {
     pub(crate) node: Option<&'a Node<V>>,
-    pub(crate) idx: usize,
+    pub(crate) idx: u64,
 }
 
 impl<'a, V, BS, Ver> Iterator for Iter<'a, V, BS, Ver>
@@ -259,14 +259,14 @@ where
     BS: Blockstore,
     V: Serialize + DeserializeOwned,
 {
-    type Item = Result<(usize, &'a V), crate::Error>;
+    type Item = Result<(u64, &'a V), crate::Error>;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let stack = self.stack.last_mut()?;
             match stack.node {
                 Some(Node::Leaf { vals }) => {
-                    while stack.idx < vals.len() {
-                        match vals[stack.idx] {
+                    while (stack.idx as usize) < vals.len() {
+                        match vals[stack.idx as usize] {
                             Some(ref v) => {
                                 stack.idx += 1;
                                 self.key += 1;
@@ -281,8 +281,8 @@ where
                     self.stack.pop();
                 }
                 Some(Node::Link { links }) => {
-                    if stack.idx < links.len() {
-                        let link = &links[stack.idx];
+                    if (stack.idx as usize) < links.len() {
+                        let link = &links[stack.idx as usize];
                         match link {
                             Some(Link::Cid { cid, cache }) => {
                                 match cache.get_or_try_init(|| {
@@ -311,7 +311,7 @@ where
                             }
                             None => {
                                 stack.idx += 1;
-                                self.key += 2_usize.pow(self.bit_width);
+                                self.key += 2_u64.pow(self.bit_width);
                             }
                         };
                     } else {
@@ -393,14 +393,8 @@ mod tests {
         amt.set(8, "foo".to_owned()).unwrap();
         amt.set(64, "bar".to_owned()).unwrap();
         let mut amt_iter = amt.iter();
-        assert_eq!(
-            amt_iter.next().unwrap().unwrap(),
-            (8_usize, &"foo".to_owned())
-        );
-        assert_eq!(
-            amt_iter.next().unwrap().unwrap(),
-            (64_usize, &"bar".to_owned())
-        );
+        assert_eq!(amt_iter.next().unwrap().unwrap(), (8, &"foo".to_owned()));
+        assert_eq!(amt_iter.next().unwrap().unwrap(), (64, &"bar".to_owned()));
     }
 
     #[test]
@@ -412,7 +406,7 @@ mod tests {
         let mut restored = Vec::new();
         #[allow(deprecated)]
         a.for_each(|k, v| {
-            restored.push((*k, v.clone()));
+            restored.push((k as usize, v.clone()));
             Ok(())
         })
         .unwrap();
@@ -451,7 +445,7 @@ mod tests {
         #[allow(deprecated)]
         new_amt
             .for_each(|k, _: &BytesDe| {
-                if *k as u64 != indexes[x] {
+                if k as u64 != indexes[x] {
                     panic!(
                         "for each found wrong index: expected {} got {}",
                         indexes[x], k
@@ -494,7 +488,7 @@ mod tests {
         amt.set(idx, "foo".to_owned()).unwrap();
         assert_eq!(
             amt.iter().next().unwrap().unwrap(),
-            (idx as usize, &"foo".to_owned())
+            (idx, &"foo".to_owned())
         );
     }
 
@@ -533,7 +527,7 @@ mod tests {
 
         // Create an AMT with 5 keys.
         let mut amt = Amt::new(store);
-        let kvs: Vec<usize> = (0..=5).collect();
+        let kvs: Vec<u64> = (0..=5).collect();
         let _ = kvs
             .iter()
             .map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string()))

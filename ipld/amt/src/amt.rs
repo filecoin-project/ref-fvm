@@ -441,7 +441,7 @@ where
     /// map.set(1, "One".to_owned()).unwrap();
     /// map.set(4, "Four".to_owned()).unwrap();
     ///
-    /// let mut values: Vec<(usize, String)> = Vec::new();
+    /// let mut values: Vec<(u64, String)> = Vec::new();
     /// map.for_each(|i, v| {
     ///    values.push((*i, v.clone()));
     ///    Ok(())
@@ -452,11 +452,11 @@ where
     #[deprecated = "use `.iter()` instead"]
     pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
     where
-        F: FnMut(&usize, &V) -> anyhow::Result<()>,
+        F: FnMut(u64, &V) -> anyhow::Result<()>,
     {
         for res in self {
             let (k, v) = res?;
-            (f)(&k, v)?;
+            (f)(k, v)?;
         }
         Ok(())
     }
@@ -465,7 +465,7 @@ where
     /// function keeps returning `true`.
     pub fn for_each_while<F>(&self, mut f: F) -> Result<(), Error>
     where
-        F: FnMut(usize, &V) -> anyhow::Result<bool>,
+        F: FnMut(u64, &V) -> anyhow::Result<bool>,
     {
         for res in self.iter() {
             let (i, v) = res?;
