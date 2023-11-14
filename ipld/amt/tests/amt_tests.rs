@@ -370,7 +370,7 @@ fn for_each() {
     #[allow(deprecated)]
     new_amt
         .for_each(|k, _: &BytesDe| {
-            if k as u64 != indexes[x] {
+            if k != indexes[x] {
                 panic!(
                     "for each found wrong index: expected {} got {}",
                     indexes[x], k
