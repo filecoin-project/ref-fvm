@@ -15,12 +15,11 @@ mod node;
 mod root;
 mod value_mut;
 
-pub use self::amt::{Amt, AmtImpl, Amtv0};
+pub(crate) use self::amt::AmtImpl;
+pub use self::amt::{Amt, Amtv0};
 pub use self::diff::{diff, Change, ChangeType};
 pub use self::error::Error;
-pub use self::iter::Iter;
 pub(crate) use self::node::Node;
-pub use self::root::version::V3;
 pub use self::value_mut::ValueMut;
 
 const DEFAULT_BIT_WIDTH: u32 = 3;
