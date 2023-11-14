@@ -136,8 +136,10 @@ where
     /// assert_eq!(results.len(), 2);
     ///
     /// // Read the rest.
-    /// for res in amt.iter_from(results.last().unwrap().0 + 1) {
-    ///     results.push(res.unwrap());
+    /// if let Ok(mut res) = amt.iter_from(results.last().unwrap().0 + 1) {
+    ///     for res in &mut res {
+    ///         results.push(res.unwrap());
+    ///     }
     /// }
     ///
     /// // Assert that we got out what we put in.
@@ -150,15 +152,79 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-    pub fn iter_from(&self, key: usize) -> Vec<Result<(usize, &V), crate::Error>> {
-        let mut results = Vec::new();
-        for res in self.iter() {
-            let (k, v) = res.expect("Failed to generate iterator from AMT");
-            if k >= key {
-                results.push(Ok((k, v)));
+    pub fn iter_from(&self, key: usize) -> Result<Iter<'_, V, &BS, Ver>, crate::Error> {
+        let mut iter = self.iter();
+        while key > iter.key {
+            let stack = iter.stack.last_mut().expect("Stack is empty");
+            match stack.node {
+                Some(Node::Leaf { vals }) => {
+                    while stack.idx < vals.len() {
+                        match vals[stack.idx] {
+                            Some(_) => {
+                                stack.idx += 1;
+                                iter.key += 1;
+                                if iter.key == key {
+                                    return Ok(iter);
+                                }
+                            }
+                            None => {
+                                stack.idx += 1;
+                                iter.key += 1;
+                            }
+                        }
+                    }
+                    iter.stack.pop();
+                }
+                Some(Node::Link { links }) => {
+                    if stack.idx < links.len() {
+                        let link = &links[stack.idx];
+                        match link {
+                            Some(Link::Cid { cid, cache }) => {
+                                match cache.get_or_try_init(|| {
+                                    iter.blockstore
+                                        .get_cbor::<CollapsedNode<V>>(cid)?
+                                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                        .expand(iter.bit_width)
+                                        .map(Box::new)
+                                }) {
+                                    Ok(node) => {
+                                        stack.idx += 1;
+                                        iter.stack.push(IterStack {
+                                            node: Some(node.as_ref()),
+                                            idx: 0,
+                                        });
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                            Some(Link::Dirty(node)) => {
+                                stack.idx += 1;
+                                iter.stack.push(IterStack {
+                                    node: Some(node.as_ref()),
+                                    idx: 0,
+                                });
+                            }
+                            None => {
+                                stack.idx += 1;
+                                iter.key += 2_usize.pow(iter.bit_width);
+                            }
+                        };
+                    } else {
+                        iter.stack.pop();
+                    }
+                }
+                None => {
+                    return Ok(Iter {
+                        stack: vec![],
+                        blockstore: &self.block_store,
+                        bit_width: self.bit_width(),
+                        ver: PhantomData,
+                        key: 0,
+                    })
+                }
             }
         }
-        results
+        Ok(iter)
     }
 }
 
@@ -459,7 +525,7 @@ mod tests {
     }
 
     #[test]
-    fn from_iter() {
+    fn iter_from() {
         use crate::Amt;
         use fvm_ipld_blockstore::MemoryBlockstore;
 
@@ -480,8 +546,10 @@ mod tests {
 
         dbg!(results.last().unwrap().0);
         // Read the rest.
-        for res in amt.iter_from(results.last().unwrap().0 + 1) {
-            results.push(res.unwrap());
+        if let Ok(mut res) = amt.iter_from(results.last().unwrap().0 + 1) {
+            for res in &mut res {
+                results.push(res.unwrap());
+            }
         }
 
         // Assert that we got out what we put in.
