@@ -445,7 +445,7 @@ mod tests {
         #[allow(deprecated)]
         new_amt
             .for_each(|k, _: &BytesDe| {
-                if k as u64 != indexes[x] {
+                if k != indexes[x] {
                     panic!(
                         "for each found wrong index: expected {} got {}",
                         indexes[x], k
@@ -530,7 +530,7 @@ mod tests {
         let kvs: Vec<u64> = (0..=5).collect();
         let _ = kvs
             .iter()
-            .map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string()))
+            .map(|k| amt.set(*k, k.to_string()))
             .collect::<Vec<_>>();
         let kvs = kvs.iter().map(|k| (*k, k.to_string())).collect::<Vec<_>>();
 
