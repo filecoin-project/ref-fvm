@@ -159,8 +159,8 @@ where
             let stack = iter.stack.last_mut().expect("Stack is empty");
             match stack.node {
                 Some(Node::Leaf { vals }) => {
-                    while (stack.idx as usize) < vals.len() {
-                        match vals[stack.idx as usize] {
+                    while stack.idx < vals.len() {
+                        match vals[stack.idx] {
                             Some(_) => {
                                 stack.idx += 1;
                                 iter.key += 1;
@@ -177,8 +177,8 @@ where
                     iter.stack.pop();
                 }
                 Some(Node::Link { links }) => {
-                    if (stack.idx as usize) < links.len() {
-                        let link = &links[stack.idx as usize];
+                    if stack.idx < links.len() {
+                        let link = &links[stack.idx];
                         match link {
                             Some(Link::Cid { cid, cache }) => {
                                 match cache.get_or_try_init(|| {
@@ -254,7 +254,7 @@ pub struct Iter<'a, V, BS, Ver> {
 
 pub struct IterStack<'a, V> {
     pub(crate) node: Option<&'a Node<V>>,
-    pub(crate) idx: u64,
+    pub(crate) idx: usize,
     pub(crate) height: u32,
 }
 
@@ -270,8 +270,8 @@ where
             let stack = self.stack.last_mut()?;
             match stack.node {
                 Some(Node::Leaf { vals }) => {
-                    while (stack.idx as usize) < vals.len() {
-                        match vals[stack.idx as usize] {
+                    while stack.idx < vals.len() {
+                        match vals[stack.idx] {
                             Some(ref v) => {
                                 stack.idx += 1;
                                 self.key += 1;
@@ -286,8 +286,8 @@ where
                     self.stack.pop();
                 }
                 Some(Node::Link { links }) => {
-                    if (stack.idx as usize) < links.len() {
-                        let link = &links[stack.idx as usize];
+                    if stack.idx < links.len() {
+                        let link = &links[stack.idx];
                         match link {
                             Some(Link::Cid { cid, cache }) => {
                                 match cache.get_or_try_init(|| {
