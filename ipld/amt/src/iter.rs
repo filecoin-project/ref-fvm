@@ -126,7 +126,10 @@ where
                                         height: root_height - self.stack.len() as u32,
                                     });
                                 }
-                                Err(e) => return Some(Err(e)),
+                                Err(e) => {
+                                    stack.idx += 1;
+                                    return Some(Err(e));
+                                }
                             }
                         }
                         Some(Some(Link::Dirty(node))) => {
