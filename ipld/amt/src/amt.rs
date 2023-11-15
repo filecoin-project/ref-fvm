@@ -443,7 +443,7 @@ where
     ///
     /// let mut values: Vec<(u64, String)> = Vec::new();
     /// map.for_each(|i, v| {
-    ///    values.push((*i, v.clone()));
+    ///    values.push((i, v.clone()));
     ///    Ok(())
     /// }).unwrap();
     /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
