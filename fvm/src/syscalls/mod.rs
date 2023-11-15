@@ -19,6 +19,7 @@ mod context;
 mod crypto;
 mod debug;
 mod event;
+mod filecoin;
 mod gas;
 mod ipld;
 mod network;
@@ -301,7 +302,6 @@ where
             crypto::recover_secp_public_key,
         )?;
         linker.bind("crypto", "hash", crypto::hash)?;
-        linker.bind("crypto", "verify_post", crypto::verify_post)?;
         linker.bind(
             "crypto",
             "compute_unsealed_sector_cid",
@@ -355,7 +355,7 @@ where
         self.0.bind_syscalls(linker)?;
 
         // Now bind the crypto syscalls.
-        linker.bind("crypto", "verify_post", crypto::verify_post)?;
+        linker.bind("crypto", "verify_post", filecoin::verify_post)?;
 
         Ok(())
     }

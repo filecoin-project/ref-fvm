@@ -593,17 +593,6 @@ where
         }))
     }
 
-    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_verify_post(verify_info))?;
-
-        // This is especially important to catch as, otherwise, a bad "post" could be undisputable.
-        t.record(catch_and_log_panic("verifying post", || {
-            verify_post(verify_info)
-        }))
-    }
-
     fn verify_consensus_fault(
         &self,
         h1: &[u8],

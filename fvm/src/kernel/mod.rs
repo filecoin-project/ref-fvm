@@ -304,9 +304,6 @@ pub trait CryptoOps {
         pieces: &[PieceInfo],
     ) -> Result<Cid>;
 
-    /// Verifies a window proof of spacetime.
-    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool>;
-
     /// Verifies that two block headers provide proof of a consensus fault:
     /// - both headers mined by the same actor
     /// - headers are different

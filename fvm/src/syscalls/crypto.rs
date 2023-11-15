@@ -9,7 +9,6 @@ use fvm_shared::crypto::signature::{
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
-    WindowPoStVerifyInfo,
 };
 use fvm_shared::sys;
 use num_traits::FromPrimitive;
@@ -122,25 +121,6 @@ pub fn compute_unsealed_sector_cid(
 
     // REturn
     context.memory.write_cid(&cid, cid_off, cid_len)
-}
-
-/// Verifies a window proof of spacetime.
-///
-/// The return i32 indicates the status code of the verification:
-///  - 0: verification ok.
-///  - -1: verification failed.
-pub fn verify_post(
-    context: Context<'_, impl Kernel>,
-    info_off: u32, // WindowPoStVerifyInfo,
-    info_len: u32,
-) -> Result<i32> {
-    let info = context
-        .memory
-        .read_cbor::<WindowPoStVerifyInfo>(info_off, info_len)?;
-    context
-        .kernel
-        .verify_post(&info)
-        .map(|v| if v { 0 } else { -1 })
 }
 
 /// Verifies that two block headers provide proof of a consensus fault:
