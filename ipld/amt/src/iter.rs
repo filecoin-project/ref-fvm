@@ -286,44 +286,42 @@ where
                     self.stack.pop();
                 }
                 Some(Node::Link { links }) => {
-                    if stack.idx < links.len() {
-                        let link = &links[stack.idx];
-                        match link {
-                            Some(Link::Cid { cid, cache }) => {
-                                match cache.get_or_try_init(|| {
-                                    self.blockstore
-                                        .get_cbor::<CollapsedNode<V>>(cid)?
-                                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
-                                        .expand(self.bit_width)
-                                        .map(Box::new)
-                                }) {
-                                    Ok(node) => {
-                                        stack.idx += 1;
-                                        self.stack.push(IterStack {
-                                            node: Some(node.as_ref()),
-                                            idx: 0,
-                                            height: root_height - self.stack.len() as u32,
-                                        });
-                                    }
-                                    Err(e) => return Some(Err(e)),
+                    match links.get(stack.idx) {
+                        Some(Some(Link::Cid { cid, cache })) => {
+                            match cache.get_or_try_init(|| {
+                                self.blockstore
+                                    .get_cbor::<CollapsedNode<V>>(cid)?
+                                    .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                    .expand(self.bit_width)
+                                    .map(Box::new)
+                            }) {
+                                Ok(node) => {
+                                    stack.idx += 1;
+                                    self.stack.push(IterStack {
+                                        node: Some(node.as_ref()),
+                                        idx: 0,
+                                        height: root_height - self.stack.len() as u32,
+                                    });
                                 }
+                                Err(e) => return Some(Err(e)),
                             }
-                            Some(Link::Dirty(node)) => {
-                                stack.idx += 1;
-                                self.stack.push(IterStack {
-                                    node: Some(node.as_ref()),
-                                    idx: 0,
-                                    height: root_height - self.stack.len() as u32,
-                                });
-                            }
-                            None => {
-                                stack.idx += 1;
-                                self.key += nodes_for_height(self.bit_width, stack.height);
-                            }
-                        };
-                    } else {
-                        self.stack.pop();
-                    }
+                        }
+                        Some(Some(Link::Dirty(node))) => {
+                            stack.idx += 1;
+                            self.stack.push(IterStack {
+                                node: Some(node.as_ref()),
+                                idx: 0,
+                                height: root_height - self.stack.len() as u32,
+                            });
+                        }
+                        Some(&None) => {
+                            stack.idx += 1;
+                            self.key += nodes_for_height(self.bit_width, stack.height);
+                        }
+                        None => {
+                            self.stack.pop();
+                        }
+                    };
                 }
                 None => return None,
             }
