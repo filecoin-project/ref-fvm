@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use crate::node::CollapsedNode;
 use crate::node::{Link, Node};
-use crate::Error;
+use crate::{nodes_for_height, Error};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::CborStore;
@@ -44,6 +44,7 @@ where
             stack: vec![IterStack {
                 node: Some(&self.root.node),
                 idx: 0,
+                height: self.root.height,
             }],
             blockstore: &self.block_store,
             bit_width: self.bit_width(),
@@ -192,6 +193,7 @@ where
                                         iter.stack.push(IterStack {
                                             node: Some(node.as_ref()),
                                             idx: 0,
+                                            height: self.root.height - 1,
                                         });
                                     }
                                     Err(e) => return Err(e),
@@ -202,11 +204,12 @@ where
                                 iter.stack.push(IterStack {
                                     node: Some(node.as_ref()),
                                     idx: 0,
+                                    height: self.root.height - 1,
                                 });
                             }
                             None => {
                                 stack.idx += 1;
-                                iter.key += 2_u64.pow(iter.bit_width);
+                                iter.key += nodes_for_height(iter.bit_width, stack.height);
                             }
                         };
                     } else {
@@ -252,6 +255,7 @@ pub struct Iter<'a, V, BS, Ver> {
 pub struct IterStack<'a, V> {
     pub(crate) node: Option<&'a Node<V>>,
     pub(crate) idx: u64,
+    pub(crate) height: u32,
 }
 
 impl<'a, V, BS, Ver> Iterator for Iter<'a, V, BS, Ver>
@@ -261,6 +265,7 @@ where
 {
     type Item = Result<(u64, &'a V), crate::Error>;
     fn next(&mut self) -> Option<Self::Item> {
+        let root_height = self.stack[0].height;
         loop {
             let stack = self.stack.last_mut()?;
             match stack.node {
@@ -297,6 +302,7 @@ where
                                         self.stack.push(IterStack {
                                             node: Some(node.as_ref()),
                                             idx: 0,
+                                            height: root_height - self.stack.len() as u32,
                                         });
                                     }
                                     Err(e) => return Some(Err(e)),
@@ -307,11 +313,12 @@ where
                                 self.stack.push(IterStack {
                                     node: Some(node.as_ref()),
                                     idx: 0,
+                                    height: root_height - self.stack.len() as u32,
                                 });
                             }
                             None => {
                                 stack.idx += 1;
-                                self.key += 2_u64.pow(self.bit_width);
+                                self.key += nodes_for_height(self.bit_width, stack.height);
                             }
                         };
                     } else {
@@ -391,10 +398,10 @@ mod tests {
         let db = fvm_ipld_blockstore::MemoryBlockstore::default();
         let mut amt = Amt::new(&db);
         amt.set(8, "foo".to_owned()).unwrap();
-        amt.set(64, "bar".to_owned()).unwrap();
+        amt.set(500, "bar".to_owned()).unwrap();
         let mut amt_iter = amt.iter();
         assert_eq!(amt_iter.next().unwrap().unwrap(), (8, &"foo".to_owned()));
-        assert_eq!(amt_iter.next().unwrap().unwrap(), (64, &"bar".to_owned()));
+        assert_eq!(amt_iter.next().unwrap().unwrap(), (500, &"bar".to_owned()));
     }
 
     #[test]
