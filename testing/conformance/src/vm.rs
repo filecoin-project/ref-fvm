@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use cid::Cid;
+use fvm::syscalls::InvocationData;
 use multihash::MultihashGeneric;
 
 use fvm::call_manager::{CallManager, DefaultCallManager};
@@ -31,6 +32,7 @@ use fvm_shared::sector::{
 use fvm_shared::sys::{EventEntry, SendFlags};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
+use wasmtime::Linker;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -248,6 +250,20 @@ where
         // This restricts the ability for the TestKernel to itself be wrapped by another kernel type.
         self.0
             .send::<Self>(recipient, method, params, value, gas_limit, flags)
+    }
+}
+
+impl<M, C, K> SyscallHandler for TestKernel<K>
+where
+    M: Machine,
+    C: CallManager<Machine = TestMachine<M>>,
+    K: Kernel<CallManager = C>,
+{
+    fn bind_syscalls(
+        &self,
+        _linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
+    ) -> anyhow::Result<()> {
+        Ok(())
     }
 }
 

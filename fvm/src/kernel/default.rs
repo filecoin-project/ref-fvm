@@ -53,6 +53,28 @@ const MAX_ARTIFACT_NAME_LEN: usize = 256;
 #[cfg(feature = "testing")]
 const TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 98;
 
+pub struct DefaultFilecoinKernel<K>(pub K)
+where
+    K: Kernel;
+
+impl<C> FilecoinKernel for DefaultFilecoinKernel<DefaultKernel<C>>
+where
+    C: CallManager,
+{
+    /// Verifies a window proof of spacetime.
+    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
+        let t = self
+            .0
+            .call_manager
+            .charge_gas(self.0.call_manager.price_list().on_verify_post(verify_info))?;
+
+        // This is especially important to catch as, otherwise, a bad "post" could be undisputable.
+        t.record(catch_and_log_panic("verifying post", || {
+            verify_post(verify_info)
+        }))
+    }
+}
+
 /// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
     // Fields extracted from the message, except parameters, which have been

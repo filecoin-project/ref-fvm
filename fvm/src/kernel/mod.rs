@@ -32,16 +32,23 @@ pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 use fvm_shared::event::StampedEvent;
 pub use hash::SupportedHashes;
 use multihash::MultihashGeneric;
+use wasmtime::Linker;
 
 use crate::call_manager::CallManager;
 use crate::gas::{Gas, GasTimer, PriceList};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
+use crate::syscalls::InvocationData;
 
 pub struct CallResult {
     pub block_id: BlockId,
     pub block_stat: BlockStat,
     pub exit_code: ExitCode,
+}
+
+pub trait FilecoinKernel {
+    /// Verifies a window proof of spacetime.
+    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool>;
 }
 
 /// The "kernel" implements the FVM interface as presented to the actors. It:
@@ -52,7 +59,8 @@ pub struct CallResult {
 /// Actors may call into the kernel via the syscalls defined in the [`syscalls`][crate::syscalls]
 /// module.
 pub trait Kernel:
-    ActorOps
+    SyscallHandler
+    + ActorOps
     + IpldBlockOps
     + CircSupplyOps
     + CryptoOps
@@ -113,6 +121,13 @@ pub trait Kernel:
         gas_limit: Option<Gas>,
         flags: SendFlags,
     ) -> Result<CallResult>;
+}
+
+pub trait SyscallHandler {
+    fn bind_syscalls(
+        &self,
+        linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
+    ) -> anyhow::Result<()>;
 }
 
 /// Network-related operations.
