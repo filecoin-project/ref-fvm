@@ -43,7 +43,7 @@ where
     pub fn iter(&self) -> Iter<'_, V, &BS, Ver> {
         Iter {
             stack: vec![IterStack {
-                node: Some(&self.root.node),
+                node: &self.root.node,
                 idx: 0,
                 height: self.root.height,
             }],
@@ -77,7 +77,7 @@ pub struct Iter<'a, V, BS, Ver> {
 }
 
 pub struct IterStack<'a, V> {
-    pub(crate) node: Option<&'a Node<V>>,
+    pub(crate) node: &'a Node<V>,
     pub(crate) idx: usize,
     pub(crate) height: u32,
 }
@@ -96,7 +96,7 @@ where
             }
             let stack = self.stack.last_mut()?;
             match stack.node {
-                Some(Node::Leaf { vals }) => {
+                Node::Leaf { vals } => {
                     while stack.idx < vals.len() {
                         match vals[stack.idx] {
                             Some(ref v) => {
@@ -112,7 +112,7 @@ where
                     }
                     self.stack.pop();
                 }
-                Some(Node::Link { links }) => {
+                Node::Link { links } => {
                     match links.get(stack.idx) {
                         Some(Some(Link::Cid { cid, cache })) => {
                             match cache.get_or_try_init(|| {
@@ -125,7 +125,7 @@ where
                                 Ok(node) => {
                                     stack.idx += 1;
                                     self.stack.push(IterStack {
-                                        node: Some(node.as_ref()),
+                                        node: node.as_ref(),
                                         idx: 0,
                                         height: root_height - self.stack.len() as u32,
                                     });
@@ -139,7 +139,7 @@ where
                         Some(Some(Link::Dirty(node))) => {
                             stack.idx += 1;
                             self.stack.push(IterStack {
-                                node: Some(node.as_ref()),
+                                node: node.as_ref(),
                                 idx: 0,
                                 height: root_height - self.stack.len() as u32,
                             });
@@ -153,7 +153,6 @@ where
                         }
                     };
                 }
-                None => return None,
             }
         }
     }
