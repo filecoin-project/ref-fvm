@@ -158,7 +158,6 @@ where
     }
 }
 
-// TODO(aatifsyed): is this guaranteed to be acyclic?
 #[cfg(test)]
 mod tests {
     use crate::Amt;

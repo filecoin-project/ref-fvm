@@ -143,7 +143,6 @@ pub struct AmtImpl<V, BS, Ver> {
 /// // Generate cid by calling flush to remove cache
 /// let cid = amt.flush().unwrap();
 /// ```
-// TODO(jdjaustin): in another PR: remove or refactor version typestate, and refactor `AmtImpl`
 pub type Amt<V, BS> = AmtImpl<V, BS, V3>;
 /// Legacy amt V0
 pub type Amtv0<V, BS> = AmtImpl<V, BS, V0>;
