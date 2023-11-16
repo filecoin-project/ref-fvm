@@ -7,6 +7,7 @@
 //!
 //! This package emits logs using the log façade. Configure the logging backend
 //! of your choice during the initialization of the consuming application.
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 pub use kernel::default::DefaultKernel;
 pub use kernel::Kernel;
