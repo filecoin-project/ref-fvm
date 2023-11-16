@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use crate::node::CollapsedNode;
 use crate::node::{Link, Node};
+use crate::MAX_INDEX;
 use crate::{nodes_for_height, Error};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::ser::Serialize;
@@ -90,6 +91,9 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         let root_height = self.stack[0].height;
         loop {
+            if self.key > MAX_INDEX {
+                return None;
+            }
             let stack = self.stack.last_mut()?;
             match stack.node {
                 Some(Node::Leaf { vals }) => {
@@ -159,6 +163,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::Amt;
+    use crate::MAX_INDEX;
     use fvm_ipld_blockstore::tracking::TrackingBlockstore;
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::BytesDe;
@@ -339,5 +344,23 @@ mod tests {
             let (idx, val) = item.unwrap();
             assert_eq!(val, &("foo".to_owned() + &idx.to_string()));
         }
+    }
+
+    #[test]
+    fn max_index() {
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        let mut amt: crate::amt::AmtImpl<
+            String,
+            &fvm_ipld_blockstore::MemoryBlockstore,
+            crate::root::version::V3,
+        > = Amt::new(&db);
+        amt.set(MAX_INDEX, "foo".to_owned()).unwrap();
+        let mut amt_iter = amt.iter();
+        assert_eq!(
+            amt_iter.next().unwrap().unwrap(),
+            (MAX_INDEX, &"foo".to_owned())
+        );
+        // This should not panic at `attempt to add with overflow`.
+        assert!(amt_iter.next().is_none());
     }
 }
