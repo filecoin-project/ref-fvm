@@ -75,28 +75,32 @@ mod tests {
     use super::*;
     use crate::address::Address;
 
-    #[test]
-    fn set_network() {
-        assert_eq!(current_network(), Network::default());
-        assert_eq!(Network::default(), Network::Mainnet);
+    // We fork this test into a new process because it messes with global state.
+    use rusty_fork::rusty_fork_test;
+    rusty_fork_test! {
+        #[test]
+        fn set_network() {
+            assert_eq!(current_network(), Network::default());
+            assert_eq!(Network::default(), Network::Mainnet);
 
-        // We're in mainnet mode.
-        let addr1 = Address::from_str("f01");
-        Address::from_str("t01").expect_err("should have failed to parse testnet address");
-        assert_eq!(
-            addr1,
-            Network::Testnet.parse_address("t01"),
-            "parsing an explicit address should still work"
-        );
+            // We're in mainnet mode.
+            let addr1 = Address::from_str("f01");
+            Address::from_str("t01").expect_err("should have failed to parse testnet address");
+            assert_eq!(
+                addr1,
+                Network::Testnet.parse_address("t01"),
+                "parsing an explicit address should still work"
+            );
 
-        // Switch to testnet mode.
-        set_current_network(Network::Testnet);
+            // Switch to testnet mode.
+            set_current_network(Network::Testnet);
 
-        // Now we're in testnet mode.
-        let addr2 = Address::from_str("t01");
-        Address::from_str("f01").expect_err("should have failed to parse testnet address");
+            // Now we're in testnet mode.
+            let addr2 = Address::from_str("t01");
+            Address::from_str("f01").expect_err("should have failed to parse testnet address");
 
-        // Networks are relevent for parsing only.
-        assert_eq!(addr1, addr2)
+            // Networks are relevent for parsing only.
+            assert_eq!(addr1, addr2)
+        }
     }
 }

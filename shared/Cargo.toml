@@ -43,6 +43,7 @@ multihash = { workspace = true, features = ["multihash-impl", "sha2", "sha3", "r
 quickcheck_macros = "1"
 
 fvm_shared = { path = ".", features = ["arb"] }
+rusty-fork = { version = "0.3.0", default-features = false }
 
 [features]
 default = []
