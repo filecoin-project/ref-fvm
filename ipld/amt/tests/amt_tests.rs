@@ -369,11 +369,11 @@ fn for_each() {
     let mut x = 0;
     #[allow(deprecated)]
     new_amt
-        .for_each(|k, _: &BytesDe| {
-            if k != indexes[x] {
+        .for_each(  |i, _: &BytesDe| {
+            if i != indexes[x] {
                 panic!(
                     "for each found wrong index: expected {} got {}",
-                    indexes[x], k
+                    indexes[x], i
                 );
             }
             x += 1;
