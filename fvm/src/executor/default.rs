@@ -34,11 +34,11 @@ use crate::trace::ExecutionTrace;
 pub struct DefaultExecutor<K: Kernel> {
     engine_pool: EnginePool,
     // If the inner value is `None` it means the machine got poisoned and is unusable.
-    machine: Option<<K::CallManager as CallManager>::Machine>,
+    machine: Option<<<K as Kernel>::CallManager as CallManager>::Machine>,
 }
 
 impl<K: Kernel> Deref for DefaultExecutor<K> {
-    type Target = <K::CallManager as CallManager>::Machine;
+    type Target = <<K as Kernel>::CallManager as CallManager>::Machine;
 
     fn deref(&self) -> &Self::Target {
         self.machine.as_ref().expect("machine poisoned")
@@ -101,7 +101,7 @@ where
         // Apply the message.
         let ret = self.map_machine(|machine| {
             // We're processing a chain message, so the sender is the origin of the call stack.
-            let mut cm = K::CallManager::new(
+            let mut cm = <K as Kernel>::CallManager::new(
                 machine,
                 engine,
                 msg.gas_limit,
@@ -298,7 +298,7 @@ where
     /// Create a new [`DefaultExecutor`] for executing messages on the [`Machine`].
     pub fn new(
         engine_pool: EnginePool,
-        machine: <K::CallManager as CallManager>::Machine,
+        machine: <<K as Kernel>::CallManager as CallManager>::Machine,
     ) -> anyhow::Result<Self> {
         // Skip preloading all builtin actors when testing.
         #[cfg(not(any(test, feature = "testing")))]
@@ -320,7 +320,7 @@ where
 
     /// Consume consumes the executor and returns the Machine. If the Machine had
     /// been poisoned during execution, the Option will be None.
-    pub fn into_machine(self) -> Option<<K::CallManager as CallManager>::Machine> {
+    pub fn into_machine(self) -> Option<<<K as Kernel>::CallManager as CallManager>::Machine> {
         self.machine
     }
 
@@ -535,8 +535,8 @@ where
     fn map_machine<F, T>(&mut self, f: F) -> T
     where
         F: FnOnce(
-            <K::CallManager as CallManager>::Machine,
-        ) -> (T, <K::CallManager as CallManager>::Machine),
+            <<K as Kernel>::CallManager as CallManager>::Machine,
+        ) -> (T, <<K as Kernel>::CallManager as CallManager>::Machine),
     {
         replace_with::replace_with_and_return(
             &mut self.machine,

@@ -27,7 +27,6 @@ use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
-    WindowPoStVerifyInfo,
 };
 use fvm_shared::sys::{EventEntry, SendFlags};
 use fvm_shared::version::NetworkVersion;
@@ -187,23 +186,14 @@ where
 // TestData through when it's destroyed into a CallManager then recreated by that CallManager.
 pub struct TestKernel<K = DefaultKernel<DefaultCallManager<TestMachine>>>(pub K, pub TestData);
 
-impl<M, C, K> Kernel for TestKernel<K>
+impl<M, C, K> ConstructKernel<C> for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = C>,
 {
-    type CallManager = K::CallManager;
-
-    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
-    where
-        Self: Sized,
-    {
-        self.0.into_inner()
-    }
-
     fn new(
-        mgr: Self::CallManager,
+        mgr: C,
         blocks: BlockRegistry,
         caller: ActorID,
         actor_id: ActorID,
@@ -229,6 +219,22 @@ where
             ),
             data,
         )
+    }
+}
+
+impl<M, C, K> Kernel for TestKernel<K>
+where
+    M: Machine,
+    C: CallManager<Machine = TestMachine<M>>,
+    K: Kernel<CallManager = C>,
+{
+    type CallManager = K::CallManager;
+
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
+    where
+        Self: Sized,
+    {
+        self.0.into_inner()
     }
 
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
@@ -403,13 +409,6 @@ where
     // NOT forwarded
     fn batch_verify_seals(&self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
         Ok(vec![true; vis.len()])
-    }
-
-    // NOT forwarded
-    fn verify_post(&self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
-        let charge = self.1.price_list.on_verify_post(vi);
-        let _ = self.0.charge_gas(&charge.name, charge.total())?;
-        Ok(true)
     }
 
     // NOT forwarded

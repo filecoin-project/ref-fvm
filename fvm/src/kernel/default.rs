@@ -1,13 +1,12 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::collections::BTreeMap;
 use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
-use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
+use filecoin_proofs_api::{self as proofs, ProverId, SectorId};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
 use fvm_shared::address::Payload;
@@ -17,7 +16,6 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
-use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::upgrade::UpgradeInfo;
 use fvm_shared::{commcid, ActorID};
@@ -53,63 +51,30 @@ const MAX_ARTIFACT_NAME_LEN: usize = 256;
 #[cfg(feature = "testing")]
 const TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 98;
 
-pub struct DefaultFilecoinKernel<K>(pub K)
-where
-    K: Kernel;
-
-impl<C> FilecoinKernel for DefaultFilecoinKernel<DefaultKernel<C>>
-where
-    C: CallManager,
-{
-    /// Verifies a window proof of spacetime.
-    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
-        let t = self
-            .0
-            .call_manager
-            .charge_gas(self.0.call_manager.price_list().on_verify_post(verify_info))?;
-
-        // This is especially important to catch as, otherwise, a bad "post" could be undisputable.
-        t.record(catch_and_log_panic("verifying post", || {
-            verify_post(verify_info)
-        }))
-    }
-}
-
 /// The "default" [`Kernel`] implementation.
 pub struct DefaultKernel<C> {
     // Fields extracted from the message, except parameters, which have been
     // preloaded into the block registry.
-    caller: ActorID,
-    actor_id: ActorID,
-    method: MethodNum,
-    value_received: TokenAmount,
-    read_only: bool,
+    pub caller: ActorID,
+    pub actor_id: ActorID,
+    pub method: MethodNum,
+    pub value_received: TokenAmount,
+    pub read_only: bool,
 
     /// The call manager for this call stack. If this kernel calls another actor, it will
     /// temporarily "give" the call manager to the other kernel before re-attaching it.
-    call_manager: C,
+    pub call_manager: C,
     /// Tracks block data and organizes it through index handles so it can be
     /// referred to.
     ///
     /// This does not yet reason about reachability.
-    blocks: BlockRegistry,
+    pub blocks: BlockRegistry,
 }
 
-// Even though all children traits are implemented, Rust needs to know that the
-// supertrait is implemented too.
-impl<C> Kernel for DefaultKernel<C>
+impl<C> ConstructKernel<C> for DefaultKernel<C>
 where
     C: CallManager,
 {
-    type CallManager = C;
-
-    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
-    where
-        Self: Sized,
-    {
-        (self.call_manager, self.blocks)
-    }
-
     fn new(
         mgr: C,
         blocks: BlockRegistry,
@@ -129,8 +94,24 @@ where
             read_only,
         }
     }
+}
 
-    fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
+// Even though all children traits are implemented, Rust needs to know that the
+// supertrait is implemented too.
+impl<C> Kernel for DefaultKernel<C>
+where
+    C: CallManager,
+{
+    type CallManager = C;
+
+    fn into_inner(self) -> (<Self as Kernel>::CallManager, BlockRegistry)
+    where
+        Self: Sized,
+    {
+        (self.call_manager, self.blocks)
+    }
+
+    fn machine(&self) -> &<<Self as Kernel>::CallManager as CallManager>::Machine {
         self.call_manager.machine()
     }
 
@@ -1298,35 +1279,6 @@ fn get_required_padding(
     (pad_pieces, PaddedPieceSize(sum))
 }
 
-fn to_fil_public_replica_infos(
-    src: &[SectorInfo],
-    typ: RegisteredPoStProof,
-) -> Result<BTreeMap<SectorId, PublicReplicaInfo>> {
-    let replicas = src
-        .iter()
-        .map::<core::result::Result<(SectorId, PublicReplicaInfo), String>, _>(
-            |sector_info: &SectorInfo| {
-                let commr = commcid::cid_to_replica_commitment_v1(&sector_info.sealed_cid)?;
-                if !check_valid_proof_type(typ, sector_info.proof) {
-                    return Err("invalid proof type".to_string());
-                }
-                let replica = PublicReplicaInfo::new(typ.try_into()?, commr);
-                Ok((SectorId::from(sector_info.sector_number), replica))
-            },
-        )
-        .collect::<core::result::Result<BTreeMap<SectorId, PublicReplicaInfo>, _>>()
-        .or_illegal_argument()?;
-    Ok(replicas)
-}
-
-fn check_valid_proof_type(post_type: RegisteredPoStProof, seal_type: RegisteredSealProof) -> bool {
-    if let Ok(proof_type_v1p1) = seal_type.registered_window_post_proof() {
-        proof_type_v1p1 == post_type
-    } else {
-        false
-    }
-}
-
 fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
     let commr = commcid::cid_to_replica_commitment_v1(&vi.sealed_cid).or_illegal_argument()?;
     let commd = commcid::cid_to_data_commitment_v1(&vi.unsealed_cid).or_illegal_argument()?;
@@ -1351,47 +1303,6 @@ fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
     //
     // Worst case, _some_ node falls out of sync. Better than the network halting.
     .context("failed to verify seal proof")
-}
-
-fn verify_post(verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
-    let WindowPoStVerifyInfo {
-        ref proofs,
-        ref challenged_sectors,
-        prover,
-        ..
-    } = verify_info;
-
-    let Randomness(mut randomness) = verify_info.randomness.clone();
-
-    // Necessary to be valid bls12 381 element.
-    randomness[31] &= 0x3f;
-
-    let proof_type = proofs[0].post_proof;
-
-    for proof in proofs {
-        if proof.post_proof != proof_type {
-            return Err(
-                syscall_error!(IllegalArgument; "all proof types must be the same (found both {:?} and {:?})", proof_type, proof.post_proof)
-                    .into(),
-            );
-        }
-    }
-    // Convert sector info into public replica
-    let replicas = to_fil_public_replica_infos(challenged_sectors, proof_type)?;
-
-    // Convert PoSt proofs into proofs-api format
-    let proofs: Vec<(proofs::RegisteredPoStProof, _)> = proofs
-        .iter()
-        .map(|p| Ok((p.post_proof.try_into()?, p.proof_bytes.as_ref())))
-        .collect::<core::result::Result<_, String>>()
-        .or_illegal_argument()?;
-
-    // Generate prover bytes from ID
-    let prover_id = prover_id_from_u64(*prover);
-
-    // Verify Proof
-    proofs::post::verify_window_post(&bytes_32(&randomness), &proofs, &replicas, prover_id)
-        .or_illegal_argument()
 }
 
 fn verify_aggregate_seals(aggregate: &AggregateSealVerifyProofAndInfos) -> Result<bool> {

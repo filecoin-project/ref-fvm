@@ -21,13 +21,15 @@ use fvm_shared::sys::out::vm::MessageContext;
 use fvm_shared::sys::SendFlags;
 use fvm_shared::{ActorID, MethodNum};
 
+mod blocks;
 mod hash;
 
-mod blocks;
 pub mod default;
+pub mod filecoin;
 
 pub(crate) mod error;
 
+use ambassador::delegatable_trait;
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
 use fvm_shared::event::StampedEvent;
 pub use hash::SupportedHashes;
@@ -46,9 +48,26 @@ pub struct CallResult {
     pub exit_code: ExitCode,
 }
 
-pub trait FilecoinKernel {
-    /// Verifies a window proof of spacetime.
-    fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool>;
+pub trait ConstructKernel<C> {
+    /// Construct a new [`Kernel`] from the parameterized [`CallManager`].
+    ///
+    /// - `caller` is the ID of the _immediate_ caller.
+    /// - `actor_id` is the ID of _this_ actor.
+    /// - `method` is the method that has been invoked.
+    /// - `value_received` is value received due to the current call.
+    /// - `blocks` is the initial block registry (should already contain the parameters).
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        mgr: C,
+        blocks: BlockRegistry,
+        caller: ActorID,
+        actor_id: ActorID,
+        method: MethodNum,
+        value_received: TokenAmount,
+        read_only: bool,
+    ) -> Self
+    where
+        Self: Sized;
 }
 
 /// The "kernel" implements the FVM interface as presented to the actors. It:
@@ -58,8 +77,10 @@ pub trait FilecoinKernel {
 ///
 /// Actors may call into the kernel via the syscalls defined in the [`syscalls`][crate::syscalls]
 /// module.
+#[delegatable_trait]
 pub trait Kernel:
     SyscallHandler
+    + ConstructKernel<<Self as Kernel>::CallManager>
     + ActorOps
     + IpldBlockOps
     + CircSupplyOps
@@ -78,32 +99,12 @@ pub trait Kernel:
     type CallManager: CallManager;
 
     /// Consume the [`Kernel`] and return the underlying [`CallManager`] and [`BlockRegistry`].
-    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
-    where
-        Self: Sized;
-
-    /// Construct a new [`Kernel`] from the given [`CallManager`].
-    ///
-    /// - `caller` is the ID of the _immediate_ caller.
-    /// - `actor_id` is the ID of _this_ actor.
-    /// - `method` is the method that has been invoked.
-    /// - `value_received` is value received due to the current call.
-    /// - `blocks` is the initial block registry (should already contain the parameters).
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        mgr: Self::CallManager,
-        blocks: BlockRegistry,
-        caller: ActorID,
-        actor_id: ActorID,
-        method: MethodNum,
-        value_received: TokenAmount,
-        read_only: bool,
-    ) -> Self
+    fn into_inner(self) -> (<Self as Kernel>::CallManager, BlockRegistry)
     where
         Self: Sized;
 
     /// The kernel's underlying "machine".
-    fn machine(&self) -> &<Self::CallManager as CallManager>::Machine;
+    fn machine(&self) -> &<<Self as Kernel>::CallManager as CallManager>::Machine;
 
     /// Sends a message to another actor.
     /// The method type parameter K is the type of the kernel to instantiate for
@@ -112,7 +113,7 @@ pub trait Kernel:
     /// kernel specifying its Self.
     /// This method is part of the Kernel trait so it can refer to the Self::CallManager
     /// associated type necessary to constrain K.
-    fn send<K: Kernel<CallManager = Self::CallManager>>(
+    fn send<K: Kernel<CallManager = <Self as Kernel>::CallManager>>(
         &mut self,
         recipient: &Address,
         method: u64,

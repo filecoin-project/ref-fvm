@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_shared::sector::WindowPoStVerifyInfo;
 
-use crate::kernel::FilecoinKernel;
-
 use super::Context;
-use crate::kernel::Result;
+use crate::kernel::{filecoin::FilecoinKernel, Result};
 
 /// Verifies a window proof of spacetime.
 ///

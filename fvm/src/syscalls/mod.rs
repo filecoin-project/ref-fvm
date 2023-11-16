@@ -6,8 +6,9 @@ use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
 
 use crate::call_manager::{backtrace, CallManager};
 use crate::gas::{Gas, GasInstant, GasTimer};
-use crate::kernel::default::DefaultFilecoinKernel;
+use crate::kernel::filecoin::DefaultFilecoinKernel;
 use crate::kernel::{ExecutionError, SyscallHandler};
+
 use crate::machine::limiter::MemoryLimiter;
 use crate::{DefaultKernel, Kernel};
 
@@ -343,9 +344,9 @@ where
     }
 }
 
-impl<K> SyscallHandler for DefaultFilecoinKernel<K>
+impl<C> SyscallHandler for DefaultFilecoinKernel<DefaultKernel<C>>
 where
-    K: Kernel,
+    C: CallManager,
 {
     fn bind_syscalls(
         &self,
@@ -355,7 +356,7 @@ where
         self.0.bind_syscalls(linker)?;
 
         // Now bind the crypto syscalls.
-        linker.bind("crypto", "verify_post", filecoin::verify_post)?;
+        //linker.bind("crypto", "verify_post", filecoin::verify_post)?;
 
         Ok(())
     }
