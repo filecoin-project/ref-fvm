@@ -79,7 +79,7 @@ pub trait ConstructKernel<C> {
 /// module.
 #[delegatable_trait]
 pub trait Kernel:
-    SyscallHandler
+    SyscallHandler<<Self as Kernel>::Kernel>
     + ConstructKernel<<Self as Kernel>::CallManager>
     + ActorOps
     + IpldBlockOps
@@ -97,6 +97,7 @@ pub trait Kernel:
 {
     /// The [`Kernel`]'s [`CallManager`] is
     type CallManager: CallManager;
+    type Kernel: Kernel<CallManager = Self::CallManager>;
 
     /// Consume the [`Kernel`] and return the underlying [`CallManager`] and [`BlockRegistry`].
     fn into_inner(self) -> (<Self as Kernel>::CallManager, BlockRegistry)
@@ -124,14 +125,16 @@ pub trait Kernel:
     ) -> Result<CallResult>;
 }
 
-pub trait SyscallHandler {
-    fn bind_syscalls(
-        &self,
-        linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
-    ) -> anyhow::Result<()>;
+pub trait SyscallHandler<K: Kernel> {
+    fn bind_syscalls(&self, linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()>;
 }
 
+pub struct DefaultFilecoinKernel<K>(pub K)
+where
+    K: Kernel;
+
 /// Network-related operations.
+#[delegatable_trait]
 pub trait NetworkOps {
     /// Network information (epoch, version, etc.).
     fn network_context(&self) -> Result<NetworkContext>;
@@ -141,12 +144,14 @@ pub trait NetworkOps {
 }
 
 /// Accessors to query attributes of the incoming message.
+#[delegatable_trait]
 pub trait MessageOps {
     /// Message information.
     fn msg_context(&self) -> Result<MessageContext>;
 }
 
 /// The IPLD subset of the kernel.
+#[delegatable_trait]
 pub trait IpldBlockOps {
     /// Open a block.
     ///
@@ -180,6 +185,7 @@ pub trait IpldBlockOps {
 
 /// Actor state access and manipulation.
 /// Depends on BlockOps to read and write blocks in the state tree.
+#[delegatable_trait]
 pub trait SelfOps: IpldBlockOps {
     /// Get the state root.
     fn root(&mut self) -> Result<Cid>;
@@ -198,6 +204,7 @@ pub trait SelfOps: IpldBlockOps {
 
 /// Actors operations whose scope of action is actors other than the calling
 /// actor. The calling actor's state may be consulted to resolve some.
+#[delegatable_trait]
 pub trait ActorOps {
     /// Resolves an address of any protocol to an ID address (via the Init actor's table).
     /// This allows resolution of externally-provided SECP, BLS, or actor addresses to the canonical form.
@@ -225,15 +232,11 @@ pub trait ActorOps {
         delegated_address: Option<Address>,
     ) -> Result<()>;
 
-    fn upgrade_actor<K: Kernel>(
-        &mut self,
-        new_code_cid: Cid,
-        params_id: BlockId,
-    ) -> Result<CallResult>;
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult>;
 
     /// Installs actor code pointed by cid
-    #[cfg(feature = "m2-native")]
-    fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
+    //#[cfg(feature = "m2-native")]
+    //fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
 
     /// Returns the actor's "type" (if builitin) or 0 (if not).
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32>;
@@ -246,6 +249,7 @@ pub trait ActorOps {
 }
 
 /// Operations to query the circulating supply.
+#[delegatable_trait]
 pub trait CircSupplyOps {
     /// Returns the total token supply in circulation at the beginning of the current epoch.
     /// The circulating supply is the sum of:
@@ -259,6 +263,7 @@ pub trait CircSupplyOps {
 }
 
 /// Operations for explicit gas charging.
+#[delegatable_trait]
 pub trait GasOps {
     /// Returns the gas used by the transaction so far.
     fn gas_used(&self) -> Gas;
@@ -275,6 +280,7 @@ pub trait GasOps {
 }
 
 /// Cryptographic primitives provided by the kernel.
+#[delegatable_trait]
 pub trait CryptoOps {
     /// Verifies that a signature is valid for an address and plaintext.
     fn verify_signature(
@@ -338,6 +344,7 @@ pub trait CryptoOps {
 }
 
 /// Randomness queries.
+#[delegatable_trait]
 pub trait RandomnessOps {
     /// Randomness returns a (pseudo)random byte array drawing from the latest
     /// ticket chain from a given epoch.
@@ -355,6 +362,7 @@ pub trait RandomnessOps {
 }
 
 /// Debugging APIs.
+#[delegatable_trait]
 pub trait DebugOps {
     /// Log a message.
     fn log(&self, msg: String);
@@ -372,6 +380,7 @@ pub trait DebugOps {
 /// This interface is not one of the operations the kernel provides to actors.
 /// It's only part of the kernel out of necessity to pass it through to the
 /// call manager which tracks the limits across the whole execution stack.
+#[delegatable_trait]
 pub trait LimiterOps {
     type Limiter: MemoryLimiter;
     /// Give access to the limiter of the underlying call manager.
@@ -379,6 +388,7 @@ pub trait LimiterOps {
 }
 
 /// Eventing APIs.
+#[delegatable_trait]
 pub trait EventOps {
     /// Records an event emitted throughout execution.
     fn emit_event(

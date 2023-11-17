@@ -229,6 +229,7 @@ where
     K: Kernel<CallManager = C>,
 {
     type CallManager = K::CallManager;
+    type Kernel = Self;
 
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
@@ -259,7 +260,8 @@ where
     }
 }
 
-impl<M, C, K> SyscallHandler for TestKernel<K>
+//impl<M, C, K> SyscallHandler<TestKernel<K>> for TestKernel<K>
+impl<M, C, K> SyscallHandler<TestKernel<K>> for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
@@ -267,7 +269,8 @@ where
 {
     fn bind_syscalls(
         &self,
-        _linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
+        _linker: &mut Linker<InvocationData<TestKernel<K>>>,
+        //_linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
     ) -> anyhow::Result<()> {
         Ok(())
     }
@@ -321,8 +324,8 @@ where
         self.0.lookup_delegated_address(actor_id)
     }
 
-    fn upgrade_actor<KK>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
-        self.0.upgrade_actor::<Self>(new_code_cid, params_id)
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
+        self.0.upgrade_actor(new_code_cid, params_id)
     }
 }
 

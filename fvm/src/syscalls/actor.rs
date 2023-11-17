@@ -121,7 +121,7 @@ pub fn upgrade_actor<K: Kernel>(
         Err(err) => return err.into(),
     };
 
-    match context.kernel.upgrade_actor::<K>(cid, params_id) {
+    match context.kernel.upgrade_actor(cid, params_id) {
         Ok(CallResult {
             block_id,
             block_stat,

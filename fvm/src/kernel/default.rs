@@ -103,6 +103,7 @@ where
     C: CallManager,
 {
     type CallManager = C;
+    type Kernel = Self;
 
     fn into_inner(self) -> (<Self as Kernel>::CallManager, BlockRegistry)
     where
@@ -868,11 +869,7 @@ where
             .create_actor(code_id, actor_id, delegated_address)
     }
 
-    fn upgrade_actor<K: Kernel>(
-        &mut self,
-        new_code_cid: Cid,
-        params_id: BlockId,
-    ) -> Result<CallResult> {
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
         if self.read_only {
             return Err(
                 syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),

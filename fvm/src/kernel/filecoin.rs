@@ -1,7 +1,10 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::panic::{self, UnwindSafe};
 
+use ambassador::Delegate;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 
 use fvm_ipld_encoding::bytes_32;
@@ -13,20 +16,35 @@ use super::blocks::BlockRegistry;
 use super::error::Result;
 use super::*;
 use crate::call_manager::CallManager;
-use crate::{syscall_error, DefaultKernel};
+//use crate::{syscall_error, DefaultKernel, ambassador_impl_ActorOps};
+use crate::*;
 
-pub trait FilecoinKernel {
+pub trait FilecoinKernel: Kernel {
     /// Verifies a window proof of spacetime.
     fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool>;
 }
 
-pub struct DefaultFilecoinKernel<K>(pub K)
+#[derive(Delegate)]
+#[delegate(IpldBlockOps)]
+#[delegate(ActorOps)]
+#[delegate(CircSupplyOps)]
+#[delegate(CryptoOps)]
+#[delegate(DebugOps)]
+#[delegate(EventOps)]
+#[delegate(GasOps)]
+#[delegate(MessageOps)]
+#[delegate(NetworkOps)]
+#[delegate(RandomnessOps)]
+#[delegate(SelfOps)]
+#[delegate(LimiterOps)]
+pub struct DefaultFilecoinKernel<KK>(pub KK)
 where
-    K: Kernel;
+    KK: Kernel;
 
 impl<C> FilecoinKernel for DefaultFilecoinKernel<DefaultKernel<C>>
 where
     C: CallManager,
+    DefaultFilecoinKernel<DefaultKernel<C>>: Kernel,
 {
     /// Verifies a window proof of spacetime.
     fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
@@ -55,17 +73,15 @@ where
         value_received: TokenAmount,
         read_only: bool,
     ) -> Self {
-        DefaultFilecoinKernel {
-            0: DefaultKernel::new(
-                mgr,
-                blocks,
-                caller,
-                actor_id,
-                method,
-                value_received,
-                read_only,
-            ),
-        }
+        DefaultFilecoinKernel(DefaultKernel::new(
+            mgr,
+            blocks,
+            caller,
+            actor_id,
+            method,
+            value_received,
+            read_only,
+        ))
     }
 }
 
