@@ -393,12 +393,12 @@ pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, Error> {
 mod tests {
     // Test cases for FOR-02: https://github.com/ChainSafe/forest/issues/1134
     use crate::address::errors::Error;
-    use crate::address::{from_leb_bytes, to_leb_bytes};
+    use crate::address::{current_network, from_leb_bytes, to_leb_bytes};
 
     #[test]
     fn test_debug() {
         assert_eq!(
-            "Address(\"f01\")",
+            format!("Address(\"{}01\")", current_network().to_prefix()),
             format!("{:?}", super::Address::new_id(1))
         )
     }
