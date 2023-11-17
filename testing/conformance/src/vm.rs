@@ -311,11 +311,6 @@ where
         self.0.get_code_cid_for_type(typ)
     }
 
-    #[cfg(feature = "m2-native")]
-    fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
-        Ok(())
-    }
-
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
         self.0.balance_of(actor_id)
     }
@@ -326,6 +321,18 @@ where
 
     fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
         self.0.upgrade_actor(new_code_cid, params_id)
+    }
+}
+
+impl<M, C, K> InstallActorOps for TestKernel<K>
+where
+    M: Machine,
+    C: CallManager<Machine = TestMachine<M>>,
+    K: Kernel<CallManager = C>,
+{
+    #[cfg(feature = "m2-native")]
+    fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
+        Ok(())
     }
 }
 

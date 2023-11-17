@@ -82,6 +82,7 @@ pub trait Kernel:
     SyscallHandler<<Self as Kernel>::Kernel>
     + ConstructKernel<<Self as Kernel>::CallManager>
     + ActorOps
+    + InstallActorOps
     + IpldBlockOps
     + CircSupplyOps
     + CryptoOps
@@ -234,10 +235,6 @@ pub trait ActorOps {
 
     fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult>;
 
-    /// Installs actor code pointed by cid
-    //#[cfg(feature = "m2-native")]
-    //fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
-
     /// Returns the actor's "type" (if builitin) or 0 (if not).
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32>;
 
@@ -246,6 +243,12 @@ pub trait ActorOps {
 
     /// Returns the balance associated with an actor id
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount>;
+}
+
+pub trait InstallActorOps {
+    /// Installs actor code pointed by cid
+    #[cfg(feature = "m2-native")]
+    fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
 }
 
 /// Operations to query the circulating supply.
