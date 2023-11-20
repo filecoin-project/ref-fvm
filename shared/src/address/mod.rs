@@ -397,10 +397,12 @@ mod tests {
 
     #[test]
     fn test_debug() {
-        assert_eq!(
-            "Address(\"f01\")",
-            format!("{:?}", super::Address::new_id(1))
-        )
+        // the address string is dependent on current network state which is set
+        // globally so we need to check against possible valid options
+        let addr_debug_str = format!("{:?}", super::Address::new_id(1));
+        assert!(["Address(\"f01\")", "Address(\"t01\")"]
+            .iter()
+            .any(|&s| s == addr_debug_str));
     }
 
     #[test]
