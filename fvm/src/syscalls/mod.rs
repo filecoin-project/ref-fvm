@@ -6,7 +6,7 @@ use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
 
 use crate::call_manager::{backtrace, CallManager};
 use crate::gas::{Gas, GasInstant, GasTimer};
-use crate::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
+use crate::kernel::filecoin::DefaultFilecoinKernel;
 use crate::kernel::{ExecutionError, SyscallHandler};
 
 use crate::machine::limiter::MemoryLimiter;
@@ -304,27 +304,6 @@ where
             crypto::recover_secp_public_key,
         )?;
         linker.bind("crypto", "hash", crypto::hash)?;
-        linker.bind(
-            "crypto",
-            "compute_unsealed_sector_cid",
-            crypto::compute_unsealed_sector_cid,
-        )?;
-        linker.bind(
-            "crypto",
-            "verify_consensus_fault",
-            crypto::verify_consensus_fault,
-        )?;
-        linker.bind(
-            "crypto",
-            "verify_aggregate_seals",
-            crypto::verify_aggregate_seals,
-        )?;
-        linker.bind(
-            "crypto",
-            "verify_replica_update",
-            crypto::verify_replica_update,
-        )?;
-        linker.bind("crypto", "batch_verify_seals", crypto::batch_verify_seals)?;
 
         linker.bind("event", "emit_event", event::emit_event)?;
 
@@ -345,14 +324,17 @@ where
     }
 }
 
-impl<C, K> SyscallHandler<K> for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<C> SyscallHandler<DefaultFilecoinKernel<DefaultKernel<C>>>
+    for DefaultFilecoinKernel<DefaultKernel<C>>
 where
     C: CallManager,
-    K: FilecoinKernel,
 {
-    fn bind_syscalls(&self, linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()> {
+    fn bind_syscalls(
+        &self,
+        linker: &mut Linker<InvocationData<DefaultFilecoinKernel<DefaultKernel<C>>>>,
+    ) -> anyhow::Result<()> {
         // Bind the default syscalls.
-        //self.0.bind_syscalls(linker)?;
+        // TODO: refactor this to avoid code duplication.
         linker.bind("vm", "exit", vm::exit)?;
         linker.bind("vm", "message_context", vm::message_context)?;
 
@@ -412,27 +394,6 @@ where
             crypto::recover_secp_public_key,
         )?;
         linker.bind("crypto", "hash", crypto::hash)?;
-        linker.bind(
-            "crypto",
-            "compute_unsealed_sector_cid",
-            crypto::compute_unsealed_sector_cid,
-        )?;
-        linker.bind(
-            "crypto",
-            "verify_consensus_fault",
-            crypto::verify_consensus_fault,
-        )?;
-        linker.bind(
-            "crypto",
-            "verify_aggregate_seals",
-            crypto::verify_aggregate_seals,
-        )?;
-        linker.bind(
-            "crypto",
-            "verify_replica_update",
-            crypto::verify_replica_update,
-        )?;
-        linker.bind("crypto", "batch_verify_seals", crypto::batch_verify_seals)?;
 
         linker.bind("event", "emit_event", event::emit_event)?;
 
@@ -450,7 +411,28 @@ where
         linker.bind("debug", "store_artifact", debug::store_artifact)?;
 
         // Now bind the crypto syscalls.
+        linker.bind(
+            "crypto",
+            "compute_unsealed_sector_cid",
+            filecoin::compute_unsealed_sector_cid,
+        )?;
         linker.bind("crypto", "verify_post", filecoin::verify_post)?;
+        linker.bind(
+            "crypto",
+            "verify_consensus_fault",
+            filecoin::verify_consensus_fault,
+        )?;
+        linker.bind(
+            "crypto",
+            "verify_aggregate_seals",
+            filecoin::verify_aggregate_seals,
+        )?;
+        linker.bind(
+            "crypto",
+            "verify_replica_update",
+            filecoin::verify_replica_update,
+        )?;
+        linker.bind("crypto", "batch_verify_seals", filecoin::batch_verify_seals)?;
 
         Ok(())
     }

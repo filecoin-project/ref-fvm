@@ -101,12 +101,12 @@ pub trait Kernel:
     type Kernel: Kernel<CallManager = Self::CallManager>;
 
     /// Consume the [`Kernel`] and return the underlying [`CallManager`] and [`BlockRegistry`].
-    fn into_inner(self) -> (<Self as Kernel>::CallManager, BlockRegistry)
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
         Self: Sized;
 
     /// The kernel's underlying "machine".
-    fn machine(&self) -> &<<Self as Kernel>::CallManager as CallManager>::Machine;
+    fn machine(&self) -> &<Self::CallManager as CallManager>::Machine;
 
     /// Sends a message to another actor.
     /// The method type parameter K is the type of the kernel to instantiate for
@@ -129,10 +129,6 @@ pub trait Kernel:
 pub trait SyscallHandler<K: Kernel> {
     fn bind_syscalls(&self, linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()>;
 }
-
-pub struct DefaultFilecoinKernel<K>(pub K)
-where
-    K: Kernel;
 
 /// Network-related operations.
 #[delegatable_trait]
@@ -245,6 +241,7 @@ pub trait ActorOps {
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount>;
 }
 
+// we are not delegating this trait as ambassador seems to not support feature flags
 pub trait InstallActorOps {
     /// Installs actor code pointed by cid
     #[cfg(feature = "m2-native")]
@@ -306,44 +303,6 @@ pub trait CryptoOps {
     /// to small to fit the entire digest, it will be truncated. If too large, the leftover space
     /// will not be overwritten.
     fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>>;
-
-    /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
-    fn compute_unsealed_sector_cid(
-        &self,
-        proof_type: RegisteredSealProof,
-        pieces: &[PieceInfo],
-    ) -> Result<Cid>;
-
-    /// Verifies that two block headers provide proof of a consensus fault:
-    /// - both headers mined by the same actor
-    /// - headers are different
-    /// - first header is of the same or lower epoch as the second
-    /// - at least one of the headers appears in the current chain at or after epoch `earliest`
-    /// - the headers provide evidence of a fault (see the spec for the different fault types).
-    /// The parameters are all serialized block headers. The third "extra" parameter is consulted only for
-    /// the "parent grinding fault", in which case it must be the sibling of h1 (same parent tipset) and one of the
-    /// blocks in the parent of h2 (i.e. h2's grandparent).
-    /// Returns nil and an error if the headers don't prove a fault.
-    fn verify_consensus_fault(
-        &self,
-        h1: &[u8],
-        h2: &[u8],
-        extra: &[u8],
-    ) -> Result<Option<ConsensusFault>>;
-
-    /// Verifies a batch of seals. This is a privledged syscall, may _only_ be called by the
-    /// power actor during cron.
-    ///
-    /// Gas: This syscall intentionally _does not_ charge any gas (as said gas would be charged to
-    /// cron). Instead, gas is pre-paid by the storage provider on pre-commit.
-    fn batch_verify_seals(&self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>>;
-
-    /// Verify aggregate seals verifies an aggregated batch of prove-commits.
-    fn verify_aggregate_seals(&self, aggregate: &AggregateSealVerifyProofAndInfos) -> Result<bool>;
-
-    /// Verify replica update verifies a snap deal: an upgrade from a CC sector to a sector with
-    /// deals.
-    fn verify_replica_update(&self, replica: &ReplicaUpdateInfo) -> Result<bool>;
 }
 
 /// Randomness queries.

@@ -29,7 +29,7 @@ use crate::syscalls::error::Abort;
 use crate::syscalls::{
     charge_for_exec, charge_for_init, record_init_time, update_gas_available, InvocationData,
 };
-use crate::{kernel, Kernel};
+use crate::Kernel;
 
 use self::concurrency::EngineConcurrency;
 use self::instance_pool::InstancePool;
@@ -513,8 +513,7 @@ impl Engine {
                 .expect("invalid instance cache entry"),
             Vacant(e) => &mut *e
                 .insert({
-                    let mut linker: Linker<InvocationData<<K as kernel::Kernel>::Kernel>> =
-                        Linker::new(&self.inner.engine);
+                    let mut linker = Linker::new(&self.inner.engine);
                     linker.allow_shadowing(true);
 
                     store

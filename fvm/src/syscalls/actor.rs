@@ -111,8 +111,8 @@ pub fn create_actor(
     context.kernel.create_actor(typ, actor_id, addr)
 }
 
-pub fn upgrade_actor<K: Kernel>(
-    context: Context<'_, K>,
+pub fn upgrade_actor(
+    context: Context<'_, impl Kernel>,
     new_code_cid_off: u32,
     params_id: u32,
 ) -> ControlFlow<sys::out::send::Send> {

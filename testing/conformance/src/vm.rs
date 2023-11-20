@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use cid::Cid;
+use fvm::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
 use fvm::syscalls::InvocationData;
 use multihash::MultihashGeneric;
 
@@ -184,7 +185,10 @@ where
 /// A kernel for intercepting syscalls.
 // TestKernel is coupled to TestMachine because it needs to use that to plumb the
 // TestData through when it's destroyed into a CallManager then recreated by that CallManager.
-pub struct TestKernel<K = DefaultKernel<DefaultCallManager<TestMachine>>>(pub K, pub TestData);
+pub struct TestKernel<K = DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<TestMachine>>>>(
+    pub K,
+    pub TestData,
+);
 
 impl<M, C, K> ConstructKernel<C> for TestKernel<K>
 where
@@ -260,7 +264,6 @@ where
     }
 }
 
-//impl<M, C, K> SyscallHandler<TestKernel<K>> for TestKernel<K>
 impl<M, C, K> SyscallHandler<TestKernel<K>> for TestKernel<K>
 where
     M: Machine,
@@ -270,7 +273,6 @@ where
     fn bind_syscalls(
         &self,
         _linker: &mut Linker<InvocationData<TestKernel<K>>>,
-        //_linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
     ) -> anyhow::Result<()> {
         Ok(())
     }
@@ -374,19 +376,12 @@ where
         Ok(self.1.circ_supply.clone())
     }
 }
-
-impl<M, C, K> CryptoOps for TestKernel<K>
+impl<M, C, K> FilecoinKernel for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
+    K: FilecoinKernel<CallManager = C>,
 {
-    // forwarded
-    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
-        self.0.hash(code, data)
-    }
-
-    // forwarded
     fn compute_unsealed_sector_cid(
         &self,
         proof_type: RegisteredSealProof,
@@ -395,25 +390,8 @@ where
         self.0.compute_unsealed_sector_cid(proof_type, pieces)
     }
 
-    // forwarded
-    fn verify_signature(
-        &self,
-        sig_type: SignatureType,
-        signature: &[u8],
-        signer: &Address,
-        plaintext: &[u8],
-    ) -> Result<bool> {
-        self.0
-            .verify_signature(sig_type, signature, signer, plaintext)
-    }
-
-    // forwarded
-    fn recover_secp_public_key(
-        &self,
-        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
-        signature: &[u8; SECP_SIG_LEN],
-    ) -> Result<[u8; SECP_PUB_LEN]> {
-        self.0.recover_secp_public_key(hash, signature)
+    fn verify_post(&self, verify_info: &fvm_shared::sector::WindowPoStVerifyInfo) -> Result<bool> {
+        self.0.verify_post(verify_info)
     }
 
     // NOT forwarded
@@ -448,6 +426,39 @@ where
         let charge = self.1.price_list.on_verify_replica_update(rep);
         let _ = self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
+    }
+}
+
+impl<M, C, K> CryptoOps for TestKernel<K>
+where
+    M: Machine,
+    C: CallManager<Machine = TestMachine<M>>,
+    K: Kernel<CallManager = C>,
+{
+    // forwarded
+    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
+        self.0.hash(code, data)
+    }
+
+    // forwarded
+    fn verify_signature(
+        &self,
+        sig_type: SignatureType,
+        signature: &[u8],
+        signer: &Address,
+        plaintext: &[u8],
+    ) -> Result<bool> {
+        self.0
+            .verify_signature(sig_type, signature, signer, plaintext)
+    }
+
+    // forwarded
+    fn recover_secp_public_key(
+        &self,
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
+        signature: &[u8; SECP_SIG_LEN],
+    ) -> Result<[u8; SECP_PUB_LEN]> {
+        self.0.recover_secp_public_key(hash, signature)
     }
 }
 
