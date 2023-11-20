@@ -236,14 +236,13 @@ fn min_table_elements(module: &Module) -> Option<u32> {
 use self::bind::BindSyscall;
 use self::error::Abort;
 
-impl<C> SyscallHandler<DefaultKernel<C>> for DefaultKernel<C>
+impl<K> SyscallHandler<K> for DefaultKernel<K::CallManager>
 where
-    C: CallManager,
+    K: Kernel,
 {
     fn bind_syscalls(
         &self,
-        //linker: &mut Linker<InvocationData<impl Kernel + 'static>>,
-        linker: &mut wasmtime::Linker<InvocationData<DefaultKernel<C>>>,
+        linker: &mut wasmtime::Linker<InvocationData<K>>,
     ) -> anyhow::Result<()> {
         linker.bind("vm", "exit", vm::exit)?;
         linker.bind("vm", "message_context", vm::message_context)?;
@@ -333,82 +332,7 @@ where
         &self,
         linker: &mut Linker<InvocationData<DefaultFilecoinKernel<DefaultKernel<C>>>>,
     ) -> anyhow::Result<()> {
-        // Bind the default syscalls.
-        // TODO: refactor this to avoid code duplication.
-        linker.bind("vm", "exit", vm::exit)?;
-        linker.bind("vm", "message_context", vm::message_context)?;
-
-        linker.bind(
-            "network",
-            "total_fil_circ_supply",
-            network::total_fil_circ_supply,
-        )?;
-        linker.bind("network", "context", network::context)?;
-        linker.bind("network", "tipset_cid", network::tipset_cid)?;
-
-        linker.bind("ipld", "block_open", ipld::block_open)?;
-        linker.bind("ipld", "block_create", ipld::block_create)?;
-        linker.bind("ipld", "block_read", ipld::block_read)?;
-        linker.bind("ipld", "block_stat", ipld::block_stat)?;
-        linker.bind("ipld", "block_link", ipld::block_link)?;
-
-        linker.bind("self", "root", sself::root)?;
-        linker.bind("self", "set_root", sself::set_root)?;
-        linker.bind("self", "current_balance", sself::current_balance)?;
-        linker.bind("self", "self_destruct", sself::self_destruct)?;
-
-        linker.bind("actor", "resolve_address", actor::resolve_address)?;
-        linker.bind(
-            "actor",
-            "lookup_delegated_address",
-            actor::lookup_delegated_address,
-        )?;
-        linker.bind("actor", "get_actor_code_cid", actor::get_actor_code_cid)?;
-        linker.bind("actor", "next_actor_address", actor::next_actor_address)?;
-        linker.bind("actor", "create_actor", actor::create_actor)?;
-        if cfg!(feature = "upgrade-actor") {
-            // We disable/enable with the feature, but we always compile this code to ensure we don't
-            // accidentally break it.
-            linker.bind("actor", "upgrade_actor", actor::upgrade_actor)?;
-        }
-        linker.bind(
-            "actor",
-            "get_builtin_actor_type",
-            actor::get_builtin_actor_type,
-        )?;
-        linker.bind(
-            "actor",
-            "get_code_cid_for_type",
-            actor::get_code_cid_for_type,
-        )?;
-        linker.bind("actor", "balance_of", actor::balance_of)?;
-
-        // Only wire this syscall when M2 native is enabled.
-        #[cfg(feature = "m2-native")]
-        linker.bind("actor", "install_actor", actor::install_actor)?;
-
-        linker.bind("crypto", "verify_signature", crypto::verify_signature)?;
-        linker.bind(
-            "crypto",
-            "recover_secp_public_key",
-            crypto::recover_secp_public_key,
-        )?;
-        linker.bind("crypto", "hash", crypto::hash)?;
-
-        linker.bind("event", "emit_event", event::emit_event)?;
-
-        linker.bind("rand", "get_chain_randomness", rand::get_chain_randomness)?;
-        linker.bind("rand", "get_beacon_randomness", rand::get_beacon_randomness)?;
-
-        linker.bind("gas", "charge", gas::charge_gas)?;
-        linker.bind("gas", "available", gas::available)?;
-
-        // Ok, this singled-out syscall should probably be in another category.
-        linker.bind("send", "send", send::send)?;
-
-        linker.bind("debug", "log", debug::log)?;
-        linker.bind("debug", "enabled", debug::enabled)?;
-        linker.bind("debug", "store_artifact", debug::store_artifact)?;
+        self.0.bind_syscalls(linker)?;
 
         // Now bind the crypto syscalls.
         linker.bind(
