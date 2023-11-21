@@ -111,8 +111,8 @@ pub fn create_actor(
     context.kernel.create_actor(typ, actor_id, addr)
 }
 
-pub fn upgrade_actor(
-    context: Context<'_, impl Kernel>,
+pub fn upgrade_actor<K: Kernel>(
+    context: Context<'_, K>,
     new_code_cid_off: u32,
     params_id: u32,
 ) -> ControlFlow<sys::out::send::Send> {
@@ -121,7 +121,7 @@ pub fn upgrade_actor(
         Err(err) => return err.into(),
     };
 
-    match context.kernel.upgrade_actor(cid, params_id) {
+    match context.kernel.upgrade_actor::<K>(cid, params_id) {
         Ok(CallResult {
             block_id,
             block_stat,

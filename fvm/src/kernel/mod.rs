@@ -123,6 +123,12 @@ pub trait Kernel:
         gas_limit: Option<Gas>,
         flags: SendFlags,
     ) -> Result<CallResult>;
+
+    fn upgrade_actor<K: Kernel<CallManager = Self::CallManager>>(
+        &mut self,
+        new_code_cid: Cid,
+        params_id: BlockId,
+    ) -> Result<CallResult>;
 }
 
 pub trait SyscallHandler<K: Kernel>: Sized {
@@ -227,8 +233,6 @@ pub trait ActorOps {
         actor_id: ActorID,
         delegated_address: Option<Address>,
     ) -> Result<()>;
-
-    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult>;
 
     /// Returns the actor's "type" (if builitin) or 0 (if not).
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32>;

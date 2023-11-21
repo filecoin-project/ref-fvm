@@ -257,6 +257,14 @@ where
         self.0
             .send::<Self>(recipient, method, params, value, gas_limit, flags)
     }
+
+    fn upgrade_actor<K: Kernel<CallManager = Self::CallManager>>(
+        &mut self,
+        new_code_cid: Cid,
+        params_id: BlockId,
+    ) -> Result<CallResult> {
+        self.0.upgrade_actor::<Self>(new_code_cid, params_id)
+    }
 }
 
 impl<C> InstallActorOps for DefaultFilecoinKernel<DefaultKernel<C>>
