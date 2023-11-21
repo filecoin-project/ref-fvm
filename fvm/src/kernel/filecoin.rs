@@ -265,12 +265,7 @@ where
     ) -> Result<CallResult> {
         self.0.upgrade_actor::<Self>(new_code_cid, params_id)
     }
-}
 
-impl<C> ConstructKernel<C> for DefaultFilecoinKernel<DefaultKernel<C>>
-where
-    C: CallManager,
-{
     fn new(
         mgr: C,
         blocks: BlockRegistry,

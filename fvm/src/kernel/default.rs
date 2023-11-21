@@ -60,10 +60,21 @@ pub struct DefaultKernel<C> {
     pub blocks: BlockRegistry,
 }
 
-impl<C> ConstructKernel<C> for DefaultKernel<C>
+// Even though all children traits are implemented, Rust needs to know that the
+// supertrait is implemented too.
+impl<C> Kernel for DefaultKernel<C>
 where
     C: CallManager,
 {
+    type CallManager = C;
+
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
+    where
+        Self: Sized,
+    {
+        (self.call_manager, self.blocks)
+    }
+
     fn new(
         mgr: C,
         blocks: BlockRegistry,
@@ -82,22 +93,6 @@ where
             value_received,
             read_only,
         }
-    }
-}
-
-// Even though all children traits are implemented, Rust needs to know that the
-// supertrait is implemented too.
-impl<C> Kernel for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    type CallManager = C;
-
-    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
-    where
-        Self: Sized,
-    {
-        (self.call_manager, self.blocks)
     }
 
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {

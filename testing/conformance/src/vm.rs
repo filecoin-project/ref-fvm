@@ -190,12 +190,21 @@ pub struct TestKernel<K = DefaultFilecoinKernel<DefaultKernel<DefaultCallManager
     pub TestData,
 );
 
-impl<M, C, K> ConstructKernel<C> for TestKernel<K>
+impl<M, C, K> Kernel for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = C>,
 {
+    type CallManager = K::CallManager;
+
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
+    where
+        Self: Sized,
+    {
+        self.0.into_inner()
+    }
+
     fn new(
         mgr: C,
         blocks: BlockRegistry,
@@ -223,22 +232,6 @@ where
             ),
             data,
         )
-    }
-}
-
-impl<M, C, K> Kernel for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    type CallManager = K::CallManager;
-
-    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
-    where
-        Self: Sized,
-    {
-        self.0.into_inner()
     }
 
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {

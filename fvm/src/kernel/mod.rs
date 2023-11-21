@@ -77,10 +77,8 @@ pub trait ConstructKernel<C> {
 ///
 /// Actors may call into the kernel via the syscalls defined in the [`syscalls`][crate::syscalls]
 /// module.
-#[delegatable_trait]
 pub trait Kernel:
     SyscallHandler<Self>
-    + ConstructKernel<<Self as Kernel>::CallManager>
     + ActorOps
     + IpldBlockOps
     + CircSupplyOps
@@ -100,6 +98,26 @@ pub trait Kernel:
 
     /// Consume the [`Kernel`] and return the underlying [`CallManager`] and [`BlockRegistry`].
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
+    where
+        Self: Sized;
+
+    /// Construct a new [`Kernel`] from the given [`CallManager`].
+    ///
+    /// - `caller` is the ID of the _immediate_ caller.
+    /// - `actor_id` is the ID of _this_ actor.
+    /// - `method` is the method that has been invoked.
+    /// - `value_received` is value received due to the current call.
+    /// - `blocks` is the initial block registry (should already contain the parameters).
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        mgr: Self::CallManager,
+        blocks: BlockRegistry,
+        caller: ActorID,
+        actor_id: ActorID,
+        method: MethodNum,
+        value_received: TokenAmount,
+        read_only: bool,
+    ) -> Self
     where
         Self: Sized;
 
