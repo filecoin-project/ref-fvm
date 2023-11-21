@@ -233,7 +233,6 @@ where
     K: Kernel<CallManager = C>,
 {
     type CallManager = K::CallManager;
-    type Kernel = Self;
 
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where

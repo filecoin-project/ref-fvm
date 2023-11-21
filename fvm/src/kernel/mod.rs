@@ -79,7 +79,7 @@ pub trait ConstructKernel<C> {
 /// module.
 #[delegatable_trait]
 pub trait Kernel:
-    SyscallHandler<<Self as Kernel>::Kernel>
+    SyscallHandler<Self>
     + ConstructKernel<<Self as Kernel>::CallManager>
     + ActorOps
     + InstallActorOps
@@ -98,7 +98,6 @@ pub trait Kernel:
 {
     /// The [`Kernel`]'s [`CallManager`] is
     type CallManager: CallManager;
-    type Kernel: Kernel<CallManager = Self::CallManager>;
 
     /// Consume the [`Kernel`] and return the underlying [`CallManager`] and [`BlockRegistry`].
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
@@ -115,7 +114,7 @@ pub trait Kernel:
     /// kernel specifying its Self.
     /// This method is part of the Kernel trait so it can refer to the Self::CallManager
     /// associated type necessary to constrain K.
-    fn send<K: Kernel<CallManager = <Self as Kernel>::CallManager>>(
+    fn send<K: Kernel<CallManager = Self::CallManager>>(
         &mut self,
         recipient: &Address,
         method: u64,
@@ -126,7 +125,7 @@ pub trait Kernel:
     ) -> Result<CallResult>;
 }
 
-pub trait SyscallHandler<K: Kernel> {
+pub trait SyscallHandler<K: Kernel>: Sized {
     fn bind_syscalls(&self, linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()>;
 }
 

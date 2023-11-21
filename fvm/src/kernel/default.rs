@@ -92,16 +92,15 @@ where
     C: CallManager,
 {
     type CallManager = C;
-    type Kernel = Self;
 
-    fn into_inner(self) -> (<Self as Kernel>::CallManager, BlockRegistry)
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
         Self: Sized,
     {
         (self.call_manager, self.blocks)
     }
 
-    fn machine(&self) -> &<<Self as Kernel>::CallManager as CallManager>::Machine {
+    fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
         self.call_manager.machine()
     }
 

@@ -233,7 +233,6 @@ where
     C: CallManager,
 {
     type CallManager = C;
-    type Kernel = Self;
 
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
@@ -246,7 +245,7 @@ where
         self.0.machine()
     }
 
-    fn send<K: Kernel<CallManager = Self::CallManager>>(
+    fn send<K: Kernel<CallManager = C>>(
         &mut self,
         recipient: &Address,
         method: u64,
