@@ -308,6 +308,10 @@ where
         self.0.create_actor(code_id, actor_id, delegated_address)
     }
 
+    fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
+        Ok(())
+    }
+
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
         self.0.get_builtin_actor_type(code_cid)
     }
@@ -322,18 +326,6 @@ where
 
     fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
         self.0.lookup_delegated_address(actor_id)
-    }
-}
-
-impl<M, C, K> InstallActorOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    #[cfg(feature = "m2-native")]
-    fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
-        Ok(())
     }
 }
 

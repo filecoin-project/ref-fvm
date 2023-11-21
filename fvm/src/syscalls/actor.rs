@@ -162,7 +162,6 @@ pub fn get_code_cid_for_type(
     context.memory.write_cid(&k, obuf_off, obuf_len)
 }
 
-#[cfg(feature = "m2-native")]
 pub fn install_actor(
     context: Context<'_, impl Kernel>,
     typ_off: u32, // Cid

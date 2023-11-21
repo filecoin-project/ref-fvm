@@ -267,16 +267,6 @@ where
     }
 }
 
-impl<C> InstallActorOps for DefaultFilecoinKernel<DefaultKernel<C>>
-where
-    C: CallManager,
-{
-    #[cfg(feature = "m2-native")]
-    fn install_actor(&mut self, code_id: Cid) -> Result<()> {
-        self.0.install_actor(code_id)
-    }
-}
-
 impl<C> ConstructKernel<C> for DefaultFilecoinKernel<DefaultKernel<C>>
 where
     C: CallManager,

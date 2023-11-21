@@ -836,6 +836,23 @@ where
             .create_actor(code_id, actor_id, delegated_address)
     }
 
+    fn install_actor(&mut self, code_id: Cid) -> Result<()> {
+        let start = GasTimer::start();
+        let size = self
+            .call_manager
+            .engine()
+            .preload(self.call_manager.blockstore(), &[code_id])
+            .context("failed to install actor")
+            .or_illegal_argument()?;
+
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_install_actor(size))?;
+        t.stop_with(start);
+
+        Ok(())
+    }
+
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
         let t = self
             .call_manager
@@ -885,29 +902,6 @@ where
         Ok(t.record(self.call_manager.get_actor(actor_id))?
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
             .delegated_address)
-    }
-}
-
-impl<C> InstallActorOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    #[cfg(feature = "m2-native")]
-    fn install_actor(&mut self, code_id: Cid) -> Result<()> {
-        let start = GasTimer::start();
-        let size = self
-            .call_manager
-            .engine()
-            .preload(self.call_manager.blockstore(), &[code_id])
-            .context("failed to install actor")
-            .or_illegal_argument()?;
-
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_install_actor(size))?;
-        t.stop_with(start);
-
-        Ok(())
     }
 }
 
