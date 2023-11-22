@@ -15,7 +15,7 @@ use fvm::kernel::*;
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
-use fvm::DefaultKernel;
+use fvm::BaseKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
@@ -185,7 +185,7 @@ where
 /// A kernel for intercepting syscalls.
 // TestKernel is coupled to TestMachine because it needs to use that to plumb the
 // TestData through when it's destroyed into a CallManager then recreated by that CallManager.
-pub struct TestKernel<K = DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<TestMachine>>>>(
+pub struct TestKernel<K = DefaultFilecoinKernel<BaseKernel<DefaultCallManager<TestMachine>>>>(
     pub K,
     pub TestData,
 );

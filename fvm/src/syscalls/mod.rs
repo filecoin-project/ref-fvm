@@ -10,7 +10,7 @@ use crate::kernel::filecoin::DefaultFilecoinKernel;
 use crate::kernel::{ExecutionError, SyscallHandler};
 
 use crate::machine::limiter::MemoryLimiter;
-use crate::{DefaultKernel, Kernel};
+use crate::{BaseKernel, Kernel};
 
 pub(crate) mod error;
 
@@ -236,7 +236,7 @@ fn min_table_elements(module: &Module) -> Option<u32> {
 use self::bind::BindSyscall;
 use self::error::Abort;
 
-impl<K> SyscallHandler<K> for DefaultKernel<K::CallManager>
+impl<K> SyscallHandler<K> for BaseKernel<K::CallManager>
 where
     K: Kernel,
 {
@@ -324,14 +324,14 @@ where
     }
 }
 
-impl<C> SyscallHandler<DefaultFilecoinKernel<DefaultKernel<C>>>
-    for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<C> SyscallHandler<DefaultFilecoinKernel<BaseKernel<C>>>
+    for DefaultFilecoinKernel<BaseKernel<C>>
 where
     C: CallManager,
 {
     fn bind_syscalls(
         &self,
-        linker: &mut Linker<InvocationData<DefaultFilecoinKernel<DefaultKernel<C>>>>,
+        linker: &mut Linker<InvocationData<DefaultFilecoinKernel<BaseKernel<C>>>>,
     ) -> anyhow::Result<()> {
         self.0.bind_syscalls(linker)?;
 

@@ -41,7 +41,7 @@ const MAX_ARTIFACT_NAME_LEN: usize = 256;
 const TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 98;
 
 /// The "default" [`Kernel`] implementation.
-pub struct DefaultKernel<C> {
+pub struct BaseKernel<C> {
     // Fields extracted from the message, except parameters, which have been
     // preloaded into the block registry.
     pub caller: ActorID,
@@ -62,7 +62,7 @@ pub struct DefaultKernel<C> {
 
 // Even though all children traits are implemented, Rust needs to know that the
 // supertrait is implemented too.
-impl<C> Kernel for DefaultKernel<C>
+impl<C> Kernel for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -84,7 +84,7 @@ where
         value_received: TokenAmount,
         read_only: bool,
     ) -> Self {
-        DefaultKernel {
+        BaseKernel {
             call_manager: mgr,
             blocks,
             caller,
@@ -268,7 +268,7 @@ where
     }
 }
 
-impl<C> DefaultKernel<C>
+impl<C> BaseKernel<C>
 where
     C: CallManager,
 {
@@ -278,7 +278,7 @@ where
     }
 }
 
-impl<C> SelfOps for DefaultKernel<C>
+impl<C> SelfOps for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -369,7 +369,7 @@ where
     }
 }
 
-impl<C> IpldBlockOps for DefaultKernel<C>
+impl<C> IpldBlockOps for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -518,7 +518,7 @@ where
     }
 }
 
-impl<C> MessageOps for DefaultKernel<C>
+impl<C> MessageOps for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -554,7 +554,7 @@ where
     }
 }
 
-impl<C> CircSupplyOps for DefaultKernel<C>
+impl<C> CircSupplyOps for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -566,7 +566,7 @@ where
     }
 }
 
-impl<C> CryptoOps for DefaultKernel<C>
+impl<C> CryptoOps for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -637,7 +637,7 @@ where
     }
 }
 
-impl<C> GasOps for DefaultKernel<C>
+impl<C> GasOps for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -658,7 +658,7 @@ where
     }
 }
 
-impl<C> NetworkOps for DefaultKernel<C>
+impl<C> NetworkOps for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -717,7 +717,7 @@ where
     }
 }
 
-impl<C> RandomnessOps for DefaultKernel<C>
+impl<C> RandomnessOps for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -769,7 +769,7 @@ where
     }
 }
 
-impl<C> ActorOps for DefaultKernel<C>
+impl<C> ActorOps for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -900,7 +900,7 @@ where
     }
 }
 
-impl<C> DebugOps for DefaultKernel<C>
+impl<C> DebugOps for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -963,7 +963,7 @@ where
     }
 }
 
-impl<C> LimiterOps for DefaultKernel<C>
+impl<C> LimiterOps for BaseKernel<C>
 where
     C: CallManager,
 {
@@ -974,7 +974,7 @@ where
     }
 }
 
-impl<C> EventOps for DefaultKernel<C>
+impl<C> EventOps for BaseKernel<C>
 where
     C: CallManager,
 {

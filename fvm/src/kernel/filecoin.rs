@@ -89,10 +89,10 @@ pub struct DefaultFilecoinKernel<K>(pub K)
 where
     K: Kernel;
 
-impl<C> FilecoinKernel for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<C> FilecoinKernel for DefaultFilecoinKernel<BaseKernel<C>>
 where
     C: CallManager,
-    DefaultFilecoinKernel<DefaultKernel<C>>: Kernel,
+    DefaultFilecoinKernel<BaseKernel<C>>: Kernel,
 {
     fn compute_unsealed_sector_cid(
         &self,
@@ -228,7 +228,7 @@ where
     }
 }
 
-impl<C> Kernel for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<C> Kernel for DefaultFilecoinKernel<BaseKernel<C>>
 where
     C: CallManager,
 {
@@ -275,7 +275,7 @@ where
         value_received: TokenAmount,
         read_only: bool,
     ) -> Self {
-        DefaultFilecoinKernel(DefaultKernel::new(
+        DefaultFilecoinKernel(BaseKernel::new(
             mgr,
             blocks,
             caller,

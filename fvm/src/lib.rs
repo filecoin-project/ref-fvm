@@ -8,7 +8,7 @@
 //! This package emits logs using the log façade. Configure the logging backend
 //! of your choice during the initialization of the consuming application.
 
-pub use kernel::default::DefaultKernel;
+pub use kernel::default::BaseKernel;
 pub use kernel::Kernel;
 
 pub mod call_manager;
@@ -58,7 +58,7 @@ mod test {
     use crate::kernel::filecoin::DefaultFilecoinKernel;
     use crate::machine::{DefaultMachine, Manifest, NetworkConfig};
     use crate::state_tree::StateTree;
-    use crate::{executor, DefaultKernel};
+    use crate::{executor, BaseKernel};
 
     struct DummyExterns;
 
@@ -126,7 +126,7 @@ mod test {
         let machine = DefaultMachine::new(&mc, bs, DummyExterns).unwrap();
         let engine = EnginePool::new_default((&mc.network).into()).unwrap();
         let _ = executor::DefaultExecutor::<
-            DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<_>>>,
+            DefaultFilecoinKernel<BaseKernel<DefaultCallManager<_>>>,
         >::new(engine, Box::new(machine));
     }
 }

@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 // test target
-use fvm::kernel::default::DefaultKernel;
+use fvm::kernel::default::BaseKernel;
 use fvm::kernel::{Block, BlockRegistry};
 use fvm::Kernel;
 use multihash::Code;
@@ -14,7 +14,7 @@ use super::*;
 
 mod ops;
 
-type TestingKernel = DefaultKernel<DummyCallManager>;
+type TestingKernel = BaseKernel<DummyCallManager>;
 
 /// build a kernel for testing
 pub fn build_inspecting_test() -> anyhow::Result<(TestingKernel, Rc<RefCell<TestData>>)> {
