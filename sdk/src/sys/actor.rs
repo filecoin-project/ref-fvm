@@ -168,7 +168,6 @@ super::fvm_syscalls! {
 
     /// Installs and ensures actor code is valid and loaded.
     /// **Privileged:** May only be called by the init actor.
-    #[cfg(feature = "m2-native")]
     pub fn install_actor(cid_off: *const u8) -> Result<()>;
 
     /// Gets the balance of the specified actor.

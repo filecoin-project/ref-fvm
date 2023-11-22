@@ -6,6 +6,7 @@ use fvm::call_manager::DefaultCallManager;
 use fvm::engine::EnginePool;
 use fvm::executor::DefaultExecutor;
 use fvm::externs::Externs;
+use fvm::kernel::filecoin::DefaultFilecoinKernel;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor, DefaultKernel};
@@ -35,7 +36,7 @@ lazy_static! {
 pub trait Store: Blockstore + Sized + 'static {}
 
 pub type IntegrationExecutor<B, E> =
-    DefaultExecutor<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>;
+    DefaultExecutor<DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>>;
 
 pub type Account = (ActorID, Address);
 
@@ -296,10 +297,9 @@ where
 
         let machine = DefaultMachine::new(&mc, blockstore, externs)?;
 
-        let executor =
-            DefaultExecutor::<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>::new(
-                engine, machine,
-            )?;
+        let executor = DefaultExecutor::<
+            DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<DefaultMachine<B, E>>>>,
+        >::new(engine, machine)?;
 
         self.executor = Some(executor);
         self.ready = true;

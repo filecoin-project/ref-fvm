@@ -41,6 +41,7 @@ minstant = "0.1.2"
 blake2b_simd = "1.0.0"
 byteorder = "1.4.3"
 static_assertions = "1.1.0"
+ambassador = "0.3.5"
 
 [dev-dependencies]
 pretty_assertions = "1.3.0"
