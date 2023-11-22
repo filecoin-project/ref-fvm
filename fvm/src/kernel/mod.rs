@@ -48,28 +48,6 @@ pub struct CallResult {
     pub exit_code: ExitCode,
 }
 
-pub trait ConstructKernel<C> {
-    /// Construct a new [`Kernel`] from the parameterized [`CallManager`].
-    ///
-    /// - `caller` is the ID of the _immediate_ caller.
-    /// - `actor_id` is the ID of _this_ actor.
-    /// - `method` is the method that has been invoked.
-    /// - `value_received` is value received due to the current call.
-    /// - `blocks` is the initial block registry (should already contain the parameters).
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        mgr: C,
-        blocks: BlockRegistry,
-        caller: ActorID,
-        actor_id: ActorID,
-        method: MethodNum,
-        value_received: TokenAmount,
-        read_only: bool,
-    ) -> Self
-    where
-        Self: Sized;
-}
-
 /// The "kernel" implements the FVM interface as presented to the actors. It:
 ///
 /// - Manages the Actor's state.
