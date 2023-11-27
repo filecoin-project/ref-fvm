@@ -89,11 +89,7 @@ where
 {
     type Item = Result<(u64, &'a V), crate::Error>;
     fn next(&mut self) -> Option<Self::Item> {
-        let root_height = self.stack[0].height;
-        loop {
-            if self.key > MAX_INDEX {
-                return None;
-            }
+        while self.key <= MAX_INDEX {
             let stack = self.stack.last_mut()?;
             match stack.node {
                 Node::Leaf { vals } => {
@@ -127,7 +123,7 @@ where
                                     self.stack.push(IterStack {
                                         node: node.as_ref(),
                                         idx: 0,
-                                        height: root_height - self.stack.len() as u32,
+                                        height: self.stack[0].height - self.stack.len() as u32,
                                     });
                                 }
                                 Err(e) => {
@@ -141,7 +137,7 @@ where
                             self.stack.push(IterStack {
                                 node: node.as_ref(),
                                 idx: 0,
-                                height: root_height - self.stack.len() as u32,
+                                height: self.stack[0].height - self.stack.len() as u32,
                             });
                         }
                         Some(&None) => {
@@ -155,6 +151,7 @@ where
                 }
             }
         }
+        None
     }
 }
 
