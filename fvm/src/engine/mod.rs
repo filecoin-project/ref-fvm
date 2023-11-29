@@ -27,8 +27,7 @@ use crate::machine::limiter::MemoryLimiter;
 use crate::machine::{Machine, NetworkConfig};
 use crate::syscalls::error::Abort;
 use crate::syscalls::{
-    bind_syscalls, charge_for_exec, charge_for_init, record_init_time, update_gas_available,
-    InvocationData,
+    charge_for_exec, charge_for_init, record_init_time, update_gas_available, InvocationData,
 };
 use crate::Kernel;
 
@@ -514,10 +513,15 @@ impl Engine {
                 .expect("invalid instance cache entry"),
             Vacant(e) => &mut *e
                 .insert({
-                    let mut linker: Linker<InvocationData<K>> = Linker::new(&self.inner.engine);
+                    let mut linker = Linker::new(&self.inner.engine);
                     linker.allow_shadowing(true);
 
-                    bind_syscalls(&mut linker).map_err(Abort::Fatal)?;
+                    store
+                        .data()
+                        .kernel
+                        .bind_syscalls(&mut linker)
+                        .map_err(Abort::Fatal)?;
+
                     Box::new(Cache { linker })
                 })
                 .downcast_mut()

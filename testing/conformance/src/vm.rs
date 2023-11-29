@@ -5,6 +5,8 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use cid::Cid;
+use fvm::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
+use fvm::syscalls::InvocationData;
 use multihash::MultihashGeneric;
 
 use fvm::call_manager::{CallManager, DefaultCallManager};
@@ -26,11 +28,11 @@ use fvm_shared::piece::PieceInfo;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
-    WindowPoStVerifyInfo,
 };
 use fvm_shared::sys::{EventEntry, SendFlags};
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
+use wasmtime::Linker;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -183,7 +185,10 @@ where
 /// A kernel for intercepting syscalls.
 // TestKernel is coupled to TestMachine because it needs to use that to plumb the
 // TestData through when it's destroyed into a CallManager then recreated by that CallManager.
-pub struct TestKernel<K = DefaultKernel<DefaultCallManager<TestMachine>>>(pub K, pub TestData);
+pub struct TestKernel<K = DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<TestMachine>>>>(
+    pub K,
+    pub TestData,
+);
 
 impl<M, C, K> Kernel for TestKernel<K>
 where
@@ -201,7 +206,7 @@ where
     }
 
     fn new(
-        mgr: Self::CallManager,
+        mgr: C,
         blocks: BlockRegistry,
         caller: ActorID,
         actor_id: ActorID,
@@ -249,6 +254,24 @@ where
         self.0
             .send::<Self>(recipient, method, params, value, gas_limit, flags)
     }
+
+    fn upgrade_actor<KK>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
+        self.0.upgrade_actor::<Self>(new_code_cid, params_id)
+    }
+}
+
+impl<M, C, K> SyscallHandler<TestKernel<K>> for TestKernel<K>
+where
+    M: Machine,
+    C: CallManager<Machine = TestMachine<M>>,
+    K: Kernel<CallManager = C>,
+{
+    fn bind_syscalls(
+        &self,
+        _linker: &mut Linker<InvocationData<TestKernel<K>>>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 impl<M, C, K> ActorOps for TestKernel<K>
@@ -278,6 +301,10 @@ where
         self.0.create_actor(code_id, actor_id, delegated_address)
     }
 
+    fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
+        Ok(())
+    }
+
     fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
         self.0.get_builtin_actor_type(code_cid)
     }
@@ -286,21 +313,12 @@ where
         self.0.get_code_cid_for_type(typ)
     }
 
-    #[cfg(feature = "m2-native")]
-    fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
-        Ok(())
-    }
-
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
         self.0.balance_of(actor_id)
     }
 
     fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
         self.0.lookup_delegated_address(actor_id)
-    }
-
-    fn upgrade_actor<KK>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
-        self.0.upgrade_actor::<Self>(new_code_cid, params_id)
     }
 }
 
@@ -342,19 +360,12 @@ where
         Ok(self.1.circ_supply.clone())
     }
 }
-
-impl<M, C, K> CryptoOps for TestKernel<K>
+impl<M, C, K> FilecoinKernel for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
+    K: FilecoinKernel<CallManager = C>,
 {
-    // forwarded
-    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
-        self.0.hash(code, data)
-    }
-
-    // forwarded
     fn compute_unsealed_sector_cid(
         &self,
         proof_type: RegisteredSealProof,
@@ -363,41 +374,13 @@ where
         self.0.compute_unsealed_sector_cid(proof_type, pieces)
     }
 
-    // forwarded
-    fn verify_bls_aggregate(
-        &self,
-        aggregate_signature: &[u8; BLS_SIG_LEN],
-        pub_keys: &[[u8; BLS_PUB_LEN]],
-        plaintexts_concat: &[u8],
-        plaintext_lens: &[u32],
-    ) -> Result<bool> {
-        self.0.verify_bls_aggregate(
-            aggregate_signature,
-            pub_keys,
-            plaintexts_concat,
-            plaintext_lens,
-        )
-    }
-
-    // forwarded
-    fn recover_secp_public_key(
-        &self,
-        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
-        signature: &[u8; SECP_SIG_LEN],
-    ) -> Result<[u8; SECP_PUB_LEN]> {
-        self.0.recover_secp_public_key(hash, signature)
+    fn verify_post(&self, verify_info: &fvm_shared::sector::WindowPoStVerifyInfo) -> Result<bool> {
+        self.0.verify_post(verify_info)
     }
 
     // NOT forwarded
     fn batch_verify_seals(&self, vis: &[SealVerifyInfo]) -> Result<Vec<bool>> {
         Ok(vec![true; vis.len()])
-    }
-
-    // NOT forwarded
-    fn verify_post(&self, vi: &WindowPoStVerifyInfo) -> Result<bool> {
-        let charge = self.1.price_list.on_verify_post(vi);
-        let _ = self.0.charge_gas(&charge.name, charge.total())?;
-        Ok(true)
     }
 
     // NOT forwarded
@@ -427,6 +410,43 @@ where
         let charge = self.1.price_list.on_verify_replica_update(rep);
         let _ = self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
+    }
+}
+
+impl<M, C, K> CryptoOps for TestKernel<K>
+where
+    M: Machine,
+    C: CallManager<Machine = TestMachine<M>>,
+    K: Kernel<CallManager = C>,
+{
+    // forwarded
+    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
+        self.0.hash(code, data)
+    }
+
+    // forwarded
+    fn verify_bls_aggregate(
+        &self,
+        aggregate_signature: &[u8; BLS_SIG_LEN],
+        pub_keys: &[[u8; BLS_PUB_LEN]],
+        plaintexts_concat: &[u8],
+        plaintext_lens: &[u32],
+    ) -> Result<bool> {
+        self.0.verify_bls_aggregate(
+            aggregate_signature,
+            pub_keys,
+            plaintexts_concat,
+            plaintext_lens,
+        )
+    }
+
+    // forwarded
+    fn recover_secp_public_key(
+        &self,
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
+        signature: &[u8; SECP_SIG_LEN],
+    ) -> Result<[u8; SECP_PUB_LEN]> {
+        self.0.recover_secp_public_key(hash, signature)
     }
 }
 

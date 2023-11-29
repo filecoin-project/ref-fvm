@@ -67,7 +67,7 @@ const TESTNET_PREFIX: &str = "t";
 
 /// Address is the struct that defines the protocol and data payload conversion from either
 /// a public key or value
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "testing", derive(Default))]
 #[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub struct Address {
@@ -229,6 +229,15 @@ impl fmt::Display for Address {
     }
 }
 
+// Manually implement Debug so we print a "real" address.
+impl fmt::Debug for Address {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Address")
+            .field(&format_args!("\"{}\"", self))
+            .finish()
+    }
+}
+
 #[cfg(feature = "arb")]
 impl quickcheck::Arbitrary for Address {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
@@ -385,6 +394,16 @@ mod tests {
     // Test cases for FOR-02: https://github.com/ChainSafe/forest/issues/1134
     use crate::address::errors::Error;
     use crate::address::{from_leb_bytes, to_leb_bytes};
+
+    #[test]
+    fn test_debug() {
+        // the address string is dependent on current network state which is set
+        // globally so we need to check against possible valid options
+        let addr_debug_str = format!("{:?}", super::Address::new_id(1));
+        assert!(["Address(\"f01\")", "Address(\"t01\")"]
+            .iter()
+            .any(|&s| s == addr_debug_str));
+    }
 
     #[test]
     fn test_from_leb_bytes_passing() {

@@ -908,7 +908,6 @@ impl PriceList {
     }
 
     /// Returns the gas required for installing an actor.
-    #[cfg(feature = "m2-native")]
     pub fn on_install_actor(&self, wasm_size: usize) -> GasCharge {
         GasCharge::new(
             "OnInstallActor",
