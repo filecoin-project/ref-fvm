@@ -57,7 +57,7 @@ impl NetworkVersion {
     pub const V20: Self = Self(20);
     /// Watermelon (builtin-actors v12)
     pub const V21: Self = Self(21);
-    /// Pineapple(builtin-actors v12)
+    /// TBD builtin-actors v123
     pub const V22: Self = Self(22);
 
     pub const MAX: Self = Self(u32::MAX);
