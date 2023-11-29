@@ -1,5 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
-// Copyright 2019-2022 ChainSafe Systems
+// Copyright 2019-2023 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -123,6 +123,7 @@ fn for_each(c: &mut Criterion) {
     c.bench_function("AMT for_each function", |b| {
         b.iter(|| {
             let a = Amt::load(&cid, &db).unwrap();
+            #[allow(deprecated)]
             black_box(a).for_each(|_, _v: &u64| Ok(())).unwrap();
         })
     });

@@ -1,5 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
-// Copyright 2019-2022 ChainSafe Systems
+// Copyright 2019-2023 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 //! AMT crate for use as rust IPLD data structure
@@ -10,10 +10,12 @@
 mod amt;
 mod diff;
 mod error;
+mod iter;
 mod node;
 mod root;
 mod value_mut;
 
+pub(crate) use self::amt::AmtImpl;
 pub use self::amt::{Amt, Amtv0};
 pub use self::diff::{diff, Change, ChangeType};
 pub use self::error::Error;

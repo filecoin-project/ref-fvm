@@ -1,8 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
-// Copyright 2019-2022 ChainSafe Systems
+// Copyright 2019-2023 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
-
-use std::fmt::Debug;
 
 use fvm_ipld_amt::{Amt, Amtv0, Error, MAX_INDEX};
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
@@ -10,6 +8,7 @@ use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::BytesDe;
+use std::fmt::Debug;
 
 fn assert_get<V, BS>(a: &Amt<V, BS>, i: u64, v: &V)
 where
@@ -353,6 +352,7 @@ fn for_each() {
 
     // Iterate over amt with dirty cache
     let mut x = 0;
+    #[allow(deprecated)]
     a.for_each(|_, _: &BytesDe| {
         x += 1;
         Ok(())
@@ -367,6 +367,7 @@ fn for_each() {
     assert_eq!(new_amt.count(), indexes.len() as u64);
 
     let mut x = 0;
+    #[allow(deprecated)]
     new_amt
         .for_each(|i, _: &BytesDe| {
             if i != indexes[x] {
@@ -381,6 +382,7 @@ fn for_each() {
         .unwrap();
     assert_eq!(x, indexes.len());
 
+    #[allow(deprecated)]
     new_amt.for_each(|_, _: &BytesDe| Ok(())).unwrap();
     assert_eq!(
         c.to_string().as_str(),
@@ -623,6 +625,7 @@ fn new_from_iter() {
 
     let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
     let mut restored = Vec::new();
+    #[allow(deprecated)]
     a.for_each(|k, v| {
         restored.push((k as usize, v.clone()));
         Ok(())
