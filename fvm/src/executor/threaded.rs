@@ -9,10 +9,10 @@ use super::{ApplyKind, ApplyRet, Executor};
 
 lazy_static! {
     static ref EXEC_POOL: yastl::Pool = yastl::Pool::with_config(
-        8,
+        std::thread::available_parallelism().map(|n|n.get()).unwrap_or(8),
         yastl::ThreadConfig::new()
             .prefix("fvm-executor")
-            // fvm needs more than the deafault available stack (2MiB):
+            // fvm needs more than the default available stack (2MiB):
             // - Max 2048 wasm stack elements, which is 16KiB of 64bit entries
             // - Roughly 20KiB overhead per actor call
             // - max 1024 nested calls, which means that in the worst case we need ~36MiB of stack
