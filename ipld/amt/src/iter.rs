@@ -45,8 +45,8 @@ where
             stack: vec![IterStack {
                 node: &self.root.node,
                 idx: 0,
-                height: self.root.height,
             }],
+            height: self.root.height,
             blockstore: &self.block_store,
             bit_width: self.bit_width(),
             ver: PhantomData,
@@ -70,6 +70,7 @@ where
 
 pub struct Iter<'a, V, BS, Ver> {
     stack: Vec<IterStack<'a, V>>,
+    height: u32,
     blockstore: BS,
     bit_width: u32,
     ver: PhantomData<Ver>,
@@ -79,7 +80,6 @@ pub struct Iter<'a, V, BS, Ver> {
 pub struct IterStack<'a, V> {
     pub(crate) node: &'a Node<V>,
     pub(crate) idx: usize,
-    pub(crate) height: u32,
 }
 
 impl<'a, V, BS, Ver> Iterator for Iter<'a, V, BS, Ver>
@@ -123,7 +123,6 @@ where
                                     self.stack.push(IterStack {
                                         node: node.as_ref(),
                                         idx: 0,
-                                        height: self.stack[0].height - self.stack.len() as u32,
                                     });
                                 }
                                 Err(e) => {
@@ -137,12 +136,14 @@ where
                             self.stack.push(IterStack {
                                 node: node.as_ref(),
                                 idx: 0,
-                                height: self.stack[0].height - self.stack.len() as u32,
                             });
                         }
                         Some(&None) => {
                             stack.idx += 1;
-                            self.key += nodes_for_height(self.bit_width, stack.height);
+                            self.key += nodes_for_height(
+                                self.bit_width,
+                                self.height - self.stack.len() as u32 + 1,
+                            );
                         }
                         None => {
                             self.stack.pop();
