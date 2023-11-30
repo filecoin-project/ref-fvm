@@ -4,11 +4,11 @@ use std::str;
 
 use super::Context;
 use crate::gas::Gas;
-use crate::kernel::{ClassifyResult, Result};
+use crate::kernel::{ClassifyResult, Result, SystemOps};
 use crate::Kernel;
 
 pub fn charge_gas(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl SystemOps>,
     name_off: u32,
     name_len: u32,
     compute: u64,

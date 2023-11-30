@@ -9,8 +9,7 @@ use fvm_shared::crypto::signature::{
 use num_traits::FromPrimitive;
 
 use super::Context;
-use crate::kernel::{ClassifyResult, Result};
-use crate::Kernel;
+use crate::kernel::{ClassifyResult, CryptoOps, Result};
 
 /// Verifies that a signature is valid for an address and plaintext.
 ///
@@ -19,7 +18,7 @@ use crate::Kernel;
 ///  - -1: verification failed.
 #[allow(clippy::too_many_arguments)]
 pub fn verify_signature(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl CryptoOps>,
     sig_type: u32,
     sig_off: u32,
     sig_len: u32,
@@ -42,7 +41,7 @@ pub fn verify_signature(
 }
 
 pub fn recover_secp_public_key(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl CryptoOps>,
     hash_off: u32,
     sig_off: u32,
 ) -> Result<[u8; SECP_PUB_LEN]> {
@@ -66,7 +65,7 @@ pub fn recover_secp_public_key(
 /// Hashes input data using the specified hash function, writing the digest into the provided
 /// buffer.
 pub fn hash(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl CryptoOps>,
     hash_code: u64,
     data_off: u32, // input
     data_len: u32,

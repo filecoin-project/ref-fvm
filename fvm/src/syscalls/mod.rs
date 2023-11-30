@@ -4,10 +4,10 @@ use anyhow::{anyhow, Context as _};
 use num_traits::Zero;
 use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
 
-use crate::call_manager::{backtrace, CallManager};
+use crate::call_manager::backtrace;
 use crate::gas::{Gas, GasInstant, GasTimer};
-use crate::kernel::filecoin::DefaultFilecoinKernel;
-use crate::kernel::{ExecutionError, SyscallHandler};
+use crate::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
+use crate::kernel::{DefaultOps, ExecutionError, SyscallHandler};
 
 use crate::machine::limiter::MemoryLimiter;
 use crate::{DefaultKernel, Kernel};
@@ -238,7 +238,7 @@ use self::error::Abort;
 
 impl<K> SyscallHandler<K> for DefaultKernel<K::CallManager>
 where
-    K: Kernel,
+    K: DefaultOps + SyscallHandler<K>,
 {
     fn bind_syscalls(
         &self,
@@ -319,14 +319,14 @@ where
     }
 }
 
-impl<C> SyscallHandler<DefaultFilecoinKernel<DefaultKernel<C>>>
-    for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<K> SyscallHandler<DefaultFilecoinKernel<K>> for DefaultFilecoinKernel<K>
 where
-    C: CallManager,
+    Self: FilecoinKernel,
+    K: SyscallHandler<Self>,
 {
     fn bind_syscalls(
         &self,
-        linker: &mut Linker<InvocationData<DefaultFilecoinKernel<DefaultKernel<C>>>>,
+        linker: &mut Linker<InvocationData<DefaultFilecoinKernel<K>>>,
     ) -> anyhow::Result<()> {
         self.0.bind_syscalls(linker)?;
 

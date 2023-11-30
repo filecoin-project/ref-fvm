@@ -48,30 +48,26 @@ pub struct CallResult {
     pub exit_code: ExitCode,
 }
 
-/// The "kernel" implements the FVM interface as presented to the actors. It:
-///
-/// - Manages the Actor's state.
-/// - Tracks and charges for IPLD & syscall-specific gas.
-///
-/// Actors may call into the kernel via the syscalls defined in the [`syscalls`][crate::syscalls]
-/// module.
-pub trait Kernel:
-    SyscallHandler
-    + ActorOps
-    + IpldBlockOps
-    + CryptoOps
-    + DebugOps
-    + EventOps
-    + GasOps
-    + MessageOps
-    + NetworkOps
-    + RandomnessOps
-    + SelfOps
-    + LimiterOps
-    + 'static
+pub trait DefaultOps:
+    Kernel + ChainOps + ActorOps + CryptoOps + SystemOps + IpldBlockOps + DebugOps
 {
+}
+
+impl<T> DefaultOps for T where
+    T: Kernel + ChainOps + ActorOps + CryptoOps + SystemOps + IpldBlockOps + DebugOps
+{
+}
+
+pub trait Kernel: 'static {
     /// The [`Kernel`]'s [`CallManager`] is
     type CallManager: CallManager;
+    type Limiter: MemoryLimiter;
+
+    /// Give access to the limiter of the underlying call manager.
+    fn limiter_mut(&mut self) -> &mut Self::Limiter;
+
+    /// XXX Returns the currently active gas price list.
+    fn price_list(&self) -> &PriceList;
 
     /// Consume the [`Kernel`] and return the underlying [`CallManager`] and [`BlockRegistry`].
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
@@ -101,49 +97,39 @@ pub trait Kernel:
     /// The kernel's underlying "machine".
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine;
 
-    /// Sends a message to another actor.
-    /// The method type parameter K is the type of the kernel to instantiate for
-    /// the receiving actor. This is necessary to support wrapping a kernel, so the outer
-    /// kernel can specify its Self as the receiver's kernel type, rather than the wrapped
-    /// kernel specifying its Self.
-    /// This method is part of the Kernel trait so it can refer to the Self::CallManager
-    /// associated type necessary to constrain K.
-    fn send<K: Kernel<CallManager = Self::CallManager>>(
-        &mut self,
-        recipient: &Address,
-        method: u64,
-        params: BlockId,
-        value: &TokenAmount,
-        gas_limit: Option<Gas>,
-        flags: SendFlags,
-    ) -> Result<CallResult>;
+    /// ChargeGas charges specified amount of `gas` for execution.
+    /// `name` provides information about gas charging point.
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer>;
 
-    fn upgrade_actor<K: Kernel<CallManager = Self::CallManager>>(
-        &mut self,
-        new_code_cid: Cid,
-        params_id: BlockId,
-    ) -> Result<CallResult>;
+    /// XXX Returns the remaining gas for the transaction.
+    fn gas_available(&self) -> Gas;
 }
 
 pub trait SyscallHandler<K = Self>: Sized {
     fn bind_syscalls(&self, linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()>;
 }
 
-/// Network-related operations.
 #[delegatable_trait]
-pub trait NetworkOps {
+pub trait ChainOps: Kernel {
+    /// Randomness returns a (pseudo)random byte array drawing from the latest
+    /// ticket chain from a given epoch.
+    /// This randomness is fork dependant but also biasable because of this.
+    fn get_randomness_from_tickets(
+        &self,
+        rand_epoch: ChainEpoch,
+    ) -> Result<[u8; RANDOMNESS_LENGTH]>;
+
+    /// Randomness returns a (pseudo)random byte array drawing from the latest
+    /// beacon from a given epoch.
+    /// This randomness is not tied to any fork of the chain, and is unbiasable.
+    fn get_randomness_from_beacon(&self, rand_epoch: ChainEpoch)
+        -> Result<[u8; RANDOMNESS_LENGTH]>;
+
     /// Network information (epoch, version, etc.).
     fn network_context(&self) -> Result<NetworkContext>;
 
     /// The CID of the tipset at the specified epoch.
     fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid>;
-}
-
-/// Accessors to query attributes of the incoming message.
-#[delegatable_trait]
-pub trait MessageOps {
-    /// Message information.
-    fn msg_context(&self) -> Result<MessageContext>;
 }
 
 /// The IPLD subset of the kernel.
@@ -182,84 +168,73 @@ pub trait IpldBlockOps {
 /// Actor state access and manipulation.
 /// Depends on BlockOps to read and write blocks in the state tree.
 #[delegatable_trait]
-pub trait SelfOps: IpldBlockOps {
+pub trait ActorOps: IpldBlockOps + Kernel {
+    /// Message information.
+    fn msg_context(&self) -> Result<MessageContext>;
+
+    /// Returns the balance associated with an actor id
+    fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount>;
+
+    /// The balance of the receiver.
+    fn current_balance(&self) -> Result<TokenAmount>;
+
+    /// Look up the code CID of an actor.
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid>;
+
+    /// Looks up the "delegated" (f4) address of the specified actor, if any.
+    fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>>;
+
+    /// Resolves an address of any protocol to an ID address (via the Init actor's table).
+    /// This allows resolution of externally-provided SECP, BLS, or actor addresses to the canonical
+    /// form. If the argument is an ID address it is returned directly.
+    fn resolve_address(&self, address: &Address) -> Result<ActorID>;
+
     /// Get the state root.
     fn root(&mut self) -> Result<Cid>;
+
+    /// Deletes the executing actor from the state tree, burning any remaining balance if requested.
+    fn self_destruct(&mut self, burn_unspent: bool) -> Result<()>;
 
     /// Update the state-root.
     ///
     /// This method will fail if the new state-root isn't reachable.
     fn set_root(&mut self, root: Cid) -> Result<()>;
 
-    /// The balance of the receiver.
-    fn current_balance(&self) -> Result<TokenAmount>;
-
-    /// Deletes the executing actor from the state tree, burning any remaining balance if requested.
-    fn self_destruct(&mut self, burn_unspent: bool) -> Result<()>;
-}
-
-/// Actors operations whose scope of action is actors other than the calling
-/// actor. The calling actor's state may be consulted to resolve some.
-#[delegatable_trait]
-pub trait ActorOps {
-    /// Resolves an address of any protocol to an ID address (via the Init actor's table).
-    /// This allows resolution of externally-provided SECP, BLS, or actor addresses to the canonical form.
-    /// If the argument is an ID address it is returned directly.
-    fn resolve_address(&self, address: &Address) -> Result<ActorID>;
-
-    /// Looks up the "delegated" (f4) address of the specified actor, if any.
-    fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>>;
-
-    /// Look up the code CID of an actor.
-    fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid>;
-
-    /// Computes an address for a new actor. The returned address is intended to uniquely refer to
-    /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
-    /// different actor after messages are re-ordered).
-    /// Always an ActorExec address.
-    fn next_actor_address(&self) -> Result<Address>;
-
-    /// Creates an actor with given `code_cid`, `actor_id`, `delegated_address` (if specified),
-    /// and an empty state.
-    fn create_actor(
+    /// Sends a message to another actor.
+    /// The method type parameter K is the type of the kernel to instantiate for
+    /// the receiving actor. This is necessary to support wrapping a kernel, so the outer
+    /// kernel can specify its Self as the receiver's kernel type, rather than the wrapped
+    /// kernel specifying its Self.
+    /// This method is part of the Kernel trait so it can refer to the Self::CallManager
+    /// associated type necessary to constrain K.
+    fn send<K: Kernel<CallManager = Self::CallManager> + SyscallHandler<K>>(
         &mut self,
-        code_cid: Cid,
-        actor_id: ActorID,
-        delegated_address: Option<Address>,
+        recipient: &Address,
+        method: u64,
+        params: BlockId,
+        value: &TokenAmount,
+        gas_limit: Option<Gas>,
+        flags: SendFlags,
+    ) -> Result<CallResult>;
+
+    fn upgrade_actor<K: Kernel<CallManager = Self::CallManager> + SyscallHandler<K>>(
+        &mut self,
+        new_code_cid: Cid,
+        params_id: BlockId,
+    ) -> Result<CallResult>;
+
+    /// Records an event emitted throughout execution.
+    fn emit_event(
+        &mut self,
+        event_headers: &[fvm_shared::sys::EventEntry],
+        raw_key: &[u8],
+        raw_val: &[u8],
     ) -> Result<()>;
-
-    fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
-
-    /// Returns the actor's "type" (if builitin) or 0 (if not).
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32>;
-
-    /// Returns the CodeCID for the supplied built-in actor type.
-    fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid>;
-
-    /// Returns the balance associated with an actor id
-    fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount>;
-}
-
-/// Operations for explicit gas charging.
-#[delegatable_trait]
-pub trait GasOps {
-    /// Returns the gas used by the transaction so far.
-    fn gas_used(&self) -> Gas;
-
-    /// Returns the remaining gas for the transaction.
-    fn gas_available(&self) -> Gas;
-
-    /// ChargeGas charges specified amount of `gas` for execution.
-    /// `name` provides information about gas charging point.
-    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer>;
-
-    /// Returns the currently active gas price list.
-    fn price_list(&self) -> &PriceList;
 }
 
 /// Cryptographic primitives provided by the kernel.
 #[delegatable_trait]
-pub trait CryptoOps {
+pub trait CryptoOps: Kernel {
     /// Verifies that a signature is valid for an address and plaintext.
     fn verify_signature(
         &self,
@@ -283,27 +258,9 @@ pub trait CryptoOps {
     fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>>;
 }
 
-/// Randomness queries.
-#[delegatable_trait]
-pub trait RandomnessOps {
-    /// Randomness returns a (pseudo)random byte array drawing from the latest
-    /// ticket chain from a given epoch.
-    /// This randomness is fork dependant but also biasable because of this.
-    fn get_randomness_from_tickets(
-        &self,
-        rand_epoch: ChainEpoch,
-    ) -> Result<[u8; RANDOMNESS_LENGTH]>;
-
-    /// Randomness returns a (pseudo)random byte array drawing from the latest
-    /// beacon from a given epoch.
-    /// This randomness is not tied to any fork of the chain, and is unbiasable.
-    fn get_randomness_from_beacon(&self, rand_epoch: ChainEpoch)
-        -> Result<[u8; RANDOMNESS_LENGTH]>;
-}
-
 /// Debugging APIs.
 #[delegatable_trait]
-pub trait DebugOps {
+pub trait DebugOps: Kernel {
     /// Log a message.
     fn log(&self, msg: String);
 
@@ -315,26 +272,29 @@ pub trait DebugOps {
     fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()>;
 }
 
-/// Track and limit memory expansion.
-///
-/// This interface is not one of the operations the kernel provides to actors.
-/// It's only part of the kernel out of necessity to pass it through to the
-/// call manager which tracks the limits across the whole execution stack.
+/// Private system operations.
 #[delegatable_trait]
-pub trait LimiterOps {
-    type Limiter: MemoryLimiter;
-    /// Give access to the limiter of the underlying call manager.
-    fn limiter_mut(&mut self) -> &mut Self::Limiter;
-}
+pub trait SystemOps: Kernel {
+    /// Computes an address for a new actor. The returned address is intended to uniquely refer to
+    /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
+    /// different actor after messages are re-ordered).
+    /// Always an ActorExec address.
+    fn next_actor_address(&self) -> Result<Address>;
 
-/// Eventing APIs.
-#[delegatable_trait]
-pub trait EventOps {
-    /// Records an event emitted throughout execution.
-    fn emit_event(
+    /// Creates an actor with given `code_cid`, `actor_id`, `delegated_address` (if specified),
+    /// and an empty state.
+    fn create_actor(
         &mut self,
-        event_headers: &[fvm_shared::sys::EventEntry],
-        raw_key: &[u8],
-        raw_val: &[u8],
+        code_cid: Cid,
+        actor_id: ActorID,
+        delegated_address: Option<Address>,
     ) -> Result<()>;
+
+    fn install_actor(&mut self, code_cid: Cid) -> Result<()>;
+
+    /// Returns the actor's "type" (if builitin) or 0 (if not).
+    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32>;
+
+    /// Returns the CodeCID for the supplied built-in actor type.
+    fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid>;
 }

@@ -23,6 +23,7 @@ use wasmtime::{
 };
 
 use crate::gas::{Gas, GasTimer, WasmGasPrices};
+use crate::kernel::SyscallHandler;
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::{Machine, NetworkConfig};
 use crate::syscalls::error::Abort;
@@ -497,7 +498,7 @@ impl Engine {
     /// linker, syscalls, etc.
     ///
     /// This returns an `Abort` as it may need to execute initialization code, charge gas, etc.
-    pub fn instantiate<K: Kernel>(
+    pub fn instantiate<K: Kernel + SyscallHandler<K>>(
         &self,
         store: &mut wasmtime::Store<InvocationData<K>>,
         k: &Cid,

@@ -274,7 +274,7 @@ impl CallManager for DummyCallManager {
         }
     }
 
-    fn call_actor<K: Kernel<CallManager = Self>>(
+    fn call_actor<K: Kernel<CallManager = Self> + SyscallHandler<K>>(
         &mut self,
         _from: fvm_shared::ActorID,
         _to: Address,

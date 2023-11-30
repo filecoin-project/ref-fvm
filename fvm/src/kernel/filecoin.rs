@@ -12,6 +12,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::{commcid, ActorID};
+use kernel::{ActorOps, CryptoOps, DebugOps};
 use lazy_static::lazy_static;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, ParallelDrainRange, ParallelIterator,
@@ -29,7 +30,7 @@ lazy_static! {
     static ref INITIAL_RESERVE_BALANCE: TokenAmount = TokenAmount::from_whole(300_000_000);
 }
 
-pub trait FilecoinKernel: Kernel {
+pub trait FilecoinKernel: DefaultOps {
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
     fn compute_unsealed_sector_cid(
         &self,
@@ -83,25 +84,18 @@ pub trait FilecoinKernel: Kernel {
 }
 
 #[derive(Delegate)]
-#[delegate(IpldBlockOps)]
-#[delegate(ActorOps)]
-#[delegate(CryptoOps)]
-#[delegate(DebugOps)]
-#[delegate(EventOps)]
-#[delegate(GasOps)]
-#[delegate(MessageOps)]
-#[delegate(NetworkOps)]
-#[delegate(RandomnessOps)]
-#[delegate(SelfOps)]
-#[delegate(LimiterOps)]
-pub struct DefaultFilecoinKernel<K>(pub K)
-where
-    K: Kernel;
+#[delegate(IpldBlockOps, where = "I: IpldBlockOps")]
+#[delegate(ActorOps, where = "I: ActorOps")]
+#[delegate(CryptoOps, where = "I: CryptoOps")]
+#[delegate(DebugOps, where = "I: DebugOps")]
+#[delegate(SystemOps, where = "I: SystemOps")]
+#[delegate(ChainOps, where = "I: ChainOps")]
+pub struct DefaultFilecoinKernel<I>(pub I);
 
 impl<C> FilecoinKernel for DefaultFilecoinKernel<DefaultKernel<C>>
 where
     C: CallManager,
-    DefaultFilecoinKernel<DefaultKernel<C>>: Kernel,
+    DefaultFilecoinKernel<DefaultKernel<C>>: Kernel<CallManager = C>,
 {
     fn compute_unsealed_sector_cid(
         &self,
@@ -244,11 +238,20 @@ where
     }
 }
 
-impl<C> Kernel for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<K> Kernel for DefaultFilecoinKernel<K>
 where
-    C: CallManager,
+    K: Kernel,
 {
-    type CallManager = C;
+    type CallManager = K::CallManager;
+    type Limiter = K::Limiter;
+
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
+        self.0.limiter_mut()
+    }
+
+    fn price_list(&self) -> &PriceList {
+        self.0.price_list()
+    }
 
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
@@ -261,29 +264,12 @@ where
         self.0.machine()
     }
 
-    fn send<K: Kernel<CallManager = C>>(
-        &mut self,
-        recipient: &Address,
-        method: u64,
-        params: BlockId,
-        value: &TokenAmount,
-        gas_limit: Option<Gas>,
-        flags: SendFlags,
-    ) -> Result<CallResult> {
-        self.0
-            .send::<Self>(recipient, method, params, value, gas_limit, flags)
-    }
-
-    fn upgrade_actor<K: Kernel<CallManager = Self::CallManager>>(
-        &mut self,
-        new_code_cid: Cid,
-        params_id: BlockId,
-    ) -> Result<CallResult> {
-        self.0.upgrade_actor::<Self>(new_code_cid, params_id)
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
+        self.0.charge_gas(name, compute)
     }
 
     fn new(
-        mgr: C,
+        mgr: Self::CallManager,
         blocks: BlockRegistry,
         caller: ActorID,
         actor_id: ActorID,
@@ -291,7 +277,7 @@ where
         value_received: TokenAmount,
         read_only: bool,
     ) -> Self {
-        DefaultFilecoinKernel(DefaultKernel::new(
+        DefaultFilecoinKernel(K::new(
             mgr,
             blocks,
             caller,
@@ -300,6 +286,10 @@ where
             value_received,
             read_only,
         ))
+    }
+
+    fn gas_available(&self) -> Gas {
+        self.0.gas_available()
     }
 }
 

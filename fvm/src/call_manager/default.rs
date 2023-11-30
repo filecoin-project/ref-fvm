@@ -25,6 +25,7 @@ use crate::engine::Engine;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{
     Block, BlockRegistry, ClassifyResult, ExecutionError, Kernel, Result, SyscallError,
+    SyscallHandler,
 };
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
@@ -180,7 +181,7 @@ where
         read_only: bool,
     ) -> Result<InvocationResult>
     where
-        K: Kernel<CallManager = Self>,
+        K: Kernel<CallManager = Self> + SyscallHandler<K>,
     {
         if self.machine.context().tracing {
             self.trace(ExecutionEvent::Call {
@@ -548,7 +549,7 @@ where
     /// 2. Initializes it by calling the constructor.
     fn create_account_actor_from_send<K>(&mut self, addr: &Address) -> Result<ActorID>
     where
-        K: Kernel<CallManager = Self>,
+        K: Kernel<CallManager = Self> + SyscallHandler<K>,
     {
         if addr.is_bls_zero_address() {
             return Err(
@@ -607,7 +608,7 @@ where
         read_only: bool,
     ) -> Result<InvocationResult>
     where
-        K: Kernel<CallManager = Self>,
+        K: Kernel<CallManager = Self> + SyscallHandler<K>,
     {
         // Get the receiver; this will resolve the address.
         let to = match self.resolve_address(&to)? {
@@ -653,7 +654,7 @@ where
         read_only: bool,
     ) -> Result<InvocationResult>
     where
-        K: Kernel<CallManager = Self>,
+        K: Kernel<CallManager = Self> + SyscallHandler<K>,
     {
         // Lookup the actor.
         let state = self
