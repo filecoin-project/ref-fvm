@@ -40,7 +40,7 @@ const MAX_ARTIFACT_NAME_LEN: usize = 256;
 #[cfg(feature = "testing")]
 const TEST_ACTOR_ALLOWED_TO_CALL_CREATE_ACTOR: ActorID = 98;
 
-/// The "default" [`Kernel`] implementation.
+/// The "base" [`Kernel`] implementation.
 pub struct BaseKernel<C> {
     // Fields extracted from the message, except parameters, which have been
     // preloaded into the block registry.

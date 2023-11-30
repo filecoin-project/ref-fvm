@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 // test target
-use fvm::kernel::default::BaseKernel;
+use fvm::kernel::base::BaseKernel;
 use fvm::kernel::{Block, BlockRegistry};
 use fvm::Kernel;
 use multihash::Code;

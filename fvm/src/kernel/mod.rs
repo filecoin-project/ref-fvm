@@ -24,7 +24,7 @@ use fvm_shared::{ActorID, MethodNum};
 mod blocks;
 mod hash;
 
-pub mod default;
+pub mod base;
 pub mod filecoin;
 
 pub(crate) mod error;
