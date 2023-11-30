@@ -247,11 +247,6 @@ where
         linker.bind("vm", "exit", vm::exit)?;
         linker.bind("vm", "message_context", vm::message_context)?;
 
-        linker.bind(
-            "network",
-            "total_fil_circ_supply",
-            network::total_fil_circ_supply,
-        )?;
         linker.bind("network", "context", network::context)?;
         linker.bind("network", "tipset_cid", network::tipset_cid)?;
 
@@ -358,6 +353,13 @@ where
             filecoin::verify_replica_update,
         )?;
         linker.bind("crypto", "batch_verify_seals", filecoin::batch_verify_seals)?;
+
+        // And bind a syscall for getting the total circulating supply.
+        linker.bind(
+            "network",
+            "total_fil_circ_supply",
+            filecoin::total_fil_circ_supply,
+        )?;
 
         Ok(())
     }
