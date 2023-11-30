@@ -48,31 +48,10 @@ pub struct CallResult {
     pub exit_code: ExitCode,
 }
 
-pub trait DefaultOps:
-    Kernel + ChainOps + ActorOps + CryptoOps + SystemOps + IpldBlockOps + DebugOps
-{
-}
-
-impl<T> DefaultOps for T where
-    T: Kernel + ChainOps + ActorOps + CryptoOps + SystemOps + IpldBlockOps + DebugOps
-{
-}
-
 pub trait Kernel: 'static {
     /// The [`Kernel`]'s [`CallManager`] is
     type CallManager: CallManager;
     type Limiter: MemoryLimiter;
-
-    /// Give access to the limiter of the underlying call manager.
-    fn limiter_mut(&mut self) -> &mut Self::Limiter;
-
-    /// XXX Returns the currently active gas price list.
-    fn price_list(&self) -> &PriceList;
-
-    /// Consume the [`Kernel`] and return the underlying [`CallManager`] and [`BlockRegistry`].
-    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
-    where
-        Self: Sized;
 
     /// Construct a new [`Kernel`] from the given [`CallManager`].
     ///
@@ -94,6 +73,16 @@ pub trait Kernel: 'static {
     where
         Self: Sized;
 
+    /// Give access to the limiter of the underlying call manager.
+    fn limiter_mut(&mut self) -> &mut Self::Limiter;
+
+    /// XXX Returns the currently active gas price list.
+    fn price_list(&self) -> &PriceList;
+
+    /// Consume the [`Kernel`] and return the underlying [`CallManager`] and [`BlockRegistry`].
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
+    where
+        Self: Sized;
     /// The kernel's underlying "machine".
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine;
 
@@ -110,26 +99,28 @@ pub trait SyscallHandler<K = Self>: Sized {
 }
 
 #[delegatable_trait]
-pub trait ChainOps: Kernel {
+pub trait ChainOps {
     /// Randomness returns a (pseudo)random byte array drawing from the latest
     /// ticket chain from a given epoch.
     /// This randomness is fork dependant but also biasable because of this.
     fn get_randomness_from_tickets(
         &self,
-        rand_epoch: ChainEpoch,
-    ) -> Result<[u8; RANDOMNESS_LENGTH]>;
+        rand_epoch: fvm_shared::clock::ChainEpoch,
+    ) -> Result<[u8; fvm_shared::randomness::RANDOMNESS_LENGTH]>;
 
     /// Randomness returns a (pseudo)random byte array drawing from the latest
     /// beacon from a given epoch.
     /// This randomness is not tied to any fork of the chain, and is unbiasable.
-    fn get_randomness_from_beacon(&self, rand_epoch: ChainEpoch)
-        -> Result<[u8; RANDOMNESS_LENGTH]>;
+    fn get_randomness_from_beacon(
+        &self,
+        rand_epoch: fvm_shared::clock::ChainEpoch,
+    ) -> Result<[u8; fvm_shared::randomness::RANDOMNESS_LENGTH]>;
 
     /// Network information (epoch, version, etc.).
-    fn network_context(&self) -> Result<NetworkContext>;
+    fn network_context(&self) -> Result<fvm_shared::sys::out::network::NetworkContext>;
 
     /// The CID of the tipset at the specified epoch.
-    fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid>;
+    fn tipset_cid(&self, epoch: fvm_shared::clock::ChainEpoch) -> Result<Cid>;
 }
 
 /// The IPLD subset of the kernel.
@@ -168,9 +159,9 @@ pub trait IpldBlockOps {
 /// Actor state access and manipulation.
 /// Depends on BlockOps to read and write blocks in the state tree.
 #[delegatable_trait]
-pub trait ActorOps: IpldBlockOps + Kernel {
+pub trait ActorOps {
     /// Message information.
-    fn msg_context(&self) -> Result<MessageContext>;
+    fn msg_context(&self) -> Result<fvm_shared::sys::out::vm::MessageContext>;
 
     /// Returns the balance associated with an actor id
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount>;
@@ -200,29 +191,6 @@ pub trait ActorOps: IpldBlockOps + Kernel {
     /// This method will fail if the new state-root isn't reachable.
     fn set_root(&mut self, root: Cid) -> Result<()>;
 
-    /// Sends a message to another actor.
-    /// The method type parameter K is the type of the kernel to instantiate for
-    /// the receiving actor. This is necessary to support wrapping a kernel, so the outer
-    /// kernel can specify its Self as the receiver's kernel type, rather than the wrapped
-    /// kernel specifying its Self.
-    /// This method is part of the Kernel trait so it can refer to the Self::CallManager
-    /// associated type necessary to constrain K.
-    fn send<K: Kernel<CallManager = Self::CallManager> + SyscallHandler<K>>(
-        &mut self,
-        recipient: &Address,
-        method: u64,
-        params: BlockId,
-        value: &TokenAmount,
-        gas_limit: Option<Gas>,
-        flags: SendFlags,
-    ) -> Result<CallResult>;
-
-    fn upgrade_actor<K: Kernel<CallManager = Self::CallManager> + SyscallHandler<K>>(
-        &mut self,
-        new_code_cid: Cid,
-        params_id: BlockId,
-    ) -> Result<CallResult>;
-
     /// Records an event emitted throughout execution.
     fn emit_event(
         &mut self,
@@ -232,13 +200,39 @@ pub trait ActorOps: IpldBlockOps + Kernel {
     ) -> Result<()>;
 }
 
+#[delegatable_trait]
+pub trait CallOps<K = Self>: IpldBlockOps + Sized {
+    /// Sends a message to another actor.
+    /// The method type parameter K is the type of the kernel to instantiate for
+    /// the receiving actor. This is necessary to support wrapping a kernel, so the outer
+    /// kernel can specify its Self as the receiver's kernel type, rather than the wrapped
+    /// kernel specifying its Self.
+    /// This method is part of the Kernel trait so it can refer to the Self::CallManager
+    /// associated type necessary to constrain K.
+    fn send(
+        &mut self,
+        recipient: &Address,
+        method: u64,
+        params: BlockId,
+        value: &TokenAmount,
+        gas_limit: Option<Gas>,
+        flags: SendFlags,
+    ) -> Result<CallResult>
+    where
+        K: SyscallHandler<K> + Kernel;
+
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult>
+    where
+        K: SyscallHandler<K> + Kernel;
+}
+
 /// Cryptographic primitives provided by the kernel.
 #[delegatable_trait]
-pub trait CryptoOps: Kernel {
+pub trait CryptoOps {
     /// Verifies that a signature is valid for an address and plaintext.
     fn verify_signature(
         &self,
-        sig_type: SignatureType,
+        sig_type: fvm_shared::crypto::signature::SignatureType,
         signature: &[u8],
         signer: &Address,
         plaintext: &[u8],
@@ -247,20 +241,20 @@ pub trait CryptoOps: Kernel {
     /// Given a message hash and its signature, recovers the public key of the signer.
     fn recover_secp_public_key(
         &self,
-        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
-        signature: &[u8; SECP_SIG_LEN],
-    ) -> Result<[u8; SECP_PUB_LEN]>;
+        hash: &[u8; fvm_shared::crypto::signature::SECP_SIG_MESSAGE_HASH_SIZE],
+        signature: &[u8; fvm_shared::crypto::signature::SECP_SIG_LEN],
+    ) -> Result<[u8; fvm_shared::crypto::signature::SECP_PUB_LEN]>;
 
     /// Hashes input `data_in` using with the specified hash function, writing the output to
     /// `digest_out`, returning the size of the digest written to `digest_out`. If `digest_out` is
     /// to small to fit the entire digest, it will be truncated. If too large, the leftover space
     /// will not be overwritten.
-    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>>;
+    fn hash(&self, code: u64, data: &[u8]) -> Result<multihash::MultihashGeneric<64>>;
 }
 
 /// Debugging APIs.
 #[delegatable_trait]
-pub trait DebugOps: Kernel {
+pub trait DebugOps {
     /// Log a message.
     fn log(&self, msg: String);
 
@@ -274,7 +268,7 @@ pub trait DebugOps: Kernel {
 
 /// Private system operations.
 #[delegatable_trait]
-pub trait SystemOps: Kernel {
+pub trait SystemOps {
     /// Computes an address for a new actor. The returned address is intended to uniquely refer to
     /// the actor even in the event of a chain re-org (whereas an ID-address might refer to a
     /// different actor after messages are re-ordered).

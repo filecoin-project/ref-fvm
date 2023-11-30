@@ -7,12 +7,13 @@ use fvm_shared::sys::{self, SendFlags};
 
 use super::Context;
 use crate::gas::Gas;
-use crate::kernel::{ActorOps, CallResult, ClassifyResult, Result, SyscallHandler};
+use crate::kernel::{CallOps, CallResult, ClassifyResult, Result, SyscallHandler};
+use crate::Kernel;
 
 /// Send a message to another actor. The result is placed as a CBOR-encoded
 /// receipt in the block registry, and can be retrieved by the returned BlockId.
 #[allow(clippy::too_many_arguments)]
-pub fn send<K: ActorOps + SyscallHandler<K>>(
+pub fn send<K: CallOps + Kernel + SyscallHandler>(
     context: Context<'_, K>,
     recipient_off: u32,
     recipient_len: u32,
@@ -42,7 +43,7 @@ pub fn send<K: ActorOps + SyscallHandler<K>>(
         exit_code,
     } = context
         .kernel
-        .send::<K>(&recipient, method, params_id, &value, gas_limit, flags)?;
+        .send(&recipient, method, params_id, &value, gas_limit, flags)?;
 
     Ok(sys::out::send::Send {
         exit_code: exit_code.value(),

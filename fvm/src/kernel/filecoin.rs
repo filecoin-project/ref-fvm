@@ -30,7 +30,7 @@ lazy_static! {
     static ref INITIAL_RESERVE_BALANCE: TokenAmount = TokenAmount::from_whole(300_000_000);
 }
 
-pub trait FilecoinKernel: DefaultOps {
+pub trait FilecoinKernel: Kernel {
     /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
     fn compute_unsealed_sector_cid(
         &self,
@@ -86,6 +86,7 @@ pub trait FilecoinKernel: DefaultOps {
 #[derive(Delegate)]
 #[delegate(IpldBlockOps, where = "I: IpldBlockOps")]
 #[delegate(ActorOps, where = "I: ActorOps")]
+#[delegate(CallOps<K>, generics = "K", where = "I: CallOps<K>")]
 #[delegate(CryptoOps, where = "I: CryptoOps")]
 #[delegate(DebugOps, where = "I: DebugOps")]
 #[delegate(SystemOps, where = "I: SystemOps")]
@@ -95,7 +96,6 @@ pub struct DefaultFilecoinKernel<I>(pub I);
 impl<C> FilecoinKernel for DefaultFilecoinKernel<DefaultKernel<C>>
 where
     C: CallManager,
-    DefaultFilecoinKernel<DefaultKernel<C>>: Kernel<CallManager = C>,
 {
     fn compute_unsealed_sector_cid(
         &self,
