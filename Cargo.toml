@@ -34,6 +34,3 @@ opt-level = "z"
 strip = true
 codegen-units = 1
 incremental = false
-
-[patch.crates-io]
-ambassador = { path = "../../hobofan/ambassador/ambassador" }
