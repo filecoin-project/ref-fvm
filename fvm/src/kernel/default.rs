@@ -31,6 +31,7 @@ use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
 use crate::machine::{MachineContext, NetworkConfig, BURNT_FUNDS_ACTOR_ID};
 use crate::state_tree::ActorState;
+use crate::syscalls::DefaultSyscallHandler;
 use crate::{ipld, syscall_error};
 
 const BLAKE2B_256: u64 = 0xb220;
@@ -67,13 +68,8 @@ where
     C: CallManager,
 {
     type CallManager = C;
-
-    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
-    where
-        Self: Sized,
-    {
-        (self.call_manager, self.blocks)
-    }
+    type Limiter = <<C as CallManager>::Machine as Machine>::Limiter;
+    type SyscallHandler = DefaultSyscallHandler;
 
     fn new(
         mgr: C,
@@ -95,176 +91,35 @@ where
         }
     }
 
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
+        self.call_manager.limiter_mut()
+    }
+
+    fn price_list(&self) -> &PriceList {
+        self.call_manager.price_list()
+    }
+
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
+    where
+        Self: Sized,
+    {
+        (self.call_manager, self.blocks)
+    }
+
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
         self.call_manager.machine()
     }
 
-    fn send<K: Kernel<CallManager = C>>(
-        &mut self,
-        recipient: &Address,
-        method: MethodNum,
-        params_id: BlockId,
-        value: &TokenAmount,
-        gas_limit: Option<Gas>,
-        flags: SendFlags,
-    ) -> Result<CallResult> {
-        let from = self.actor_id;
-        let read_only = self.read_only || flags.read_only();
-
-        if read_only && !value.is_zero() {
-            return Err(syscall_error!(ReadOnly; "cannot transfer value when read-only").into());
-        }
-
-        // Load parameters.
-        let params = if params_id == NO_DATA_BLOCK_ID {
-            None
-        } else {
-            Some(self.blocks.get(params_id)?.clone())
-        };
-
-        // Make sure we can actually store the return block.
-        if self.blocks.is_full() {
-            return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
-        }
-
-        // Send.
-        let result = self.call_manager.with_transaction(|cm| {
-            cm.call_actor::<K>(
-                from,
-                *recipient,
-                Entrypoint::Invoke(method),
-                params,
-                value,
-                gas_limit,
-                read_only,
-            )
-        })?;
-
-        // Store result and return.
-        Ok(match result {
-            InvocationResult {
-                exit_code,
-                value: Some(blk),
-            } => {
-                let block_stat = blk.stat();
-                // This can't fail because:
-                // 1. We've already charged for gas.
-                // 2. We've already checked that we have space for a return block.
-                // 3. This block has already been validated by the kernel that returned it.
-                let block_id = self
-                    .blocks
-                    .put_reachable(blk)
-                    .or_fatal()
-                    .context("failed to store a valid return value")?;
-                CallResult {
-                    block_id,
-                    block_stat,
-                    exit_code,
-                }
-            }
-            InvocationResult {
-                exit_code,
-                value: None,
-            } => CallResult {
-                block_id: NO_DATA_BLOCK_ID,
-                block_stat: BlockStat { codec: 0, size: 0 },
-                exit_code,
-            },
-        })
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
+        self.call_manager.gas_tracker().charge_gas(name, compute)
     }
 
-    fn upgrade_actor<K: Kernel<CallManager = C>>(
-        &mut self,
-        new_code_cid: Cid,
-        params_id: BlockId,
-    ) -> Result<CallResult> {
-        if self.read_only {
-            return Err(
-                syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),
-            );
-        }
+    fn gas_available(&self) -> Gas {
+        self.call_manager.gas_tracker().gas_available()
+    }
 
-        // check if this actor is already on the call stack
-        //
-        // We first find the first position of this actor on the call stack, and then make sure that
-        // no other actor appears on the call stack after 'position' (unless its a recursive upgrade
-        // call which is allowed)
-        let mut iter = self.call_manager.get_call_stack().iter();
-        let position = iter.position(|&tuple| tuple == (self.actor_id, INVOKE_FUNC_NAME));
-        if position.is_some() {
-            for tuple in iter {
-                if tuple.0 != self.actor_id || tuple.1 != UPGRADE_FUNC_NAME {
-                    return Err(syscall_error!(
-                        Forbidden,
-                        "calling upgrade on actor already on call stack is forbidden"
-                    )
-                    .into());
-                }
-            }
-        }
-
-        // Load parameters.
-        let params = if params_id == NO_DATA_BLOCK_ID {
-            None
-        } else {
-            Some(self.blocks.get(params_id)?.clone())
-        };
-
-        // Make sure we can actually store the return block.
-        if self.blocks.is_full() {
-            return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
-        }
-
-        let result = self.call_manager.with_transaction(|cm| {
-            let state = cm
-                .get_actor(self.actor_id)?
-                .ok_or_else(|| syscall_error!(IllegalOperation; "actor deleted"))?;
-
-            // store the code cid of the calling actor before running the upgrade entrypoint
-            // in case it was changed (which could happen if the target upgrade entrypoint
-            // sent a message to this actor which in turn called upgrade)
-            let code = state.code;
-
-            // update the code cid of the actor to new_code_cid
-            cm.set_actor(
-                self.actor_id,
-                ActorState::new(
-                    new_code_cid,
-                    state.state,
-                    state.balance,
-                    state.sequence,
-                    None,
-                ),
-            )?;
-
-            // run the upgrade entrypoint
-            let result = cm.call_actor::<K>(
-                self.caller,
-                Address::new_id(self.actor_id),
-                Entrypoint::Upgrade(UpgradeInfo { old_code_cid: code }),
-                params,
-                &TokenAmount::from_whole(0),
-                None,
-                false,
-            )?;
-
-            Ok(result)
-        });
-
-        match result {
-            Ok(InvocationResult { exit_code, value }) => {
-                let (block_stat, block_id) = match value {
-                    None => (BlockStat { codec: 0, size: 0 }, NO_DATA_BLOCK_ID),
-                    Some(block) => (block.stat(), self.blocks.put_reachable(block)?),
-                };
-                Ok(CallResult {
-                    block_id,
-                    block_stat,
-                    exit_code,
-                })
-            }
-            Err(err) => Err(err),
-        }
+    fn gas_used(&self) -> Gas {
+        self.call_manager.gas_tracker().gas_used()
     }
 }
 
@@ -278,7 +133,7 @@ where
     }
 }
 
-impl<C> SelfOps for DefaultKernel<C>
+impl<C> ActorOps for DefaultKernel<C>
 where
     C: CallManager,
 {
@@ -366,6 +221,378 @@ where
 
         // Delete the executing actor.
         t.record(self.call_manager.delete_actor(self.actor_id))
+    }
+
+    fn resolve_address(&self, address: &Address) -> Result<ActorID> {
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_resolve_address())?;
+
+        t.record(Ok(self
+            .call_manager
+            .resolve_address(address)?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?))
+    }
+
+    fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid> {
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_get_actor_code_cid())?;
+
+        t.record(Ok(self
+            .call_manager
+            .get_actor(id)?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
+            .code))
+    }
+
+    fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_balance_of())?;
+
+        Ok(t.record(self.call_manager.get_actor(actor_id))?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
+            .balance)
+    }
+
+    fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_lookup_delegated_address())?;
+
+        Ok(t.record(self.call_manager.get_actor(actor_id))?
+            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
+            .delegated_address)
+    }
+
+    fn msg_context(&self) -> Result<MessageContext> {
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_message_context())?;
+
+        let ctx = MessageContext {
+            caller: self.caller,
+            origin: self.call_manager.origin(),
+            receiver: self.actor_id,
+            method_number: self.method,
+            value_received: (&self.value_received)
+                .try_into()
+                .or_fatal()
+                .context("invalid token amount")?,
+            gas_premium: self
+                .call_manager
+                .gas_premium()
+                .try_into()
+                .or_fatal()
+                .context("invalid gas premium")?,
+            flags: if self.read_only {
+                ContextFlags::READ_ONLY
+            } else {
+                ContextFlags::empty()
+            },
+            nonce: self.call_manager.nonce(),
+        };
+        t.stop();
+        Ok(ctx)
+    }
+
+    fn emit_event(
+        &mut self,
+        event_headers: &[fvm_shared::sys::EventEntry],
+        event_keys: &[u8],
+        event_values: &[u8],
+    ) -> Result<()> {
+        const MAX_NR_ENTRIES: usize = 255;
+        const MAX_KEY_LEN: usize = 31;
+        const MAX_TOTAL_VALUES_LEN: usize = 8 << 10;
+
+        if self.read_only {
+            return Err(syscall_error!(ReadOnly; "cannot emit events while read-only").into());
+        }
+
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().on_actor_event(
+                event_headers.len(),
+                event_keys.len(),
+                event_values.len(),
+            ))?;
+
+        if event_headers.len() > MAX_NR_ENTRIES {
+            return Err(syscall_error!(LimitExceeded; "event exceeded max entries: {} > {MAX_NR_ENTRIES}", event_headers.len()).into());
+        }
+
+        if event_values.len() > MAX_TOTAL_VALUES_LEN {
+            return Err(syscall_error!(LimitExceeded; "total event value lengths exceeded the max size: {} > {MAX_TOTAL_VALUES_LEN}", event_values.len()).into());
+        }
+
+        // We validate utf8 all at once for better performance.
+        let event_keys = std::str::from_utf8(event_keys)
+            .context("invalid event key")
+            .or_illegal_argument()?;
+
+        let mut key_offset: usize = 0;
+        let mut val_offset: usize = 0;
+
+        let mut entries: Vec<Entry> = Vec::with_capacity(event_headers.len());
+        for header in event_headers {
+            // make sure that the fixed parsed values are within bounds before we do any allocation
+            let flags = header.flags;
+            if Flags::from_bits(flags.bits()).is_none() {
+                return Err(
+                    syscall_error!(IllegalArgument; "event flags are invalid: {}", flags.bits())
+                        .into(),
+                );
+            }
+
+            if header.key_len > MAX_KEY_LEN as u32 {
+                let tmp = header.key_len;
+                return Err(syscall_error!(LimitExceeded; "event key exceeded max size: {} > {MAX_KEY_LEN}", tmp).into());
+            }
+
+            // We check this here purely to detect/prevent integer overflows below. That's why we
+            // return IllegalArgument, not LimitExceeded.
+            if header.val_len > MAX_TOTAL_VALUES_LEN as u32 {
+                return Err(
+                    syscall_error!(IllegalArgument; "event entry value out of range").into(),
+                );
+            }
+
+            // parse the variable sized fields from the raw_key/raw_val buffers
+            let key = &event_keys
+                .get(key_offset..key_offset + header.key_len as usize)
+                .context("event entry key out of range")
+                .or_illegal_argument()?;
+
+            let value = &event_values
+                .get(val_offset..val_offset + header.val_len as usize)
+                .context("event entry value out of range")
+                .or_illegal_argument()?;
+
+            // Check the codec. We currently only allow IPLD_RAW.
+            if header.codec != IPLD_RAW {
+                let tmp = header.codec;
+                return Err(
+                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", tmp)
+                        .into(),
+                );
+            }
+
+            // we have all we need to construct a new Entry
+            let entry = Entry {
+                flags: header.flags,
+                key: key.to_string(),
+                codec: header.codec,
+                value: value.to_vec(),
+            };
+
+            // shift the key/value offsets
+            key_offset += header.key_len as usize;
+            val_offset += header.val_len as usize;
+
+            entries.push(entry);
+        }
+
+        if key_offset != event_keys.len() {
+            return Err(syscall_error!(IllegalArgument;
+                "event key buffer length is too large: {} < {}",
+                key_offset,
+                event_keys.len()
+            )
+            .into());
+        }
+
+        if val_offset != event_values.len() {
+            return Err(syscall_error!(IllegalArgument;
+                "event value buffer length is too large: {} < {}",
+                val_offset,
+                event_values.len()
+            )
+            .into());
+        }
+
+        let actor_evt = ActorEvent::from(entries);
+
+        let stamped_evt = StampedEvent::new(self.actor_id, actor_evt);
+        // Enable this when performing gas calibration to measure the cost of serializing early.
+        #[cfg(feature = "gas_calibration")]
+        let _ = fvm_ipld_encoding::to_vec(&stamped_evt).unwrap();
+
+        self.call_manager.append_event(stamped_evt);
+
+        t.stop();
+
+        Ok(())
+    }
+}
+
+impl<K> CallOps<K> for DefaultKernel<K::CallManager>
+where
+    K: Kernel,
+{
+    fn send(
+        &mut self,
+        recipient: &Address,
+        method: MethodNum,
+        params_id: BlockId,
+        value: &TokenAmount,
+        gas_limit: Option<Gas>,
+        flags: SendFlags,
+    ) -> Result<CallResult> {
+        let from = self.actor_id;
+        let read_only = self.read_only || flags.read_only();
+
+        if read_only && !value.is_zero() {
+            return Err(syscall_error!(ReadOnly; "cannot transfer value when read-only").into());
+        }
+
+        // Load parameters.
+        let params = if params_id == NO_DATA_BLOCK_ID {
+            None
+        } else {
+            Some(self.blocks.get(params_id)?.clone())
+        };
+
+        // Make sure we can actually store the return block.
+        if self.blocks.is_full() {
+            return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
+        }
+
+        // Send.
+        let result = self.call_manager.with_transaction(|cm| {
+            cm.call_actor::<K>(
+                from,
+                *recipient,
+                Entrypoint::Invoke(method),
+                params,
+                value,
+                gas_limit,
+                read_only,
+            )
+        })?;
+
+        // Store result and return.
+        Ok(match result {
+            InvocationResult {
+                exit_code,
+                value: Some(blk),
+            } => {
+                let block_stat = blk.stat();
+                // This can't fail because:
+                // 1. We've already charged for gas.
+                // 2. We've already checked that we have space for a return block.
+                // 3. This block has already been validated by the kernel that returned it.
+                let block_id = self
+                    .blocks
+                    .put_reachable(blk)
+                    .or_fatal()
+                    .context("failed to store a valid return value")?;
+                CallResult {
+                    block_id,
+                    block_stat,
+                    exit_code,
+                }
+            }
+            InvocationResult {
+                exit_code,
+                value: None,
+            } => CallResult {
+                block_id: NO_DATA_BLOCK_ID,
+                block_stat: BlockStat { codec: 0, size: 0 },
+                exit_code,
+            },
+        })
+    }
+
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
+        if self.read_only {
+            return Err(
+                syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),
+            );
+        }
+
+        // check if this actor is already on the call stack
+        //
+        // We first find the first position of this actor on the call stack, and then make sure that
+        // no other actor appears on the call stack after 'position' (unless its a recursive upgrade
+        // call which is allowed)
+        let mut iter = self.call_manager.get_call_stack().iter();
+        let position = iter.position(|&tuple| tuple == (self.actor_id, INVOKE_FUNC_NAME));
+        if position.is_some() {
+            for tuple in iter {
+                if tuple.0 != self.actor_id || tuple.1 != UPGRADE_FUNC_NAME {
+                    return Err(syscall_error!(
+                        Forbidden,
+                        "calling upgrade on actor already on call stack is forbidden"
+                    )
+                    .into());
+                }
+            }
+        }
+
+        // Load parameters.
+        let params = if params_id == NO_DATA_BLOCK_ID {
+            None
+        } else {
+            Some(self.blocks.get(params_id)?.clone())
+        };
+
+        // Make sure we can actually store the return block.
+        if self.blocks.is_full() {
+            return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
+        }
+
+        let result = self.call_manager.with_transaction(|cm| {
+            let state = cm
+                .get_actor(self.actor_id)?
+                .ok_or_else(|| syscall_error!(IllegalOperation; "actor deleted"))?;
+
+            // store the code cid of the calling actor before running the upgrade entrypoint
+            // in case it was changed (which could happen if the target upgrade entrypoint
+            // sent a message to this actor which in turn called upgrade)
+            let code = state.code;
+
+            // update the code cid of the actor to new_code_cid
+            cm.set_actor(
+                self.actor_id,
+                ActorState::new(
+                    new_code_cid,
+                    state.state,
+                    state.balance,
+                    state.sequence,
+                    None,
+                ),
+            )?;
+
+            // run the upgrade entrypoint
+            let result = cm.call_actor::<K>(
+                self.caller,
+                Address::new_id(self.actor_id),
+                Entrypoint::Upgrade(UpgradeInfo { old_code_cid: code }),
+                params,
+                &TokenAmount::from_whole(0),
+                None,
+                false,
+            )?;
+
+            Ok(result)
+        });
+
+        match result {
+            Ok(InvocationResult { exit_code, value }) => {
+                let (block_stat, block_id) = match value {
+                    None => (BlockStat { codec: 0, size: 0 }, NO_DATA_BLOCK_ID),
+                    Some(block) => (block.stat(), self.blocks.put_reachable(block)?),
+                };
+                Ok(CallResult {
+                    block_id,
+                    block_stat,
+                    exit_code,
+                })
+            }
+            Err(err) => Err(err),
+        }
     }
 }
 
@@ -518,54 +745,6 @@ where
     }
 }
 
-impl<C> MessageOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    fn msg_context(&self) -> Result<MessageContext> {
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_message_context())?;
-
-        let ctx = MessageContext {
-            caller: self.caller,
-            origin: self.call_manager.origin(),
-            receiver: self.actor_id,
-            method_number: self.method,
-            value_received: (&self.value_received)
-                .try_into()
-                .or_fatal()
-                .context("invalid token amount")?,
-            gas_premium: self
-                .call_manager
-                .gas_premium()
-                .try_into()
-                .or_fatal()
-                .context("invalid gas premium")?,
-            flags: if self.read_only {
-                ContextFlags::READ_ONLY
-            } else {
-                ContextFlags::empty()
-            },
-            nonce: self.call_manager.nonce(),
-        };
-        t.stop();
-        Ok(ctx)
-    }
-}
-
-impl<C> CircSupplyOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        // From v15 and onwards, Filecoin mainnet was fixed to use a static circ supply per epoch.
-        // The value reported to the FVM from clients is now the static value,
-        // the FVM simply reports that value to actors.
-        Ok(self.call_manager.context().circ_supply.clone())
-    }
-}
-
 impl<C> CryptoOps for DefaultKernel<C>
 where
     C: CallManager,
@@ -637,28 +816,7 @@ where
     }
 }
 
-impl<C> GasOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    fn gas_used(&self) -> Gas {
-        self.call_manager.gas_tracker().gas_used()
-    }
-
-    fn gas_available(&self) -> Gas {
-        self.call_manager.gas_tracker().gas_available()
-    }
-
-    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
-        self.call_manager.gas_tracker().charge_gas(name, compute)
-    }
-
-    fn price_list(&self) -> &PriceList {
-        self.call_manager.price_list()
-    }
-}
-
-impl<C> NetworkOps for DefaultKernel<C>
+impl<C> ChainOps for DefaultKernel<C>
 where
     C: CallManager,
 {
@@ -715,12 +873,7 @@ where
 
         self.call_manager.externs().get_tipset_cid(epoch).or_fatal()
     }
-}
 
-impl<C> RandomnessOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
     fn get_randomness_from_tickets(
         &self,
         rand_epoch: ChainEpoch,
@@ -769,33 +922,83 @@ where
     }
 }
 
-impl<C> ActorOps for DefaultKernel<C>
+impl<C> DebugOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn resolve_address(&self, address: &Address) -> Result<ActorID> {
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_resolve_address())?;
-
-        t.record(Ok(self
-            .call_manager
-            .resolve_address(address)?
-            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?))
+    fn log(&self, msg: String) {
+        println!("{}", msg)
     }
 
-    fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid> {
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_get_actor_code_cid())?;
-
-        t.record(Ok(self
-            .call_manager
-            .get_actor(id)?
-            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
-            .code))
+    fn debug_enabled(&self) -> bool {
+        self.call_manager.context().actor_debugging
     }
 
+    fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()> {
+        // Ensure well formed artifact name
+        {
+            if name.len() > MAX_ARTIFACT_NAME_LEN {
+                Err("debug artifact name should not exceed 256 bytes")
+            } else if name.chars().any(std::path::is_separator) {
+                Err("debug artifact name should not include any path separators")
+            } else if name
+                .chars()
+                .next()
+                .ok_or("debug artifact name should be at least one character")
+                .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?
+                == '.'
+            {
+                Err("debug artifact name should not start with a decimal '.'")
+            } else {
+                Ok(())
+            }
+        }
+        .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
+
+        // Write to disk
+        if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR).as_deref() {
+            let dir: PathBuf = [
+                dir,
+                self.call_manager.machine().machine_id(),
+                &self.call_manager.origin().to_string(),
+                &self.call_manager.nonce().to_string(),
+                &self.actor_id.to_string(),
+                &self.call_manager.invocation_count().to_string(),
+            ]
+            .iter()
+            .collect();
+
+            if let Err(e) = std::fs::create_dir_all(dir.clone()) {
+                log::error!("failed to make directory to store debug artifacts {}", e);
+            } else if let Err(e) = std::fs::write(dir.join(name), data) {
+                log::error!("failed to store debug artifact {}", e)
+            } else {
+                log::info!("wrote artifact: {} to {:?}", name, dir);
+            }
+        } else {
+            log::error!(
+                "store_artifact was ignored, env var {} was not set",
+                ENV_ARTIFACT_DIR
+            )
+        }
+        Ok(())
+    }
+}
+
+fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, f: F) -> Result<R> {
+    match panic::catch_unwind(f) {
+        Ok(v) => v,
+        Err(e) => {
+            log::error!("caught panic when {}: {:?}", context, e);
+            Err(syscall_error!(IllegalArgument; "caught panic when {}: {:?}", context, e).into())
+        }
+    }
+}
+
+impl<C> SystemOps for DefaultKernel<C>
+where
+    C: CallManager,
+{
     fn next_actor_address(&self) -> Result<Address> {
         Ok(self.call_manager.next_actor_address())
     }
@@ -877,243 +1080,5 @@ where
                 .context("tried to resolve CID of unrecognized actor type")
                 .or_illegal_argument(),
         )
-    }
-
-    fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_balance_of())?;
-
-        Ok(t.record(self.call_manager.get_actor(actor_id))?
-            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
-            .balance)
-    }
-
-    fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_lookup_delegated_address())?;
-
-        Ok(t.record(self.call_manager.get_actor(actor_id))?
-            .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
-            .delegated_address)
-    }
-}
-
-impl<C> DebugOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    fn log(&self, msg: String) {
-        println!("{}", msg)
-    }
-
-    fn debug_enabled(&self) -> bool {
-        self.call_manager.context().actor_debugging
-    }
-
-    fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()> {
-        // Ensure well formed artifact name
-        {
-            if name.len() > MAX_ARTIFACT_NAME_LEN {
-                Err("debug artifact name should not exceed 256 bytes")
-            } else if name.chars().any(std::path::is_separator) {
-                Err("debug artifact name should not include any path separators")
-            } else if name
-                .chars()
-                .next()
-                .ok_or("debug artifact name should be at least one character")
-                .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?
-                == '.'
-            {
-                Err("debug artifact name should not start with a decimal '.'")
-            } else {
-                Ok(())
-            }
-        }
-        .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
-
-        // Write to disk
-        if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR).as_deref() {
-            let dir: PathBuf = [
-                dir,
-                self.call_manager.machine().machine_id(),
-                &self.call_manager.origin().to_string(),
-                &self.call_manager.nonce().to_string(),
-                &self.actor_id.to_string(),
-                &self.call_manager.invocation_count().to_string(),
-            ]
-            .iter()
-            .collect();
-
-            if let Err(e) = std::fs::create_dir_all(dir.clone()) {
-                log::error!("failed to make directory to store debug artifacts {}", e);
-            } else if let Err(e) = std::fs::write(dir.join(name), data) {
-                log::error!("failed to store debug artifact {}", e)
-            } else {
-                log::info!("wrote artifact: {} to {:?}", name, dir);
-            }
-        } else {
-            log::error!(
-                "store_artifact was ignored, env var {} was not set",
-                ENV_ARTIFACT_DIR
-            )
-        }
-        Ok(())
-    }
-}
-
-impl<C> LimiterOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    type Limiter = <<C as CallManager>::Machine as Machine>::Limiter;
-
-    fn limiter_mut(&mut self) -> &mut Self::Limiter {
-        self.call_manager.limiter_mut()
-    }
-}
-
-impl<C> EventOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    fn emit_event(
-        &mut self,
-        event_headers: &[fvm_shared::sys::EventEntry],
-        event_keys: &[u8],
-        event_values: &[u8],
-    ) -> Result<()> {
-        const MAX_NR_ENTRIES: usize = 255;
-        const MAX_KEY_LEN: usize = 31;
-        const MAX_TOTAL_VALUES_LEN: usize = 8 << 10;
-
-        if self.read_only {
-            return Err(syscall_error!(ReadOnly; "cannot emit events while read-only").into());
-        }
-
-        let t = self
-            .call_manager
-            .charge_gas(self.call_manager.price_list().on_actor_event(
-                event_headers.len(),
-                event_keys.len(),
-                event_values.len(),
-            ))?;
-
-        if event_headers.len() > MAX_NR_ENTRIES {
-            return Err(syscall_error!(LimitExceeded; "event exceeded max entries: {} > {MAX_NR_ENTRIES}", event_headers.len()).into());
-        }
-
-        if event_values.len() > MAX_TOTAL_VALUES_LEN {
-            return Err(syscall_error!(LimitExceeded; "total event value lengths exceeded the max size: {} > {MAX_TOTAL_VALUES_LEN}", event_values.len()).into());
-        }
-
-        // We validate utf8 all at once for better performance.
-        let event_keys = std::str::from_utf8(event_keys)
-            .context("invalid event key")
-            .or_illegal_argument()?;
-
-        let mut key_offset: usize = 0;
-        let mut val_offset: usize = 0;
-
-        let mut entries: Vec<Entry> = Vec::with_capacity(event_headers.len());
-        for header in event_headers {
-            // make sure that the fixed parsed values are within bounds before we do any allocation
-            let flags = header.flags;
-            if Flags::from_bits(flags.bits()).is_none() {
-                return Err(
-                    syscall_error!(IllegalArgument; "event flags are invalid: {}", flags.bits())
-                        .into(),
-                );
-            }
-
-            if header.key_len > MAX_KEY_LEN as u32 {
-                let tmp = header.key_len;
-                return Err(syscall_error!(LimitExceeded; "event key exceeded max size: {} > {MAX_KEY_LEN}", tmp).into());
-            }
-
-            // We check this here purely to detect/prevent integer overflows below. That's why we
-            // return IllegalArgument, not LimitExceeded.
-            if header.val_len > MAX_TOTAL_VALUES_LEN as u32 {
-                return Err(
-                    syscall_error!(IllegalArgument; "event entry value out of range").into(),
-                );
-            }
-
-            // parse the variable sized fields from the raw_key/raw_val buffers
-            let key = &event_keys
-                .get(key_offset..key_offset + header.key_len as usize)
-                .context("event entry key out of range")
-                .or_illegal_argument()?;
-
-            let value = &event_values
-                .get(val_offset..val_offset + header.val_len as usize)
-                .context("event entry value out of range")
-                .or_illegal_argument()?;
-
-            // Check the codec. We currently only allow IPLD_RAW.
-            if header.codec != IPLD_RAW {
-                let tmp = header.codec;
-                return Err(
-                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", tmp)
-                        .into(),
-                );
-            }
-
-            // we have all we need to construct a new Entry
-            let entry = Entry {
-                flags: header.flags,
-                key: key.to_string(),
-                codec: header.codec,
-                value: value.to_vec(),
-            };
-
-            // shift the key/value offsets
-            key_offset += header.key_len as usize;
-            val_offset += header.val_len as usize;
-
-            entries.push(entry);
-        }
-
-        if key_offset != event_keys.len() {
-            return Err(syscall_error!(IllegalArgument;
-                "event key buffer length is too large: {} < {}",
-                key_offset,
-                event_keys.len()
-            )
-            .into());
-        }
-
-        if val_offset != event_values.len() {
-            return Err(syscall_error!(IllegalArgument;
-                "event value buffer length is too large: {} < {}",
-                val_offset,
-                event_values.len()
-            )
-            .into());
-        }
-
-        let actor_evt = ActorEvent::from(entries);
-
-        let stamped_evt = StampedEvent::new(self.actor_id, actor_evt);
-        // Enable this when performing gas calibration to measure the cost of serializing early.
-        #[cfg(feature = "gas_calibration")]
-        let _ = fvm_ipld_encoding::to_vec(&stamped_evt).unwrap();
-
-        self.call_manager.append_event(stamped_evt);
-
-        t.stop();
-
-        Ok(())
-    }
-}
-
-fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, f: F) -> Result<R> {
-    match panic::catch_unwind(f) {
-        Ok(v) => v,
-        Err(e) => {
-            log::error!("caught panic when {}: {:?}", context, e);
-            Err(syscall_error!(IllegalArgument; "caught panic when {}: {:?}", context, e).into())
-        }
     }
 }

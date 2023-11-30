@@ -12,6 +12,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::{commcid, ActorID};
+use kernel::{ActorOps, CryptoOps, DebugOps};
 use lazy_static::lazy_static;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, ParallelDrainRange, ParallelIterator,
@@ -22,6 +23,7 @@ use super::error::Result;
 use super::*;
 use crate::call_manager::CallManager;
 use crate::externs::Consensus;
+use crate::syscalls::FilecoinSyscallHandler;
 use crate::*;
 
 lazy_static! {
@@ -70,29 +72,31 @@ pub trait FilecoinKernel: Kernel {
     /// Verify replica update verifies a snap deal: an upgrade from a CC sector to a sector with
     /// deals.
     fn verify_replica_update(&self, replica: &ReplicaUpdateInfo) -> Result<bool>;
+
+    /// Returns the total token supply in circulation at the beginning of the current epoch.
+    /// The circulating supply is the sum of:
+    /// - rewards emitted by the reward actor,
+    /// - funds vested from lock-ups in the genesis state,
+    /// less the sum of:
+    /// - funds burnt,
+    /// - pledge collateral locked in storage miner actors (recorded in the storage power actor)
+    /// - deal collateral locked by the storage market actor
+    fn total_fil_circ_supply(&self) -> Result<TokenAmount>;
 }
 
 #[derive(Delegate)]
-#[delegate(IpldBlockOps)]
-#[delegate(ActorOps)]
-#[delegate(CircSupplyOps)]
-#[delegate(CryptoOps)]
-#[delegate(DebugOps)]
-#[delegate(EventOps)]
-#[delegate(GasOps)]
-#[delegate(MessageOps)]
-#[delegate(NetworkOps)]
-#[delegate(RandomnessOps)]
-#[delegate(SelfOps)]
-#[delegate(LimiterOps)]
-pub struct DefaultFilecoinKernel<K>(pub K)
-where
-    K: Kernel;
+#[delegate(IpldBlockOps, where = "C: CallManager")]
+#[delegate(ActorOps, where = "C: CallManager")]
+#[delegate(CallOps<K>, generics = "K", where = "C: CallManager, K: FilecoinKernel")]
+#[delegate(CryptoOps, where = "C: CallManager")]
+#[delegate(DebugOps, where = "C: CallManager")]
+#[delegate(SystemOps, where = "C: CallManager")]
+#[delegate(ChainOps, where = "C: CallManager")]
+pub struct DefaultFilecoinKernel<C>(pub DefaultKernel<C>);
 
-impl<C> FilecoinKernel for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<C> FilecoinKernel for DefaultFilecoinKernel<C>
 where
     C: CallManager,
-    DefaultFilecoinKernel<DefaultKernel<C>>: Kernel,
 {
     fn compute_unsealed_sector_cid(
         &self,
@@ -226,13 +230,30 @@ where
             verify_replica_update(replica)
         }))
     }
+
+    fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
+        // From v15 and onwards, Filecoin mainnet was fixed to use a static circ supply per epoch.
+        // The value reported to the FVM from clients is now the static value,
+        // the FVM simply reports that value to actors.
+        Ok(self.0.call_manager.context().circ_supply.clone())
+    }
 }
 
-impl<C> Kernel for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<C> Kernel for DefaultFilecoinKernel<C>
 where
     C: CallManager,
 {
-    type CallManager = C;
+    type CallManager = <DefaultKernel<C> as Kernel>::CallManager;
+    type Limiter = <DefaultKernel<C> as Kernel>::Limiter;
+    type SyscallHandler = FilecoinSyscallHandler;
+
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
+        self.0.limiter_mut()
+    }
+
+    fn price_list(&self) -> &PriceList {
+        self.0.price_list()
+    }
 
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
@@ -245,29 +266,12 @@ where
         self.0.machine()
     }
 
-    fn send<K: Kernel<CallManager = C>>(
-        &mut self,
-        recipient: &Address,
-        method: u64,
-        params: BlockId,
-        value: &TokenAmount,
-        gas_limit: Option<Gas>,
-        flags: SendFlags,
-    ) -> Result<CallResult> {
-        self.0
-            .send::<Self>(recipient, method, params, value, gas_limit, flags)
-    }
-
-    fn upgrade_actor<K: Kernel<CallManager = Self::CallManager>>(
-        &mut self,
-        new_code_cid: Cid,
-        params_id: BlockId,
-    ) -> Result<CallResult> {
-        self.0.upgrade_actor::<Self>(new_code_cid, params_id)
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
+        self.0.charge_gas(name, compute)
     }
 
     fn new(
-        mgr: C,
+        mgr: Self::CallManager,
         blocks: BlockRegistry,
         caller: ActorID,
         actor_id: ActorID,
@@ -275,7 +279,7 @@ where
         value_received: TokenAmount,
         read_only: bool,
     ) -> Self {
-        DefaultFilecoinKernel(DefaultKernel::new(
+        DefaultFilecoinKernel(DefaultKernel::<C>::new(
             mgr,
             blocks,
             caller,
@@ -284,6 +288,14 @@ where
             value_received,
             read_only,
         ))
+    }
+
+    fn gas_available(&self) -> Gas {
+        self.0.gas_available()
+    }
+
+    fn gas_used(&self) -> Gas {
+        self.0.gas_available()
     }
 }
 

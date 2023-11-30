@@ -8,7 +8,7 @@ use crate::kernel::{ClassifyResult, Result};
 use crate::Kernel;
 
 pub fn charge_gas(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl Kernel>, // XXX Move charge gas?
     name_off: u32,
     name_len: u32,
     compute: u64,

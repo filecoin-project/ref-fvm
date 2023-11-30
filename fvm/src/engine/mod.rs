@@ -23,6 +23,7 @@ use wasmtime::{
 };
 
 use crate::gas::{Gas, GasTimer, WasmGasPrices};
+use crate::kernel::SyscallHandler;
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::{Machine, NetworkConfig};
 use crate::syscalls::error::Abort;
@@ -515,12 +516,7 @@ impl Engine {
                 .insert({
                     let mut linker = Linker::new(&self.inner.engine);
                     linker.allow_shadowing(true);
-
-                    store
-                        .data()
-                        .kernel
-                        .bind_syscalls(&mut linker)
-                        .map_err(Abort::Fatal)?;
+                    K::SyscallHandler::bind_syscalls(&mut linker).map_err(Abort::Fatal)?;
 
                     Box::new(Cache { linker })
                 })

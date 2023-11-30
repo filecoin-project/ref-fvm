@@ -1,28 +1,16 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use anyhow::Context as _;
-use fvm_shared::sys;
 use fvm_shared::sys::out::network::NetworkContext;
 
 use super::Context;
-use crate::kernel::{ClassifyResult, Kernel, Result};
+use crate::kernel::{ChainOps, Result};
 
-/// Returns the network circ supply split as two u64 ordered in little endian.
-pub fn total_fil_circ_supply(context: Context<'_, impl Kernel>) -> Result<sys::TokenAmount> {
-    context
-        .kernel
-        .total_fil_circ_supply()?
-        .try_into()
-        .context("circulating supply exceeds u128 limit")
-        .or_fatal()
-}
-
-pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<NetworkContext> {
+pub fn context(context: Context<'_, impl ChainOps>) -> crate::kernel::Result<NetworkContext> {
     context.kernel.network_context()
 }
 
 pub fn tipset_cid(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl ChainOps>,
     epoch: i64,
     obuf_off: u32,
     obuf_len: u32,

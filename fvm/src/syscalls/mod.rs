@@ -4,13 +4,15 @@ use anyhow::{anyhow, Context as _};
 use num_traits::Zero;
 use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
 
-use crate::call_manager::{backtrace, CallManager};
+use crate::call_manager::backtrace;
 use crate::gas::{Gas, GasInstant, GasTimer};
-use crate::kernel::filecoin::DefaultFilecoinKernel;
-use crate::kernel::{ExecutionError, SyscallHandler};
+use crate::kernel::filecoin::FilecoinKernel;
+use crate::kernel::{
+    ActorOps, CallOps, ChainOps, CryptoOps, DebugOps, ExecutionError, IpldBlockOps, Kernel,
+    SyscallHandler, SystemOps,
+};
 
 use crate::machine::limiter::MemoryLimiter;
-use crate::{DefaultKernel, Kernel};
 
 pub(crate) mod error;
 
@@ -236,22 +238,16 @@ fn min_table_elements(module: &Module) -> Option<u32> {
 use self::bind::BindSyscall;
 use self::error::Abort;
 
-impl<K> SyscallHandler<K> for DefaultKernel<K::CallManager>
+pub struct DefaultSyscallHandler;
+
+impl<K> SyscallHandler<K> for DefaultSyscallHandler
 where
-    K: Kernel,
+    K: Kernel + ChainOps + ActorOps + CryptoOps + SystemOps + IpldBlockOps + DebugOps + CallOps,
 {
-    fn bind_syscalls(
-        &self,
-        linker: &mut wasmtime::Linker<InvocationData<K>>,
-    ) -> anyhow::Result<()> {
+    fn bind_syscalls(linker: &mut wasmtime::Linker<InvocationData<K>>) -> anyhow::Result<()> {
         linker.bind("vm", "exit", vm::exit)?;
         linker.bind("vm", "message_context", vm::message_context)?;
 
-        linker.bind(
-            "network",
-            "total_fil_circ_supply",
-            network::total_fil_circ_supply,
-        )?;
         linker.bind("network", "context", network::context)?;
         linker.bind("network", "tipset_cid", network::tipset_cid)?;
 
@@ -324,16 +320,21 @@ where
     }
 }
 
-impl<C> SyscallHandler<DefaultFilecoinKernel<DefaultKernel<C>>>
-    for DefaultFilecoinKernel<DefaultKernel<C>>
+pub struct FilecoinSyscallHandler;
+
+impl<K> SyscallHandler<K> for FilecoinSyscallHandler
 where
-    C: CallManager,
+    K: FilecoinKernel
+        + ChainOps
+        + ActorOps
+        + CryptoOps
+        + SystemOps
+        + IpldBlockOps
+        + DebugOps
+        + CallOps,
 {
-    fn bind_syscalls(
-        &self,
-        linker: &mut Linker<InvocationData<DefaultFilecoinKernel<DefaultKernel<C>>>>,
-    ) -> anyhow::Result<()> {
-        self.0.bind_syscalls(linker)?;
+    fn bind_syscalls(linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()> {
+        DefaultSyscallHandler::bind_syscalls(linker)?;
 
         // Now bind the crypto syscalls.
         linker.bind(
@@ -358,6 +359,13 @@ where
             filecoin::verify_replica_update,
         )?;
         linker.bind("crypto", "batch_verify_seals", filecoin::batch_verify_seals)?;
+
+        // And bind a syscall for getting the total circulating supply.
+        linker.bind(
+            "network",
+            "total_fil_circ_supply",
+            filecoin::total_fil_circ_supply,
+        )?;
 
         Ok(())
     }

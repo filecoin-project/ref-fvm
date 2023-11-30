@@ -3,10 +3,12 @@
 use fvm_shared::sys;
 
 use super::Context;
-use crate::kernel::Result;
-use crate::Kernel;
+use crate::kernel::{IpldBlockOps, Result};
 
-pub fn block_open(context: Context<'_, impl Kernel>, cid: u32) -> Result<sys::out::ipld::IpldOpen> {
+pub fn block_open(
+    context: Context<'_, impl IpldBlockOps>,
+    cid: u32,
+) -> Result<sys::out::ipld::IpldOpen> {
     let cid = context.memory.read_cid(cid)?;
     let (id, stat) = context.kernel.block_open(&cid)?;
     Ok(sys::out::ipld::IpldOpen {
@@ -17,7 +19,7 @@ pub fn block_open(context: Context<'_, impl Kernel>, cid: u32) -> Result<sys::ou
 }
 
 pub fn block_create(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl IpldBlockOps>,
     codec: u64,
     data_off: u32,
     data_len: u32,
@@ -27,7 +29,7 @@ pub fn block_create(
 }
 
 pub fn block_link(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl IpldBlockOps>,
     id: u32,
     hash_fun: u64,
     hash_len: u32,
@@ -45,7 +47,7 @@ pub fn block_link(
 }
 
 pub fn block_read(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl IpldBlockOps>,
     id: u32,
     offset: u32,
     obuf_off: u32,
@@ -55,7 +57,10 @@ pub fn block_read(
     context.kernel.block_read(id, offset, data)
 }
 
-pub fn block_stat(context: Context<'_, impl Kernel>, id: u32) -> Result<sys::out::ipld::IpldStat> {
+pub fn block_stat(
+    context: Context<'_, impl IpldBlockOps>,
+    id: u32,
+) -> Result<sys::out::ipld::IpldStat> {
     context
         .kernel
         .block_stat(id)

@@ -435,7 +435,6 @@ mod ipld {
 
 mod gas {
     use fvm::gas::*;
-    use fvm::kernel::GasOps;
     use pretty_assertions::assert_eq;
 
     use super::*;
