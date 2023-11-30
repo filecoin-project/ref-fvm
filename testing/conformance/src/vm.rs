@@ -256,6 +256,10 @@ where
     fn gas_available(&self) -> Gas {
         self.0.gas_available()
     }
+
+    fn gas_used(&self) -> Gas {
+        self.0.gas_available()
+    }
 }
 
 impl<M, C, K, KK> CallOps<KK> for TestKernel<K>
@@ -263,6 +267,7 @@ where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = C> + CallOps<Self>,
+    KK: SyscallHandler<KK> + Kernel,
 {
     /// Sends a message to another actor.
     /// The method type parameter K is the type of the kernel to instantiate for
@@ -279,18 +284,12 @@ where
         value: &TokenAmount,
         gas_limit: Option<Gas>,
         flags: SendFlags,
-    ) -> Result<CallResult>
-    where
-        KK: SyscallHandler<KK> + Kernel,
-    {
+    ) -> Result<CallResult> {
         self.0
             .send(recipient, method, params, value, gas_limit, flags)
     }
 
-    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult>
-    where
-        KK: SyscallHandler<KK> + Kernel,
-    {
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
         self.0.upgrade_actor(new_code_cid, params_id)
     }
 }

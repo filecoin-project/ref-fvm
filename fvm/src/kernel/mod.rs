@@ -92,6 +92,8 @@ pub trait Kernel: 'static {
 
     /// XXX Returns the remaining gas for the transaction.
     fn gas_available(&self) -> Gas;
+
+    fn gas_used(&self) -> Gas;
 }
 
 pub trait SyscallHandler<K = Self>: Sized {
@@ -217,13 +219,9 @@ pub trait CallOps<K = Self>: IpldBlockOps + Sized {
         value: &TokenAmount,
         gas_limit: Option<Gas>,
         flags: SendFlags,
-    ) -> Result<CallResult>
-    where
-        K: SyscallHandler<K> + Kernel;
+    ) -> Result<CallResult>;
 
-    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult>
-    where
-        K: SyscallHandler<K> + Kernel;
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult>;
 }
 
 /// Cryptographic primitives provided by the kernel.

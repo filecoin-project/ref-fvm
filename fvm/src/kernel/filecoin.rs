@@ -86,7 +86,7 @@ pub trait FilecoinKernel: Kernel {
 #[derive(Delegate)]
 #[delegate(IpldBlockOps, where = "I: IpldBlockOps")]
 #[delegate(ActorOps, where = "I: ActorOps")]
-#[delegate(CallOps<K>, generics = "K", where = "I: CallOps<K>")]
+#[delegate(CallOps<K>, generics = "K", where = "I: CallOps<K>, K: SyscallHandler<K> + Kernel")]
 #[delegate(CryptoOps, where = "I: CryptoOps")]
 #[delegate(DebugOps, where = "I: DebugOps")]
 #[delegate(SystemOps, where = "I: SystemOps")]
@@ -289,6 +289,10 @@ where
     }
 
     fn gas_available(&self) -> Gas {
+        self.0.gas_available()
+    }
+
+    fn gas_used(&self) -> Gas {
         self.0.gas_available()
     }
 }

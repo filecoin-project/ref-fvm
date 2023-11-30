@@ -53,7 +53,7 @@ impl<K: Kernel> DerefMut for DefaultExecutor<K> {
 
 impl<K> Executor for DefaultExecutor<K>
 where
-    K: Kernel + SyscallHandler<K>,
+    K: Kernel + SyscallHandler,
 {
     type Kernel = K;
 

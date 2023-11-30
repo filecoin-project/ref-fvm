@@ -115,6 +115,10 @@ where
     fn gas_available(&self) -> Gas {
         self.call_manager.gas_tracker().gas_available()
     }
+
+    fn gas_used(&self) -> Gas {
+        self.call_manager.gas_tracker().gas_used()
+    }
 }
 
 impl<C> DefaultKernel<C>
@@ -423,7 +427,7 @@ where
 
 impl<K> CallOps<K> for DefaultKernel<K::CallManager>
 where
-    K: Kernel,
+    K: Kernel + SyscallHandler<K>,
 {
     fn send(
         &mut self,
