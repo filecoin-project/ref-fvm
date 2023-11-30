@@ -56,7 +56,7 @@ pub struct CallResult {
 /// Actors may call into the kernel via the syscalls defined in the [`syscalls`][crate::syscalls]
 /// module.
 pub trait Kernel:
-    SyscallHandler<Self>
+    SyscallHandler
     + ActorOps
     + IpldBlockOps
     + CircSupplyOps
@@ -126,7 +126,7 @@ pub trait Kernel:
     ) -> Result<CallResult>;
 }
 
-pub trait SyscallHandler<K: Kernel>: Sized {
+pub trait SyscallHandler<K = Self>: Sized {
     fn bind_syscalls(&self, linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()>;
 }
 
