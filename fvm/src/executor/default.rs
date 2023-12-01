@@ -20,7 +20,7 @@ use crate::call_manager::{backtrace, Backtrace, CallManager, Entrypoint, Invocat
 use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::EnginePool;
 use crate::gas::{Gas, GasCharge, GasOutputs};
-use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel, SyscallHandler};
+use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ID, REWARD_ACTOR_ID};
 use crate::trace::ExecutionTrace;
 
@@ -53,7 +53,7 @@ impl<K: Kernel> DerefMut for DefaultExecutor<K> {
 
 impl<K> Executor for DefaultExecutor<K>
 where
-    K: Kernel + SyscallHandler,
+    K: Kernel,
 {
     type Kernel = K;
 

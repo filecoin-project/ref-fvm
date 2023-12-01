@@ -48,9 +48,11 @@ pub struct CallResult {
     pub exit_code: ExitCode,
 }
 
-pub trait Kernel: 'static {
-    /// The [`Kernel`]'s [`CallManager`] is
+/// The base [`Kernel`] trait implemented by all kernels.
+pub trait Kernel: SyscallHandler + 'static {
+    /// The [`Kernel`]'s [`CallManager`].
     type CallManager: CallManager;
+    /// The [`Kernel`]'s memory allocation tracker.
     type Limiter: MemoryLimiter;
 
     /// Construct a new [`Kernel`] from the given [`CallManager`].
@@ -83,6 +85,7 @@ pub trait Kernel: 'static {
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
         Self: Sized;
+
     /// The kernel's underlying "machine".
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine;
 
@@ -90,14 +93,18 @@ pub trait Kernel: 'static {
     /// `name` provides information about gas charging point.
     fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer>;
 
-    /// XXX Returns the remaining gas for the transaction.
+    // XXX: Move these somewhere else?
+
+    /// Returns the remaining gas for the transaction.
     fn gas_available(&self) -> Gas;
 
+    /// XXX: Testing only!
     fn gas_used(&self) -> Gas;
 }
 
+/// This trait links the kernel to a wasm module via wasm "host" calls (syscalls).
 pub trait SyscallHandler<K = Self>: Sized {
-    fn bind_syscalls(&self, linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()>;
+    fn bind_syscalls(linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()>;
 }
 
 #[delegatable_trait]

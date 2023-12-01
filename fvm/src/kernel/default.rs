@@ -427,7 +427,7 @@ where
 
 impl<K> CallOps<K> for DefaultKernel<K::CallManager>
 where
-    K: Kernel + SyscallHandler<K>,
+    K: Kernel,
 {
     fn send(
         &mut self,
@@ -437,10 +437,7 @@ where
         value: &TokenAmount,
         gas_limit: Option<Gas>,
         flags: SendFlags,
-    ) -> Result<CallResult>
-    where
-        K: SyscallHandler<K> + Kernel,
-    {
+    ) -> Result<CallResult> {
         let from = self.actor_id;
         let read_only = self.read_only || flags.read_only();
 
@@ -506,10 +503,7 @@ where
         })
     }
 
-    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult>
-    where
-        K: SyscallHandler<K> + Kernel,
-    {
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
         if self.read_only {
             return Err(
                 syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),

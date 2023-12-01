@@ -6,9 +6,7 @@ use fvm_shared::{sys, ActorID};
 use super::bind::ControlFlow;
 use super::error::Abort;
 use super::Context;
-use crate::kernel::{
-    ActorOps, CallOps, CallResult, ClassifyResult, Result, SyscallHandler, SystemOps,
-};
+use crate::kernel::{ActorOps, CallOps, CallResult, ClassifyResult, Result, SystemOps};
 use crate::{syscall_error, Kernel};
 
 pub fn resolve_address(
@@ -113,7 +111,7 @@ pub fn create_actor(
     context.kernel.create_actor(typ, actor_id, addr)
 }
 
-pub fn upgrade_actor<K: CallOps + Kernel + SyscallHandler>(
+pub fn upgrade_actor<K: CallOps + Kernel>(
     context: Context<'_, K>,
     new_code_cid_off: u32,
     params_id: u32,

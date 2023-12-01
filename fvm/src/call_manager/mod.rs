@@ -10,7 +10,7 @@ use fvm_shared::{ActorID, MethodNum};
 
 use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
-use crate::kernel::{self, BlockRegistry, ClassifyResult, Context, Result, SyscallHandler};
+use crate::kernel::{self, BlockRegistry, ClassifyResult, Context, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::ActorState;
 use crate::Kernel;
@@ -65,7 +65,7 @@ pub trait CallManager: 'static {
     /// Calls an actor at the given address and entrypoint. The type parameter `K` specifies the the _kernel_ on top of which the target
     /// actor should execute.
     #[allow(clippy::too_many_arguments)]
-    fn call_actor<K: Kernel<CallManager = Self> + SyscallHandler<K>>(
+    fn call_actor<K: Kernel<CallManager = Self>>(
         &mut self,
         from: ActorID,
         to: Address,

@@ -195,17 +195,10 @@ impl<M, C, K> Kernel for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
+    K: Kernel<CallManager = C> + SyscallHandler<Self>,
 {
     type CallManager = K::CallManager;
     type Limiter = K::Limiter;
-
-    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
-    where
-        Self: Sized,
-    {
-        self.0.into_inner()
-    }
 
     fn new(
         mgr: C,
@@ -236,6 +229,13 @@ where
         )
     }
 
+    fn into_inner(self) -> (Self::CallManager, BlockRegistry)
+    where
+        Self: Sized,
+    {
+        self.0.into_inner()
+    }
+
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
         self.0.machine()
     }
@@ -261,12 +261,11 @@ where
     }
 }
 
-impl<M, C, K, KK> CallOps<KK> for TestKernel<K>
+impl<M, C, K> CallOps<Self> for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = C> + CallOps<Self>,
-    KK: SyscallHandler<KK> + Kernel,
 {
     /// Sends a message to another actor.
     /// The method type parameter K is the type of the kernel to instantiate for
@@ -293,17 +292,14 @@ where
     }
 }
 
-impl<M, C, K> SyscallHandler<TestKernel<K>> for TestKernel<K>
+impl<M, C, K> SyscallHandler<Self> for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
+    K: Kernel<CallManager = C> + SyscallHandler<Self>,
 {
-    fn bind_syscalls(
-        &self,
-        _linker: &mut Linker<InvocationData<TestKernel<K>>>,
-    ) -> anyhow::Result<()> {
-        Ok(())
+    fn bind_syscalls(linker: &mut Linker<InvocationData<Self>>) -> anyhow::Result<()> {
+        K::bind_syscalls(linker)
     }
 }
 
@@ -311,7 +307,7 @@ impl<M, C, K> FilecoinKernel for TestKernel<K>
 where
     M: Machine,
     C: CallManager<Machine = TestMachine<M>>,
-    K: FilecoinKernel<CallManager = C>,
+    K: FilecoinKernel<CallManager = C> + SyscallHandler<Self>,
 {
     fn compute_unsealed_sector_cid(
         &self,

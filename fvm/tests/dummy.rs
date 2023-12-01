@@ -10,7 +10,6 @@ use fvm::call_manager::{Backtrace, CallManager, Entrypoint, FinishRet, Invocatio
 use fvm::engine::Engine;
 use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
-use fvm::kernel::SyscallHandler;
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
@@ -275,7 +274,7 @@ impl CallManager for DummyCallManager {
         }
     }
 
-    fn call_actor<K: Kernel<CallManager = Self> + SyscallHandler<K>>(
+    fn call_actor<K: Kernel<CallManager = Self>>(
         &mut self,
         _from: fvm_shared::ActorID,
         _to: Address,

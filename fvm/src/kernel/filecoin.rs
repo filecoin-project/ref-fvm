@@ -86,7 +86,7 @@ pub trait FilecoinKernel: Kernel {
 #[derive(Delegate)]
 #[delegate(IpldBlockOps, where = "C: CallManager")]
 #[delegate(ActorOps, where = "C: CallManager")]
-#[delegate(CallOps<K>, generics = "K", where = "C: CallManager, K: SyscallHandler<K> + Kernel")]
+#[delegate(CallOps<K>, generics = "K", where = "C: CallManager, K: Kernel")]
 #[delegate(CryptoOps, where = "C: CallManager")]
 #[delegate(DebugOps, where = "C: CallManager")]
 #[delegate(SystemOps, where = "C: CallManager")]
