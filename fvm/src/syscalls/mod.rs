@@ -4,9 +4,9 @@ use anyhow::{anyhow, Context as _};
 use num_traits::Zero;
 use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
 
-use crate::call_manager::backtrace;
+use crate::call_manager::{backtrace, CallManager};
 use crate::gas::{Gas, GasInstant, GasTimer};
-use crate::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
+use crate::kernel::filecoin::DefaultFilecoinKernel;
 use crate::kernel::{
     ActorOps, CallOps, ChainOps, CryptoOps, DebugOps, ExecutionError, IpldBlockOps, SyscallHandler,
     SystemOps,
@@ -330,14 +330,13 @@ where
     }
 }
 
-impl<K> SyscallHandler<DefaultFilecoinKernel<K>> for DefaultFilecoinKernel<K>
+impl<C> SyscallHandler<DefaultFilecoinKernel<C>> for DefaultFilecoinKernel<C>
 where
-    Self: FilecoinKernel,
-    K: SyscallHandler<Self>,
+    C: CallManager,
 {
     fn bind_syscalls(
         &self,
-        linker: &mut Linker<InvocationData<DefaultFilecoinKernel<K>>>,
+        linker: &mut Linker<InvocationData<DefaultFilecoinKernel<C>>>,
     ) -> anyhow::Result<()> {
         self.0.bind_syscalls(linker)?;
 

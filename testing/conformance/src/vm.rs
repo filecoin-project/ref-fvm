@@ -15,7 +15,6 @@ use fvm::kernel::*;
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
-use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
@@ -187,7 +186,7 @@ where
 #[delegate(DebugOps, where = "K: DebugOps", target = "0")]
 #[delegate(SystemOps, where = "K: SystemOps", target = "0")]
 #[delegate(ChainOps, where = "K: ChainOps", target = "0")]
-pub struct TestKernel<K = DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<TestMachine>>>>(
+pub struct TestKernel<K = DefaultFilecoinKernel<DefaultCallManager<TestMachine>>>(
     pub K,
     pub TestData,
 );

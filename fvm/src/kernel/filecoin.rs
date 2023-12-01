@@ -84,16 +84,16 @@ pub trait FilecoinKernel: Kernel {
 }
 
 #[derive(Delegate)]
-#[delegate(IpldBlockOps, where = "I: IpldBlockOps")]
-#[delegate(ActorOps, where = "I: ActorOps")]
-#[delegate(CallOps<K>, generics = "K", where = "I: CallOps<K>, K: SyscallHandler<K> + Kernel")]
-#[delegate(CryptoOps, where = "I: CryptoOps")]
-#[delegate(DebugOps, where = "I: DebugOps")]
-#[delegate(SystemOps, where = "I: SystemOps")]
-#[delegate(ChainOps, where = "I: ChainOps")]
-pub struct DefaultFilecoinKernel<I>(pub I);
+#[delegate(IpldBlockOps, where = "C: CallManager")]
+#[delegate(ActorOps, where = "C: CallManager")]
+#[delegate(CallOps<K>, generics = "K", where = "C: CallManager, K: SyscallHandler<K> + Kernel")]
+#[delegate(CryptoOps, where = "C: CallManager")]
+#[delegate(DebugOps, where = "C: CallManager")]
+#[delegate(SystemOps, where = "C: CallManager")]
+#[delegate(ChainOps, where = "C: CallManager")]
+pub struct DefaultFilecoinKernel<C>(pub DefaultKernel<C>);
 
-impl<C> FilecoinKernel for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<C> FilecoinKernel for DefaultFilecoinKernel<C>
 where
     C: CallManager,
 {
@@ -238,12 +238,12 @@ where
     }
 }
 
-impl<K> Kernel for DefaultFilecoinKernel<K>
+impl<C> Kernel for DefaultFilecoinKernel<C>
 where
-    K: Kernel,
+    C: CallManager,
 {
-    type CallManager = K::CallManager;
-    type Limiter = K::Limiter;
+    type CallManager = <DefaultKernel<C> as Kernel>::CallManager;
+    type Limiter = <DefaultKernel<C> as Kernel>::Limiter;
 
     fn limiter_mut(&mut self) -> &mut Self::Limiter {
         self.0.limiter_mut()
@@ -277,7 +277,7 @@ where
         value_received: TokenAmount,
         read_only: bool,
     ) -> Self {
-        DefaultFilecoinKernel(K::new(
+        DefaultFilecoinKernel(DefaultKernel::<C>::new(
             mgr,
             blocks,
             caller,

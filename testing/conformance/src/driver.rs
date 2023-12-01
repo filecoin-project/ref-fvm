@@ -277,7 +277,7 @@ pub fn run_variant(
         Err(err) => {
             return Ok(VariantResult::Failed {
                 id,
-                reason: err.context("flushing executor failed"),
+                reason: err.context("flushing executor failed").into(),
             });
         }
     };
