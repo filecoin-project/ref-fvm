@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 //! Syscalls for cryptographic operations.
 
-use fvm_shared::crypto::signature::SECP_PUB_LEN;
+use fvm_shared::crypto::signature::{BLS_PUB_LEN, SECP_PUB_LEN};
 #[doc(inline)]
 pub use fvm_shared::sys::out::crypto::*;
 
@@ -13,29 +13,30 @@ use crate::sys::ErrorNumber::*;
 super::fvm_syscalls! {
     module = "crypto";
 
-    /// Verifies that a signature is valid for an f1 or f3 address and plaintext.
+    /// Verifies that a BLS aggregate signature is valid for a list of signers' BLS public keys and
+    /// and the digest of each signer's plaintext.
     ///
     /// Returns 0 on success, or -1 if the signature fails to validate.
     ///
     /// # Arguments
     ///
-    /// - `sig_off` and `sig_len` specify location and length of the signature.
-    /// - `addr_off` and `addr_len` specify location and length of expected signer's address.
-    /// - `plaintext_off` and `plaintext_len` specify location and length of the signed data.
+    /// - `num_signers` the number of signatures aggregated.
+    /// - `sig_off` specifies the location of the aggregate signature.
+    /// - `pub_keys_off` specifies the location of the signers' BLS public keys.
+    /// - `plaintext_lens_off` specifies the location of the plaintexts' lengths.
+    /// - `plaintexts_off` specifies the location of the concatenated plaintexts.
     ///
     /// # Errors
     ///
-    /// | Error               | Reason                                               |
-    /// |---------------------|------------------------------------------------------|
-    /// | [`IllegalArgument`] | signature, address, or plaintext buffers are invalid |
-    pub fn verify_signature(
-        sig_type: u32,
+    /// | Error               | Reason                                                    |
+    /// |---------------------|-----------------------------------------------------------|
+    /// | [`IllegalArgument`] | signature, public keys, or plaintexts buffers are invalid |
+    pub fn verify_bls_aggregate(
+        num_signers: u32,
         sig_off: *const u8,
-        sig_len: u32,
-        addr_off: *const u8,
-        addr_len: u32,
-        plaintext_off: *const u8,
-        plaintext_len: u32,
+        pub_keys_off: *const [u8; BLS_PUB_LEN],
+        plaintexts_off: *const u8,
+        plaintext_lens_off: *const u32,
     ) -> Result<i32>;
 
     /// Recovers the signer public key from a signed message hash and its signature.

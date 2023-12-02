@@ -6,7 +6,7 @@ use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::{
-    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -275,13 +275,20 @@ pub trait GasOps {
 /// Cryptographic primitives provided by the kernel.
 #[delegatable_trait]
 pub trait CryptoOps {
-    /// Verifies that a signature is valid for an address and plaintext.
-    fn verify_signature(
+    /// Verifies a BLS aggregate signature. In the case where there is one signer/signed plaintext,
+    /// this is equivalent to verifying a non-aggregated BLS signature.
+    ///
+    /// Returns:
+    /// - `Ok(true)` on a valid signature.
+    /// - `Ok(false)` on an invalid signature or if the signature or public keys' bytes represent an
+    ///    invalid curve point.
+    /// - `Err(IllegalArgument)` if `pub_keys.len() != plaintexts.len()`.
+    fn verify_bls_aggregate(
         &self,
-        sig_type: SignatureType,
-        signature: &[u8],
-        signer: &Address,
-        plaintext: &[u8],
+        aggregate_sig: &[u8; BLS_SIG_LEN],
+        pub_keys: &[[u8; BLS_PUB_LEN]],
+        plaintexts_concat: &[u8],
+        plaintext_lens: &[u32],
     ) -> Result<bool>;
 
     /// Given a message hash and its signature, recovers the public key of the signer.

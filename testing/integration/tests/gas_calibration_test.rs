@@ -375,71 +375,99 @@ fn on_send() {
 
 #[test]
 #[cfg(feature = "calibration")]
-fn on_verify_signature() {
+fn on_verify_bls_aggregate() {
     use bls_signatures::Serialize;
-    use fvm_shared::address::Address;
-    use fvm_shared::crypto::signature::SignatureType;
-    use rand::{thread_rng, Rng, RngCore};
+    use rand::{thread_rng, RngCore};
 
-    const CHARGE_NAME: &str = "OnVerifySignature";
-    const METHOD: Method = Method::OnVerifySignature;
+    const CHARGE_NAME: &str = "OnVerifyBlsAggregateSignature";
+    const METHOD: Method = Method::OnVerifyBlsAggregate;
 
-    let sig_types = vec![SignatureType::BLS, SignatureType::Secp256k1];
-
-    let sizes = common_sizes();
     let iterations = 100;
 
     let mut te = instantiate_tester();
     let mut obs = Vec::new();
     let mut rng = thread_rng();
 
-    // Just some random data over which we can generate an example signature.
-    // Having a valid BLS signature is important otherwise verification is
-    // an instant rejection without hasing the input data.
-    let mut data = vec![0u8; 100];
-    rng.fill_bytes(&mut data);
+    for &n in &[1, 4, 8, 20, 50, 200, 1000] {
+        let mut keys = Vec::new();
+        let mut sks = Vec::new();
+        let mut sigs = Vec::new();
+        let mut messages = Vec::new();
+        for _ in 0..n {
+            let mut data = vec![0u8; 100];
+            rng.fill_bytes(&mut data);
+            let sk = bls_signatures::PrivateKey::generate(&mut rng);
+            let pk = sk.public_key();
+            let sig = sk.sign(&data);
 
-    for sig_type in sig_types.iter() {
-        let label = format!("{sig_type:?}");
-
-        let (signer, signature) = match sig_type {
-            SignatureType::Secp256k1 => {
-                let sk = libsecp256k1::SecretKey::random(&mut rng);
-                let pk = libsecp256k1::PublicKey::from_secret_key(&sk);
-                let addr = Address::new_secp256k1(&pk.serialize()).unwrap();
-                let sig = secp_sign(&sk, &data).into();
-                (addr, sig)
-            }
-            SignatureType::BLS => {
-                let sk = bls_signatures::PrivateKey::generate(&mut rng);
-                let pk = sk.public_key();
-                let addr = Address::new_bls(&pk.as_bytes()).unwrap();
-                let sig = sk.sign(&data).as_bytes();
-                (addr, sig)
-            }
+            keys.push(pk.as_bytes());
+            sks.push(sk);
+            messages.push(data);
+            sigs.push(sig);
+        }
+        let signature = bls_signatures::aggregate(&sigs).unwrap().as_bytes();
+        let params = OnVerifyBlsAggregateParams {
+            iterations,
+            signature,
+            keys,
+            messages,
         };
 
-        for size in sizes.iter() {
-            let params = OnVerifySignatureParams {
-                iterations,
-                size: *size,
-                signer,
-                signature: signature.clone(),
-                seed: rng.gen(),
-            };
+        let ret = te.execute_or_die(METHOD as u64, &params);
 
-            let ret = te.execute_or_die(METHOD as u64, &params);
+        let iter_obs = collect_obs(&ret, CHARGE_NAME, "signers", n);
+        let iter_obs = eliminate_outliers(iter_obs, 0.02, Eliminate::Top);
 
-            let iter_obs = collect_obs(&ret, CHARGE_NAME, &label, *size);
-            let iter_obs = eliminate_outliers(iter_obs, 0.02, Eliminate::Top);
-
-            obs.extend(iter_obs);
-        }
+        obs.extend(iter_obs);
     }
 
     let regression = run_linear_regression(&obs);
 
     export(CHARGE_NAME, &obs, &regression).unwrap();
+}
+
+#[test]
+#[cfg(feature = "calibration")]
+fn on_verify_bls_aggregate_hashing() {
+    use bls_signatures::Serialize;
+    use rand::{thread_rng, RngCore};
+
+    const CHARGE_NAME: &str = "OnVerifyBlsAggregateSignature";
+    const METHOD: Method = Method::OnVerifyBlsAggregate;
+
+    let iterations = 100;
+    let sizes = common_sizes();
+
+    let mut te = instantiate_tester();
+    let mut obs = Vec::new();
+    let mut rng = thread_rng();
+
+    for &size in sizes.iter() {
+        let mut data = vec![0u8; size];
+        rng.fill_bytes(&mut data);
+        let sk = bls_signatures::PrivateKey::generate(&mut rng);
+        let signature = sk.sign(&data).as_bytes();
+        let keys = vec![sk.public_key().as_bytes()];
+        let messages = vec![data];
+
+        let params = OnVerifyBlsAggregateParams {
+            iterations,
+            signature,
+            keys,
+            messages,
+        };
+
+        let ret = te.execute_or_die(METHOD as u64, &params);
+
+        let iter_obs = collect_obs(&ret, CHARGE_NAME, "bytes", size);
+        let iter_obs = eliminate_outliers(iter_obs, 0.02, Eliminate::Top);
+
+        obs.extend(iter_obs);
+    }
+
+    let regression = run_linear_regression(&obs);
+
+    export(&format!("{}{}", CHARGE_NAME, "Hashing"), &obs, &regression).unwrap();
 }
 
 // Scan CBOR Fields with no links.

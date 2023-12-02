@@ -6,8 +6,8 @@ use fvm_gas_calibration_shared::*;
 use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
-use fvm_shared::address::{Address, Protocol};
-use fvm_shared::crypto::signature::{Signature, SignatureType, SECP_SIG_LEN};
+use fvm_shared::address::Address;
+use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::event::{ActorEvent, Entry};
@@ -48,7 +48,7 @@ fn dispatch(method: Method, params_ptr: u32) -> Result<()> {
     match method {
         Method::OnHashing => dispatch_to(on_hashing, params_ptr),
         Method::OnBlock => dispatch_to(on_block, params_ptr),
-        Method::OnVerifySignature => dispatch_to(on_verify_signature, params_ptr),
+        Method::OnVerifyBlsAggregate => dispatch_to(on_verify_bls_aggregate, params_ptr),
         Method::OnRecoverSecpPublicKey => dispatch_to(on_recover_secp_public_key, params_ptr),
         Method::OnSend => dispatch_to(on_send, params_ptr),
         Method::OnEvent => dispatch_to(on_event, params_ptr),
@@ -100,22 +100,12 @@ fn on_block(p: OnBlockParams) -> Result<()> {
     Ok(())
 }
 
-fn on_verify_signature(p: OnVerifySignatureParams) -> Result<()> {
-    let sig_type = match p.signer.protocol() {
-        Protocol::BLS => SignatureType::BLS,
-        Protocol::Secp256k1 => SignatureType::Secp256k1,
-        other => return Err(anyhow!("unexpected protocol: {other}")),
-    };
-    let sig = Signature {
-        sig_type,
-        bytes: p.signature,
-    };
-
-    let mut data = random_bytes(p.size, p.seed);
-
-    for i in 0..p.iterations {
-        random_mutations(&mut data, p.seed + i as u64, MUTATION_COUNT);
-        fvm_sdk::crypto::verify_signature(&sig, &p.signer, &data)?;
+fn on_verify_bls_aggregate(p: OnVerifyBlsAggregateParams) -> Result<()> {
+    let sig = p.signature.try_into().unwrap();
+    let keys: Vec<_> = p.keys.iter().map(|k| (&**k).try_into().unwrap()).collect();
+    let messages: Vec<_> = p.messages.iter().map(|m| &**m).collect();
+    for _ in 0..p.iterations {
+        fvm_sdk::crypto::verify_bls_aggregate(&sig, &keys, &messages)?;
     }
 
     Ok(())

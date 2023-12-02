@@ -68,6 +68,25 @@ impl Memory {
             .or_error(ErrorNumber::IllegalArgument)
     }
 
+    pub fn try_chunks<const S: usize>(&self, offset: u32, len: u32) -> Result<&[[u8; S]]> {
+        let num_chunks = {
+            let len = len as usize;
+            if len % S != 0 {
+                return Err(syscall_error!(
+                    IllegalArgument;
+                    "buffer length {len} is not divisible by chunk len {S}"
+                )
+                .into());
+            }
+            len / S
+        };
+
+        self.try_slice(offset, len).map(|bytes| {
+            let arr_ptr = bytes.as_ptr() as *const [u8; S];
+            unsafe { std::slice::from_raw_parts(arr_ptr, num_chunks) }
+        })
+    }
+
     pub fn read_cid(&self, offset: u32) -> Result<Cid> {
         // NOTE: Be very careful when changing this code.
         //

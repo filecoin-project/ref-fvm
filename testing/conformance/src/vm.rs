@@ -21,7 +21,7 @@ use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::{
-    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
@@ -425,15 +425,19 @@ where
     }
 
     // forwarded
-    fn verify_signature(
+    fn verify_bls_aggregate(
         &self,
-        sig_type: SignatureType,
-        signature: &[u8],
-        signer: &Address,
-        plaintext: &[u8],
+        aggregate_signature: &[u8; BLS_SIG_LEN],
+        pub_keys: &[[u8; BLS_PUB_LEN]],
+        plaintexts_concat: &[u8],
+        plaintext_lens: &[u32],
     ) -> Result<bool> {
-        self.0
-            .verify_signature(sig_type, signature, signer, plaintext)
+        self.0.verify_bls_aggregate(
+            aggregate_signature,
+            pub_keys,
+            plaintexts_concat,
+            plaintext_lens,
+        )
     }
 
     // forwarded

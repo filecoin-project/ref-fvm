@@ -1,6 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use fvm_shared::address::Address;
 use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::event::Flags;
 use num_derive::FromPrimitive;
@@ -13,8 +12,8 @@ pub enum Method {
     OnHashing = 1,
     /// Put and get random data to measure `OnBlock*`.
     OnBlock,
-    /// Try (and fail) to verify random data with a public key and signature.
-    OnVerifySignature,
+    /// Try to validate BLS aggregates (correctly).
+    OnVerifyBlsAggregate,
     /// Try (and fail) to recovery a public key from a signature, using random data.
     OnRecoverSecpPublicKey,
     /// Measure sends
@@ -41,16 +40,11 @@ pub struct OnBlockParams {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct OnVerifySignatureParams {
+pub struct OnVerifyBlsAggregateParams {
     pub iterations: usize,
-    pub size: usize,
-    pub signer: Address,
-    /// A _valid_ signature over *something*, corresponding to the signature scheme
-    /// of the address. A completely random sequence of bytes for signature would be
-    /// immediately rejected by BLS, although not by Secp256k1. And we cannot generate
-    /// valid signatures inside the contract because the libs we use don't compile to Wasm.
     pub signature: Vec<u8>,
-    pub seed: u64,
+    pub keys: Vec<Vec<u8>>,
+    pub messages: Vec<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize)]

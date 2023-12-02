@@ -1,14 +1,13 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::convert::{TryFrom, TryInto};
-use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::IPLD_RAW;
-use fvm_shared::address::Payload;
+
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
@@ -570,34 +569,54 @@ impl<C> CryptoOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn verify_signature(
+    fn verify_bls_aggregate(
         &self,
-        sig_type: SignatureType,
-        signature: &[u8],
-        signer: &Address,
-        plaintext: &[u8],
+        aggregate_sig: &[u8; BLS_SIG_LEN],
+        pub_keys: &[[u8; BLS_PUB_LEN]],
+        plaintexts_concat: &[u8],
+        plaintext_lens: &[u32],
     ) -> Result<bool> {
+        let num_signers = pub_keys.len();
+
+        if num_signers != plaintext_lens.len() {
+            return Err(syscall_error!(
+                IllegalArgument;
+                "unequal numbers of bls public keys and plaintexts"
+            )
+            .into());
+        }
+
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
-                .on_verify_signature(sig_type, plaintext.len()),
+                .on_verify_aggregate_signature(num_signers, plaintexts_concat.len()),
         )?;
 
-        // We only support key addresses (f1/f3). This change does not require a FIP, because no
-        // actors invoke this method with non-key addresses.
-        let signing_addr = match signer.payload() {
-            Payload::BLS(_) | Payload::Secp256k1(_) => *signer,
-            // Not a key address.
-            _ => {
-                return Err(syscall_error!(IllegalArgument; "address protocol {} not supported", signer.protocol()).into());
-            }
-        };
+        let mut offset: usize = 0;
+        let plaintexts = plaintext_lens
+            .iter()
+            .map(|&len| {
+                let start = offset;
+                offset = start
+                    .checked_add(len as usize)
+                    .context("invalid bls plaintext length")
+                    .or_illegal_argument()?;
+                plaintexts_concat
+                    .get(start..offset)
+                    .context("bls signature plaintext out of bounds")
+                    .or_illegal_argument()
+            })
+            .collect::<Result<Vec<_>>>()?;
+        if offset != plaintexts_concat.len() {
+            return Err(
+                syscall_error!(IllegalArgument; "plaintexts buffer length doesn't match").into(),
+            );
+        }
 
-        // Verify signature, catching errors. Signature verification can include some complicated
-        // math.
-        t.record(catch_and_log_panic("verifying signature", || {
-            Ok(signature::verify(sig_type, signature, plaintext, &signing_addr).is_ok())
-        }))
+        t.record(
+            signature::ops::verify_bls_aggregate(aggregate_sig, pub_keys, &plaintexts)
+                .or(Ok(false)),
+        )
     }
 
     fn recover_secp_public_key(
@@ -1105,15 +1124,5 @@ where
         t.stop();
 
         Ok(())
-    }
-}
-
-fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, f: F) -> Result<R> {
-    match panic::catch_unwind(f) {
-        Ok(v) => v,
-        Err(e) => {
-            log::error!("caught panic when {}: {:?}", context, e);
-            Err(syscall_error!(IllegalArgument; "caught panic when {}: {:?}", context, e).into())
-        }
     }
 }
