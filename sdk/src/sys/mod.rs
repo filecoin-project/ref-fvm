@@ -97,6 +97,7 @@ pub mod vm;
 ///     pub fn aborts(arg: u32) -> !;
 /// }
 /// ```
+#[macro_export]
 macro_rules! fvm_syscalls {
     // Returns no values.
     (module = $module:literal; $(#[$attrs:meta])* $v:vis fn $name:ident($($args:ident : $args_ty:ty),*$(,)?) -> Result<()>; $($rest:tt)*) => {
@@ -179,4 +180,4 @@ macro_rules! fvm_syscalls {
     (module = $module:literal;) => {};
 }
 
-pub(crate) use fvm_syscalls;
+pub use fvm_syscalls;
