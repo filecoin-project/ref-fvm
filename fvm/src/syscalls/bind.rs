@@ -16,7 +16,7 @@ use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 ///
 /// 1. If the error is a syscall error, it's returned as the first return value.
 /// 2. If the error is a fatal error, a Trap is returned.
-pub(super) trait BindSyscall<Args, Ret, Func> {
+pub trait BindSyscall<Args, Ret, Func> {
     /// Bind a syscall to the linker.
     ///
     /// 1. The return type will be automatically adjusted to return `Result<u32, Trap>` where
@@ -158,7 +158,7 @@ macro_rules! impl_bind_syscalls {
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
 
-                        let (mut memory, mut data) = memory_and_data(&mut caller);
+                        let (mut memory, data) = memory_and_data(&mut caller);
                         charge_syscall_gas!(data.kernel);
 
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
@@ -188,7 +188,7 @@ macro_rules! impl_bind_syscalls {
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
 
-                        let (mut memory, mut data) = memory_and_data(&mut caller);
+                        let (mut memory, data) = memory_and_data(&mut caller);
                         charge_syscall_gas!(data.kernel);
 
                         // We need to check to make sure we can store the return value _before_ we do anything.

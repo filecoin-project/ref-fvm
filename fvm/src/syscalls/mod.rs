@@ -12,10 +12,10 @@ use crate::kernel::{ExecutionError, SyscallHandler};
 use crate::machine::limiter::MemoryLimiter;
 use crate::{DefaultKernel, Kernel};
 
-pub(crate) mod error;
+pub (crate) mod error;
 
 mod actor;
-mod bind;
+pub mod bind;
 mod context;
 mod crypto;
 mod debug;
@@ -29,7 +29,8 @@ mod send;
 mod sself;
 mod vm;
 
-pub(self) use context::Context;
+pub use context::Context;
+pub use error::Abort;
 
 /// Invocation data attached to a wasm "store" and available to the syscall binding.
 pub struct InvocationData<K> {
@@ -173,7 +174,7 @@ pub fn charge_for_init<K: Kernel>(
 ) -> crate::kernel::Result<GasTimer> {
     let min_memory_bytes = min_memory_bytes(module)?;
     let mut ctx = ctx.as_context_mut();
-    let mut data = ctx.data_mut();
+    let data = ctx.data_mut();
     let memory_gas = data.kernel.price_list().init_memory_gas(min_memory_bytes);
 
     // Adjust `last_memory_bytes` so that we don't charge for it again in `charge_for_exec`.
@@ -234,7 +235,6 @@ fn min_table_elements(module: &Module) -> Option<u32> {
 }
 
 use self::bind::BindSyscall;
-use self::error::Abort;
 
 impl<K> SyscallHandler<K> for DefaultKernel<K::CallManager>
 where
