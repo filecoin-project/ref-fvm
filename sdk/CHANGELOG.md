@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 4.1.0 (2023-12-05)
+
+- The `install_actor` syscall is no longer behind the `m2-native` feature flag
+
 ## 4.0.0 (2023-10-31)
 
 Final release, no changes.

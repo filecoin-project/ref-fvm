@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.1.0 (2023-12-05)
+
+- Add initial support for pluggable syscalls
+
 ## 4.0.0 (2023-10-31)
 
 Final release, no changes.

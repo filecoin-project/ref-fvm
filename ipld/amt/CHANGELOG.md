@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.7.0 [2023-12-05)
+
+Implement a Rust Iterator for the AMT and re-implement the for_each implementation in terms of this new iterator.
+
 ## 0.6.2 [2023-09-28)
 
 Fix a bug in `for_each_ranged` if the start offset exceeds the max possible value in the AMT (due to the AMT's height).

@@ -8,7 +8,7 @@ authors = ["Protocol Labs", "Filecoin Core Devs", "Polyphene"]
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm = { version = "4.0.0", path = "../../fvm", default-features = false, features = ["testing", "upgrade-actor"] }
+fvm = { version = "4.1.0", path = "../../fvm", default-features = false, features = ["testing", "upgrade-actor"] }
 fvm_shared = { version = "4.0.0", path = "../../shared", features = ["testing"] }
 fvm_ipld_car = { version = "0.7.1", path = "../../ipld/car" }
 fvm_ipld_blockstore = { version = "0.2.0", path = "../../ipld/blockstore" }
