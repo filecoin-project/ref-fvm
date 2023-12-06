@@ -3,6 +3,7 @@
 use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
 
+use ambassador::Delegate;
 use anyhow::anyhow;
 use cid::Cid;
 use fvm::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
@@ -11,11 +12,9 @@ use multihash::MultihashGeneric;
 
 use fvm::call_manager::{CallManager, DefaultCallManager};
 use fvm::gas::{price_list_by_network_version, Gas, GasTimer, PriceList};
-use fvm::kernel::*;
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
-use fvm::DefaultKernel;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
@@ -29,10 +28,16 @@ use fvm_shared::randomness::RANDOMNESS_LENGTH;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
 };
-use fvm_shared::sys::{EventEntry, SendFlags};
+use fvm_shared::sys::out::network::NetworkContext;
+use fvm_shared::sys::out::vm::MessageContext;
+use fvm_shared::sys::SendFlags;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum};
 use wasmtime::Linker;
+
+// We have glob imports here because delegation doesn't work well without it.
+use fvm::*;
+use kernel::*;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -168,6 +173,18 @@ where
 /// A kernel for intercepting syscalls.
 // TestKernel is coupled to TestMachine because it needs to use that to plumb the
 // TestData through when it's destroyed into a CallManager then recreated by that CallManager.
+#[derive(Delegate)]
+#[delegate(IpldBlockOps)]
+#[delegate(ActorOps)]
+#[delegate(CryptoOps)]
+#[delegate(DebugOps)]
+#[delegate(EventOps)]
+#[delegate(GasOps)]
+#[delegate(MessageOps)]
+#[delegate(NetworkOps)]
+#[delegate(RandomnessOps)]
+#[delegate(SelfOps)]
+#[delegate(LimiterOps)]
 pub struct TestKernel<K = DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<TestMachine>>>>(
     pub K,
 );
@@ -250,81 +267,6 @@ where
     }
 }
 
-impl<M, C, K> ActorOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    fn resolve_address(&self, address: &Address) -> Result<ActorID> {
-        self.0.resolve_address(address)
-    }
-
-    fn get_actor_code_cid(&self, id: ActorID) -> Result<Cid> {
-        self.0.get_actor_code_cid(id)
-    }
-
-    fn next_actor_address(&self) -> Result<Address> {
-        self.0.next_actor_address()
-    }
-
-    fn create_actor(
-        &mut self,
-        code_id: Cid,
-        actor_id: ActorID,
-        delegated_address: Option<Address>,
-    ) -> Result<()> {
-        self.0.create_actor(code_id, actor_id, delegated_address)
-    }
-
-    fn install_actor(&mut self, _code_id: Cid) -> Result<()> {
-        Ok(())
-    }
-
-    fn get_builtin_actor_type(&self, code_cid: &Cid) -> Result<u32> {
-        self.0.get_builtin_actor_type(code_cid)
-    }
-
-    fn get_code_cid_for_type(&self, typ: u32) -> Result<Cid> {
-        self.0.get_code_cid_for_type(typ)
-    }
-
-    fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount> {
-        self.0.balance_of(actor_id)
-    }
-
-    fn lookup_delegated_address(&self, actor_id: ActorID) -> Result<Option<Address>> {
-        self.0.lookup_delegated_address(actor_id)
-    }
-}
-
-impl<M, C, K> IpldBlockOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    fn block_open(&mut self, cid: &Cid) -> Result<(BlockId, BlockStat)> {
-        self.0.block_open(cid)
-    }
-
-    fn block_create(&mut self, codec: u64, data: &[u8]) -> Result<BlockId> {
-        self.0.block_create(codec, data)
-    }
-
-    fn block_link(&mut self, id: BlockId, hash_fun: u64, hash_len: u32) -> Result<Cid> {
-        self.0.block_link(id, hash_fun, hash_len)
-    }
-
-    fn block_read(&self, id: BlockId, offset: u32, buf: &mut [u8]) -> Result<i32> {
-        self.0.block_read(id, offset, buf)
-    }
-
-    fn block_stat(&self, id: BlockId) -> Result<BlockStat> {
-        self.0.block_stat(id)
-    }
-}
-
 impl<M, C, K> FilecoinKernel for TestKernel<K>
 where
     M: Machine,
@@ -379,178 +321,6 @@ where
 
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
         self.0.total_fil_circ_supply()
-    }
-}
-
-impl<M, C, K> CryptoOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    // forwarded
-    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
-        self.0.hash(code, data)
-    }
-
-    // forwarded
-    fn verify_signature(
-        &self,
-        sig_type: SignatureType,
-        signature: &[u8],
-        signer: &Address,
-        plaintext: &[u8],
-    ) -> Result<bool> {
-        self.0
-            .verify_signature(sig_type, signature, signer, plaintext)
-    }
-
-    // forwarded
-    fn recover_secp_public_key(
-        &self,
-        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
-        signature: &[u8; SECP_SIG_LEN],
-    ) -> Result<[u8; SECP_PUB_LEN]> {
-        self.0.recover_secp_public_key(hash, signature)
-    }
-}
-
-impl<M, C, K> DebugOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    fn log(&self, msg: String) {
-        self.0.log(msg)
-    }
-
-    fn debug_enabled(&self) -> bool {
-        self.0.debug_enabled()
-    }
-
-    fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()> {
-        self.0.store_artifact(name, data)
-    }
-}
-
-impl<M, C, K> GasOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    fn gas_used(&self) -> Gas {
-        self.0.gas_used()
-    }
-
-    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
-        self.0.charge_gas(name, compute)
-    }
-
-    fn price_list(&self) -> &PriceList {
-        self.0.price_list()
-    }
-
-    fn gas_available(&self) -> Gas {
-        self.0.gas_available()
-    }
-}
-
-impl<M, C, K> MessageOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    fn msg_context(&self) -> Result<fvm_shared::sys::out::vm::MessageContext> {
-        self.0.msg_context()
-    }
-}
-
-impl<M, C, K> NetworkOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    fn network_context(&self) -> Result<fvm_shared::sys::out::network::NetworkContext> {
-        self.0.network_context()
-    }
-
-    fn tipset_cid(&self, epoch: ChainEpoch) -> Result<Cid> {
-        self.0.tipset_cid(epoch)
-    }
-}
-
-impl<M, C, K> RandomnessOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    fn get_randomness_from_tickets(
-        &self,
-        rand_epoch: ChainEpoch,
-    ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.0.get_randomness_from_tickets(rand_epoch)
-    }
-
-    fn get_randomness_from_beacon(
-        &self,
-        rand_epoch: ChainEpoch,
-    ) -> Result<[u8; RANDOMNESS_LENGTH]> {
-        self.0.get_randomness_from_beacon(rand_epoch)
-    }
-}
-
-impl<M, C, K> SelfOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    fn root(&mut self) -> Result<Cid> {
-        self.0.root()
-    }
-
-    fn set_root(&mut self, root: Cid) -> Result<()> {
-        self.0.set_root(root)
-    }
-
-    fn current_balance(&self) -> Result<TokenAmount> {
-        self.0.current_balance()
-    }
-
-    fn self_destruct(&mut self, burn_unspent: bool) -> Result<()> {
-        self.0.self_destruct(burn_unspent)
-    }
-}
-
-impl<K> LimiterOps for TestKernel<K>
-where
-    K: LimiterOps,
-{
-    type Limiter = K::Limiter;
-
-    fn limiter_mut(&mut self) -> &mut Self::Limiter {
-        self.0.limiter_mut()
-    }
-}
-
-impl<M, C, K> EventOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    fn emit_event(
-        &mut self,
-        event_headers: &[EventEntry],
-        key_evt: &[u8],
-        val_evt: &[u8],
-    ) -> Result<()> {
-        self.0.emit_event(event_headers, key_evt, val_evt)
     }
 }
 
