@@ -12,7 +12,7 @@ use crate::kernel::{ExecutionError, SyscallHandler};
 use crate::machine::limiter::MemoryLimiter;
 use crate::{DefaultKernel, Kernel};
 
-pub (crate) mod error;
+pub(crate) mod error;
 
 mod actor;
 pub mod bind;
