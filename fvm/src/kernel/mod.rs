@@ -1,46 +1,24 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-pub use blocks::{Block, BlockId, BlockRegistry, BlockStat};
-use cid::Cid;
-use fvm_shared::address::Address;
-use fvm_shared::clock::ChainEpoch;
-use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::{
-    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
-};
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::error::ExitCode;
-use fvm_shared::piece::PieceInfo;
-use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
-use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
-    WindowPoStVerifyInfo,
-};
-use fvm_shared::sys::out::network::NetworkContext;
-use fvm_shared::sys::out::vm::MessageContext;
-use fvm_shared::sys::SendFlags;
-use fvm_shared::{ActorID, MethodNum};
+use ambassador::delegatable_trait;
+use fvm_shared::event::StampedEvent;
+use wasmtime::Linker;
+
+use crate::call_manager::CallManager;
+use crate::machine::limiter::MemoryLimiter;
+use crate::machine::Machine;
+use crate::syscalls::InvocationData;
 
 mod blocks;
+mod error;
 mod hash;
 
 pub mod default;
 pub mod filecoin;
 
-pub(crate) mod error;
-
-use ambassador::delegatable_trait;
+pub use blocks::{Block, BlockId, BlockRegistry, BlockStat};
 pub use error::{ClassifyResult, Context, ExecutionError, Result, SyscallError};
-use fvm_shared::event::StampedEvent;
 pub use hash::SupportedHashes;
-use multihash::MultihashGeneric;
-use wasmtime::Linker;
-
-use crate::call_manager::CallManager;
-use crate::gas::{Gas, GasTimer, PriceList};
-use crate::machine::limiter::MemoryLimiter;
-use crate::machine::Machine;
-use crate::syscalls::InvocationData;
 
 pub struct CallResult {
     pub block_id: BlockId,
@@ -280,7 +258,7 @@ pub trait CryptoOps {
     /// `digest_out`, returning the size of the digest written to `digest_out`. If `digest_out` is
     /// to small to fit the entire digest, it will be truncated. If too large, the leftover space
     /// will not be overwritten.
-    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>>;
+    fn hash(&self, code: u64, data: &[u8]) -> Result<Multihash>;
 }
 
 /// Randomness queries.
@@ -338,3 +316,48 @@ pub trait EventOps {
         raw_val: &[u8],
     ) -> Result<()>;
 }
+
+// Unfortunately, I need to do this to make it possible to name these macros by path. I'm hiding
+// this because I really don't want users to glob import the `kernel` module.
+#[doc(hidden)]
+pub use {
+    ambassador_impl_CryptoOps, ambassador_impl_DebugOps, ambassador_impl_EventOps,
+    ambassador_impl_GasOps, ambassador_impl_IpldBlockOps, ambassador_impl_LimiterOps,
+    ambassador_impl_MessageOps, ambassador_impl_NetworkOps, ambassador_impl_RandomnessOps,
+    ambassador_impl_SelfOps,
+};
+
+/// Import this module (with a glob) if you're implementing a kernel, _especially_ if you want to
+/// use ambassador to delegate the implementation.
+pub mod prelude {
+    pub use super::{
+        ActorOps, CryptoOps, DebugOps, EventOps, GasOps, IpldBlockOps, LimiterOps, MessageOps,
+        NetworkOps, RandomnessOps, SelfOps,
+    };
+    pub use super::{Block, BlockId, BlockRegistry, BlockStat, CallResult, Kernel, SyscallHandler};
+    pub use crate::gas::{Gas, GasTimer, PriceList};
+    pub use ambassador::Delegate;
+    pub use cid::Cid;
+    pub use fvm_shared::address::Address;
+    pub use fvm_shared::clock::ChainEpoch;
+    pub use fvm_shared::crypto::signature::{
+        SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    };
+    pub use fvm_shared::econ::TokenAmount;
+    pub use fvm_shared::error::ExitCode;
+    pub use fvm_shared::randomness::RANDOMNESS_LENGTH;
+    pub use fvm_shared::sys::out::network::NetworkContext;
+    pub use fvm_shared::sys::out::vm::MessageContext;
+    pub use fvm_shared::sys::SendFlags;
+    pub use fvm_shared::version::NetworkVersion;
+    pub use fvm_shared::{ActorID, MethodNum};
+    pub use multihash::Multihash;
+    pub use {
+        ambassador_impl_ActorOps, ambassador_impl_CryptoOps, ambassador_impl_DebugOps,
+        ambassador_impl_EventOps, ambassador_impl_GasOps, ambassador_impl_IpldBlockOps,
+        ambassador_impl_LimiterOps, ambassador_impl_MessageOps, ambassador_impl_NetworkOps,
+        ambassador_impl_RandomnessOps, ambassador_impl_SelfOps,
+    };
+}
+
+pub use prelude::*;

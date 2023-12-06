@@ -4,25 +4,30 @@ use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::panic::{self, UnwindSafe};
 
-use ambassador::Delegate;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 
 use fvm_ipld_encoding::bytes_32;
-use fvm_shared::econ::TokenAmount;
-use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
-use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
-use fvm_shared::{commcid, ActorID};
+use fvm_shared::commcid;
+use fvm_shared::consensus::ConsensusFault;
+use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize, PieceInfo};
+use fvm_shared::randomness::Randomness;
+use fvm_shared::sector::{
+    AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof, ReplicaUpdateInfo,
+    SealVerifyInfo, SectorInfo, WindowPoStVerifyInfo,
+};
 use lazy_static::lazy_static;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, ParallelDrainRange, ParallelIterator,
 };
 
-use super::blocks::BlockRegistry;
-use super::error::Result;
-use super::*;
+use super::Result;
+use super::{ClassifyResult, Context};
 use crate::call_manager::CallManager;
 use crate::externs::Consensus;
-use crate::*;
+use crate::machine::Machine;
+use crate::{syscall_error, DefaultKernel, Kernel};
+
+use super::prelude::*;
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();
@@ -35,7 +40,7 @@ pub trait FilecoinKernel: Kernel {
         &self,
         proof_type: RegisteredSealProof,
         pieces: &[PieceInfo],
-    ) -> Result<Cid>;
+    ) -> Result<cid::Cid>;
 
     /// Verifies a window proof of spacetime.
     fn verify_post(&self, verify_info: &WindowPoStVerifyInfo) -> Result<bool>;

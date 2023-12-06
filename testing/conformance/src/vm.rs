@@ -3,41 +3,27 @@
 use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
 
-use ambassador::Delegate;
 use anyhow::anyhow;
-use cid::Cid;
 use fvm::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
 use fvm::syscalls::InvocationData;
-use multihash::MultihashGeneric;
 
 use fvm::call_manager::{CallManager, DefaultCallManager};
-use fvm::gas::{price_list_by_network_version, Gas, GasTimer, PriceList};
+use fvm::gas::price_list_by_network_version;
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
 use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_shared::address::Address;
-use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::signature::{
-    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
-};
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PieceInfo;
-use fvm_shared::randomness::RANDOMNESS_LENGTH;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
 };
-use fvm_shared::sys::out::network::NetworkContext;
-use fvm_shared::sys::out::vm::MessageContext;
-use fvm_shared::sys::SendFlags;
-use fvm_shared::version::NetworkVersion;
-use fvm_shared::{ActorID, MethodNum};
 use wasmtime::Linker;
 
 // We have glob imports here because delegation doesn't work well without it.
-use fvm::*;
-use kernel::*;
+use fvm::kernel::prelude::*;
+use fvm::kernel::Result;
+use fvm::DefaultKernel;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
