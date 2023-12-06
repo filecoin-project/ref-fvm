@@ -31,19 +31,13 @@ use fvm_shared::sector::{
 };
 use fvm_shared::sys::{EventEntry, SendFlags};
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
+use fvm_shared::{ActorID, MethodNum};
 use wasmtime::Linker;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
 
 const DEFAULT_BASE_FEE: u64 = 100;
-
-#[derive(Clone)]
-pub struct TestData {
-    circ_supply: TokenAmount,
-    price_list: PriceList,
-}
 
 /// Statistics about the resources used by test vector executions.
 #[derive(Clone, Copy, Debug, Default)]
@@ -73,7 +67,6 @@ pub type TestStatsRef = Option<Arc<Mutex<TestStatsGlobal>>>;
 
 pub struct TestMachine<M = Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
     pub machine: M,
-    pub data: TestData,
     stats: TestStatsRef,
 }
 
@@ -110,18 +103,8 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
 
         let machine = DefaultMachine::new(&mc, blockstore, externs).unwrap();
 
-        let price_list = machine.context().price_list.clone();
-
         let machine = TestMachine::<Box<DefaultMachine<_, _>>> {
             machine: Box::new(machine),
-            data: TestData {
-                circ_supply: v
-                    .preconditions
-                    .circ_supply
-                    .map(TokenAmount::from_atto)
-                    .unwrap_or_else(|| TOTAL_FILECOIN.clone()),
-                price_list,
-            },
             stats,
         };
 
@@ -187,7 +170,6 @@ where
 // TestData through when it's destroyed into a CallManager then recreated by that CallManager.
 pub struct TestKernel<K = DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<TestMachine>>>>(
     pub K,
-    pub TestData,
 );
 
 impl<M, C, K> Kernel for TestKernel<K>
@@ -217,21 +199,15 @@ where
     where
         Self: Sized,
     {
-        // Extract the test data.
-        let data = mgr.machine().data.clone();
-
-        TestKernel(
-            K::new(
-                mgr,
-                blocks,
-                caller,
-                actor_id,
-                method,
-                value_received,
-                read_only,
-            ),
-            data,
-        )
+        TestKernel(K::new(
+            mgr,
+            blocks,
+            caller,
+            actor_id,
+            method,
+            value_received,
+            read_only,
+        ))
     }
 
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
@@ -355,9 +331,8 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = C>,
 {
-    // Not forwarded. Circulating supply is taken from the TestData.
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        Ok(self.1.circ_supply.clone())
+        self.0.total_fil_circ_supply()
     }
 }
 impl<M, C, K> FilecoinKernel for TestKernel<K>
@@ -391,8 +366,8 @@ where
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
         let charge = self
-            .1
-            .price_list
+            .0
+            .price_list()
             .on_verify_consensus_fault(h1.len(), h2.len(), extra.len());
         let _ = self.0.charge_gas(&charge.name, charge.total())?;
         Ok(None)
@@ -400,14 +375,14 @@ where
 
     // NOT forwarded
     fn verify_aggregate_seals(&self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
-        let charge = self.1.price_list.on_verify_aggregate_seals(agg);
+        let charge = self.0.price_list().on_verify_aggregate_seals(agg);
         let _ = self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_replica_update(&self, rep: &ReplicaUpdateInfo) -> Result<bool> {
-        let charge = self.1.price_list.on_verify_replica_update(rep);
+        let charge = self.0.price_list().on_verify_replica_update(rep);
         let _ = self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
