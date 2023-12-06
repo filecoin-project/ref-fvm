@@ -247,11 +247,6 @@ where
         linker.bind("vm", "exit", vm::exit)?;
         linker.bind("vm", "message_context", vm::message_context)?;
 
-        linker.bind(
-            "network",
-            "total_fil_circ_supply",
-            network::total_fil_circ_supply,
-        )?;
         linker.bind("network", "context", network::context)?;
         linker.bind("network", "tipset_cid", network::tipset_cid)?;
 
@@ -334,6 +329,13 @@ where
         linker: &mut Linker<InvocationData<DefaultFilecoinKernel<DefaultKernel<C>>>>,
     ) -> anyhow::Result<()> {
         self.0.bind_syscalls(linker)?;
+
+        // Bind the circulating supply call.
+        linker.bind(
+            "network",
+            "total_fil_circ_supply",
+            filecoin::total_fil_circ_supply,
+        )?;
 
         // Now bind the crypto syscalls.
         linker.bind(

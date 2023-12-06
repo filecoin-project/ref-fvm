@@ -70,12 +70,21 @@ pub trait FilecoinKernel: Kernel {
     /// Verify replica update verifies a snap deal: an upgrade from a CC sector to a sector with
     /// deals.
     fn verify_replica_update(&self, replica: &ReplicaUpdateInfo) -> Result<bool>;
+
+    /// Returns the total token supply in circulation at the beginning of the current epoch.
+    /// The circulating supply is the sum of:
+    /// - rewards emitted by the reward actor,
+    /// - funds vested from lock-ups in the genesis state,
+    /// less the sum of:
+    /// - funds burnt,
+    /// - pledge collateral locked in storage miner actors (recorded in the storage power actor)
+    /// - deal collateral locked by the storage market actor
+    fn total_fil_circ_supply(&self) -> Result<TokenAmount>;
 }
 
 #[derive(Delegate)]
 #[delegate(IpldBlockOps)]
 #[delegate(ActorOps)]
-#[delegate(CircSupplyOps)]
 #[delegate(CryptoOps)]
 #[delegate(DebugOps)]
 #[delegate(EventOps)]
@@ -225,6 +234,13 @@ where
         t.record(catch_and_log_panic("verifying replica update", || {
             verify_replica_update(replica)
         }))
+    }
+
+    fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
+        // From v15 and onwards, Filecoin mainnet was fixed to use a static circ supply per epoch.
+        // The value reported to the FVM from clients is now the static value,
+        // the FVM simply reports that value to actors.
+        Ok(self.0.machine().context().circ_supply.clone())
     }
 }
 

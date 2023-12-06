@@ -59,7 +59,6 @@ pub trait Kernel:
     SyscallHandler<Self>
     + ActorOps
     + IpldBlockOps
-    + CircSupplyOps
     + CryptoOps
     + DebugOps
     + EventOps
@@ -239,20 +238,6 @@ pub trait ActorOps {
 
     /// Returns the balance associated with an actor id
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount>;
-}
-
-/// Operations to query the circulating supply.
-#[delegatable_trait]
-pub trait CircSupplyOps {
-    /// Returns the total token supply in circulation at the beginning of the current epoch.
-    /// The circulating supply is the sum of:
-    /// - rewards emitted by the reward actor,
-    /// - funds vested from lock-ups in the genesis state,
-    /// less the sum of:
-    /// - funds burnt,
-    /// - pledge collateral locked in storage miner actors (recorded in the storage power actor)
-    /// - deal collateral locked by the storage market actor
-    fn total_fil_circ_supply(&self) -> Result<TokenAmount>;
 }
 
 /// Operations for explicit gas charging.
