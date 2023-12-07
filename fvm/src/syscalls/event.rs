@@ -4,8 +4,7 @@
 use anyhow::Context as _;
 
 use super::Context;
-use crate::kernel::{ClassifyResult, Result};
-use crate::Kernel;
+use crate::kernel::{ClassifyResult, EventOps, Result};
 
 /// Emits an actor event. The event is split into three raw byte buffers that have
 /// been written to Wasm memory. This is done so that the FVM can accurately charge
@@ -25,7 +24,7 @@ use crate::Kernel;
 /// Calling this syscall may immediately halt execution with an out of gas error,
 /// if such condition arises.
 pub fn emit_event(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl EventOps>,
     event_off: u32,
     event_len: u32,
     key_off: u32,

@@ -4,11 +4,10 @@ use std::str;
 
 use super::Context;
 use crate::gas::Gas;
-use crate::kernel::{ClassifyResult, Result};
-use crate::Kernel;
+use crate::kernel::{ClassifyResult, GasOps, Result};
 
 pub fn charge_gas(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl GasOps>,
     name_off: u32,
     name_len: u32,
     compute: u64,
@@ -22,6 +21,6 @@ pub fn charge_gas(
         .map(|_| ())
 }
 
-pub fn available(context: Context<'_, impl Kernel>) -> Result<u64> {
+pub fn available(context: Context<'_, impl GasOps>) -> Result<u64> {
     Ok(context.kernel.gas_available().round_down())
 }
