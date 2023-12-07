@@ -155,6 +155,8 @@ where
     }
 }
 
+type InnerTestKernel = DefaultFilecoinKernel<DefaultCallManager<TestMachine>>;
+
 /// A kernel for intercepting syscalls.
 // TestKernel is coupled to TestMachine because it needs to use that to plumb the
 // TestData through when it's destroyed into a CallManager then recreated by that CallManager.
@@ -169,16 +171,11 @@ where
 #[delegate(NetworkOps)]
 #[delegate(RandomnessOps)]
 #[delegate(SelfOps)]
-pub struct TestKernel<K = DefaultFilecoinKernel<DefaultCallManager<TestMachine>>>(pub K);
+pub struct TestKernel(pub InnerTestKernel);
 
-impl<M, C, K> Kernel for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    type CallManager = K::CallManager;
-    type Limiter = K::Limiter;
+impl Kernel for TestKernel {
+    type CallManager = <InnerTestKernel as Kernel>::CallManager;
+    type Limiter = <InnerTestKernel as Kernel>::Limiter;
 
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
@@ -188,7 +185,7 @@ where
     }
 
     fn new(
-        mgr: C,
+        mgr: Self::CallManager,
         blocks: BlockRegistry,
         caller: ActorID,
         actor_id: ActorID,
@@ -199,7 +196,7 @@ where
     where
         Self: Sized,
     {
-        TestKernel(K::new(
+        TestKernel(InnerTestKernel::new(
             mgr,
             blocks,
             caller,
@@ -240,23 +237,13 @@ where
     }
 }
 
-impl<M, C, K> SyscallHandler<TestKernel<K>> for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    fn bind_syscalls(_linker: &mut Linker<InvocationData<TestKernel<K>>>) -> anyhow::Result<()> {
-        Ok(())
+impl SyscallHandler<TestKernel> for TestKernel {
+    fn bind_syscalls(linker: &mut Linker<InvocationData<TestKernel>>) -> anyhow::Result<()> {
+        InnerTestKernel::bind_syscalls(linker)
     }
 }
 
-impl<M, C, K> FilecoinKernel for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: FilecoinKernel<CallManager = C>,
-{
+impl FilecoinKernel for TestKernel {
     fn compute_unsealed_sector_cid(
         &self,
         proof_type: RegisteredSealProof,
