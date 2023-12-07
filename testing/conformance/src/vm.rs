@@ -249,10 +249,7 @@ where
     C: CallManager<Machine = TestMachine<M>>,
     K: Kernel<CallManager = C>,
 {
-    fn bind_syscalls(
-        &self,
-        _linker: &mut Linker<InvocationData<TestKernel<K>>>,
-    ) -> anyhow::Result<()> {
+    fn bind_syscalls(_linker: &mut Linker<InvocationData<TestKernel<K>>>) -> anyhow::Result<()> {
         Ok(())
     }
 }

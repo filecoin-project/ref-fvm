@@ -253,10 +253,7 @@ where
         + RandomnessOps
         + SelfOps,
 {
-    fn bind_syscalls(
-        &self,
-        linker: &mut wasmtime::Linker<InvocationData<K>>,
-    ) -> anyhow::Result<()> {
+    fn bind_syscalls(linker: &mut wasmtime::Linker<InvocationData<K>>) -> anyhow::Result<()> {
         linker.bind("vm", "exit", vm::exit)?;
         linker.bind("vm", "message_context", vm::message_context)?;
 
@@ -338,10 +335,9 @@ where
     C: CallManager,
 {
     fn bind_syscalls(
-        &self,
         linker: &mut Linker<InvocationData<DefaultFilecoinKernel<DefaultKernel<C>>>>,
     ) -> anyhow::Result<()> {
-        self.0.bind_syscalls(linker)?;
+        DefaultKernel::<C>::bind_syscalls(linker)?;
 
         // Bind the circulating supply call.
         linker.bind(

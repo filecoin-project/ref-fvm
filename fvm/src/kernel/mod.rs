@@ -95,7 +95,7 @@ pub trait Kernel: GasOps + SyscallHandler<Self> + 'static {
 }
 
 pub trait SyscallHandler<K: Kernel>: Sized {
-    fn bind_syscalls(&self, linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()>;
+    fn bind_syscalls(linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()>;
 }
 
 /// Network-related operations.
