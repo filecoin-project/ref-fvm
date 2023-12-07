@@ -1,7 +1,7 @@
 # Contracts for stressing the system
 
 These contracts do not terminate; instead they intend to run "for-ever" -- until they run
-out of gus.
+out of gas.
 The contracts all runnable in fvm-bench with no arguments.
 They must exit with an Out Of Gas error; any other exit is inadmissible.
 
