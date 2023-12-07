@@ -54,11 +54,11 @@ mod test {
 
     use crate::call_manager::DefaultCallManager;
     use crate::engine::EnginePool;
+    use crate::executor;
     use crate::externs::{Chain, Consensus, Externs, Rand};
     use crate::kernel::filecoin::DefaultFilecoinKernel;
     use crate::machine::{DefaultMachine, Manifest, NetworkConfig};
     use crate::state_tree::StateTree;
-    use crate::{executor, DefaultKernel};
 
     struct DummyExterns;
 
@@ -125,8 +125,9 @@ mod test {
 
         let machine = DefaultMachine::new(&mc, bs, DummyExterns).unwrap();
         let engine = EnginePool::new_default((&mc.network).into()).unwrap();
-        let _ = executor::DefaultExecutor::<
-            DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<_>>>,
-        >::new(engine, Box::new(machine));
+        let _ = executor::DefaultExecutor::<DefaultFilecoinKernel<DefaultCallManager<_>>>::new(
+            engine,
+            Box::new(machine),
+        );
     }
 }

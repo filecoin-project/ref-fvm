@@ -23,7 +23,6 @@ use wasmtime::Linker;
 // We have glob imports here because delegation doesn't work well without it.
 use fvm::kernel::prelude::*;
 use fvm::kernel::Result;
-use fvm::DefaultKernel;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -170,9 +169,7 @@ where
 #[delegate(NetworkOps)]
 #[delegate(RandomnessOps)]
 #[delegate(SelfOps)]
-pub struct TestKernel<K = DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<TestMachine>>>>(
-    pub K,
-);
+pub struct TestKernel<K = DefaultFilecoinKernel<DefaultCallManager<TestMachine>>>(pub K);
 
 impl<M, C, K> Kernel for TestKernel<K>
 where
