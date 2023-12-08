@@ -1,18 +1,50 @@
+use std::panic;
+
+use fvm_ipld_encoding::de::DeserializeOwned;
+use fvm_shared::error::ErrorNumber;
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_shared::sector::WindowPoStVerifyInfo;
 
+use super::context::Memory;
 use super::Context;
 use crate::kernel::ClassifyResult;
 use crate::kernel::{filecoin::FilecoinKernel, Result};
 use crate::syscall_error;
 use anyhow::anyhow;
 use anyhow::Context as _;
+use fvm_ipld_encoding::from_slice;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
 };
 use fvm_shared::sys;
+
+/// Private extension trait for reading CBOR. This operation is not safe to call on untrusted
+/// (user-controlled) memory.
+trait ReadCbor {
+    fn read_cbor<T: DeserializeOwned>(&self, offset: u32, len: u32) -> Result<T>;
+}
+
+impl ReadCbor for Memory {
+    /// Read a CBOR object from actor memory.
+    ///
+    /// **WARNING:** CBOR decoding is complex and this function offers no way to perform gas
+    /// accounting. Only call this on data from _trusted_ (built-in) actors.
+    ///
+    /// On failure, this method returns an [`ErrorNumber::IllegalArgument`] error.
+    fn read_cbor<T: DeserializeOwned>(&self, offset: u32, len: u32) -> Result<T> {
+        let bytes = self.try_slice(offset, len)?;
+        // Catch panics when decoding cbor from actors, _just_ in case.
+        match panic::catch_unwind(|| from_slice(bytes).or_error(ErrorNumber::IllegalArgument)) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("panic when decoding cbor from actor: {:?}", e);
+                Err(syscall_error!(IllegalArgument; "panic when decoding cbor from actor").into())
+            }
+        }
+    }
+}
 
 /// Computes an unsealed sector CID (CommD) from its constituent piece CIDs
 /// (CommPs) and sizes.

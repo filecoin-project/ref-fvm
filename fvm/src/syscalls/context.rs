@@ -2,23 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::io::Cursor;
 use std::ops::{Deref, DerefMut};
-use std::panic;
 
 use cid::Cid;
-use fvm_ipld_encoding::from_slice;
 use fvm_shared::address::Address;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::MAX_CID_LEN;
-use serde::de::DeserializeOwned;
 
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::syscall_error;
 
+#[cfg(doc)]
+use crate::Kernel;
+
+/// The syscall context. Allows syscalls to access the [`Kernel`] and the actor's memory.
 pub struct Context<'a, K> {
+    /// The running actor's [`Kernel`].
     pub kernel: &'a mut K,
+    /// The running actor's [`Memory`].
     pub memory: &'a mut Memory,
 }
 
+/// Represents a Wasm memory. All methods are inexpensive and time-bounded, regardless of the
+/// inputs. It's usually not necessary to explicitly account for the gas costs of calling these
+/// methods a small (< 5) constant number of times while handling a syscall.
 #[repr(transparent)]
 pub struct Memory([u8]);
 
@@ -37,6 +43,7 @@ impl DerefMut for Memory {
 }
 
 impl Memory {
+    /// Construct a new "memory" from the given slice.
     #[allow(clippy::needless_lifetimes)]
     pub fn new<'a>(m: &'a mut [u8]) -> &'a mut Memory {
         // We explicitly specify the lifetimes here to ensure that the cast doesn't inadvertently
@@ -44,6 +51,7 @@ impl Memory {
         unsafe { &mut *(m as *mut [u8] as *mut Memory) }
     }
 
+    /// Check that the given slice, specified by an offset and length, is in-bounds.
     pub fn check_bounds(&self, offset: u32, len: u32) -> Result<()> {
         if (offset as u64) + (len as u64) <= (self.0.len() as u64) {
             Ok(())
@@ -55,12 +63,23 @@ impl Memory {
         }
     }
 
+    /// Return a slice into the actor's memory.
+    ///
+    /// This slice is valid for the lifetime of the syscall, borrowing the actors memory without
+    /// copying.
+    ///
+    /// On failure, this method returns an [`ErrorNumber::IllegalArgument`] error.
     pub fn try_slice(&self, offset: u32, len: u32) -> Result<&[u8]> {
         self.get(offset as usize..)
             .and_then(|data| data.get(..len as usize))
             .ok_or_else(|| format!("buffer {} (length {}) out of bounds", offset, len))
             .or_error(ErrorNumber::IllegalArgument)
     }
+
+    /// Return a mutable slice into the actor's memory.
+    ///
+    /// This slice is valid for the lifetime of the syscall, borrowing the actors memory without
+    /// copying.
     pub fn try_slice_mut(&mut self, offset: u32, len: u32) -> Result<&mut [u8]> {
         self.get_mut(offset as usize..)
             .and_then(|data| data.get_mut(..len as usize))
@@ -68,6 +87,9 @@ impl Memory {
             .or_error(ErrorNumber::IllegalArgument)
     }
 
+    /// Read a CID from actor memory starting at the given offset.
+    ///
+    /// On failure, this method returns an [`ErrorNumber::IllegalArgument`] error.
     pub fn read_cid(&self, offset: u32) -> Result<Cid> {
         // NOTE: Be very careful when changing this code.
         //
@@ -87,6 +109,11 @@ impl Memory {
         .context("failed to parse cid")
     }
 
+    /// Write a CID to actor memory at the given offset.
+    ///
+    /// If the CID's length exceeds the specified length, this function will with
+    /// [`ErrorNumber::BufferTooSmall`]. For all other failures (e.g., memory out of bounds errors),
+    /// this method returns an [`ErrorNumber::IllegalArgument`] error.
     pub fn write_cid(&mut self, k: &Cid, offset: u32, len: u32) -> Result<u32> {
         let out = self.try_slice_mut(offset, len)?;
 
@@ -102,21 +129,12 @@ impl Memory {
         Ok(len as u32)
     }
 
+    /// Read a Filecoin address from actor memory.
+    ///
+    /// On failure, this method returns an [`ErrorNumber::IllegalArgument`] error.
     pub fn read_address(&self, offset: u32, len: u32) -> Result<Address> {
         let bytes = self.try_slice(offset, len)?;
         Address::from_bytes(bytes).or_error(ErrorNumber::IllegalArgument)
-    }
-
-    pub fn read_cbor<T: DeserializeOwned>(&self, offset: u32, len: u32) -> Result<T> {
-        let bytes = self.try_slice(offset, len)?;
-        // Catch panics when decoding cbor from actors, _just_ in case.
-        match panic::catch_unwind(|| from_slice(bytes).or_error(ErrorNumber::IllegalArgument)) {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("panic when decoding cbor from actor: {:?}", e);
-                Err(syscall_error!(IllegalArgument; "panic when decoding cbor from actor").into())
-            }
-        }
     }
 }
 
