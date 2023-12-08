@@ -237,9 +237,6 @@ where
     }
 
     fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        // From v15 and onwards, Filecoin mainnet was fixed to use a static circ supply per epoch.
-        // The value reported to the FVM from clients is now the static value,
-        // the FVM simply reports that value to actors.
         Ok(self.0.machine().context().circ_supply.clone())
     }
 }

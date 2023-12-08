@@ -179,7 +179,7 @@ pub fn batch_verify_seals(
     Ok(())
 }
 
-/// Returns the network circ supply split as two u64 ordered in little endian.
+/// Returns the network circulating supply.
 pub fn total_fil_circ_supply(
     context: Context<'_, impl FilecoinKernel>,
 ) -> Result<sys::TokenAmount> {
