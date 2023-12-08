@@ -325,16 +325,6 @@ where
     }
 }
 
-impl<M, C, K> CircSupplyOps for TestKernel<K>
-where
-    M: Machine,
-    C: CallManager<Machine = TestMachine<M>>,
-    K: Kernel<CallManager = C>,
-{
-    fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
-        self.0.total_fil_circ_supply()
-    }
-}
 impl<M, C, K> FilecoinKernel for TestKernel<K>
 where
     M: Machine,
@@ -385,6 +375,10 @@ where
         let charge = self.0.price_list().on_verify_replica_update(rep);
         let _ = self.0.charge_gas(&charge.name, charge.total())?;
         Ok(true)
+    }
+
+    fn total_fil_circ_supply(&self) -> Result<TokenAmount> {
+        self.0.total_fil_circ_supply()
     }
 }
 
