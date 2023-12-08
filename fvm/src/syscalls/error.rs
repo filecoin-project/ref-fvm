@@ -8,16 +8,21 @@ use wasmtime::Trap;
 use crate::call_manager::NO_DATA_BLOCK_ID;
 use crate::kernel::{BlockId, ExecutionError};
 
-/// Represents an actor "abort".
+/// Represents an actor "abort". Returning an [`Abort`] from a syscall will cause the currently
+/// running actor to exit and may cause part or all of the actor call stack to unwind.
 #[derive(Debug, thiserror::Error)]
 pub enum Abort {
-    /// The actor explicitly aborted with the given exit code (or panicked).
+    /// The actor explicitly aborted with the given exit code, panicked, or ran out of memory.
     #[error("exit with code {0} ({2})")]
     Exit(ExitCode, String, BlockId),
-    /// The actor ran out of gas.
+    /// The actor ran out of gas. This will unwind the actor call stack until we reach an actor
+    /// invocation with a gas limit _less_ than that of the caller's gas limit, or until we reach
+    /// the top-level call.
     #[error("out of gas")]
     OutOfGas,
-    /// The system failed with a fatal error.
+    /// The system failed with a fatal error indicating a bug in the FVM. This will abort the entire
+    /// top-level message and record a
+    /// [`SYS_ASSERTION_FAILED`][fvm_shared::ExitCode::SYS_ASSERTION_FAILED] exit code on-chain.
     #[error("fatal error: {0}")]
     Fatal(anyhow::Error),
 }
