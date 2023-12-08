@@ -233,7 +233,7 @@ pub fn run_variant(
     // this explicitly.
     engine
         .acquire()
-        .preload(
+        .preload_all(
             machine.blockstore(),
             machine.builtin_actors().builtin_actor_codes(),
         )

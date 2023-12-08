@@ -292,8 +292,8 @@ where
         // Custom configuration.
         configure_mc(&mut mc);
 
-        let engine = EnginePool::new_default((&mc.network.clone()).into())?;
-        engine.acquire().preload(&blockstore, &self.code_cids)?;
+        let engine = EnginePool::new((&mc.network.clone()).into())?;
+        engine.acquire().preload_all(&blockstore, &self.code_cids)?;
 
         let machine = DefaultMachine::new(&mc, blockstore, externs)?;
 

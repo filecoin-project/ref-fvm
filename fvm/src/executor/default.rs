@@ -307,7 +307,7 @@ where
             // This interface works for now because we know all actor CIDs
             // ahead of time, but with user-supplied code, we won't have that
             // guarantee.
-            engine_pool.acquire().preload(
+            engine_pool.acquire().preload_all(
                 machine.blockstore(),
                 machine.builtin_actors().builtin_actor_codes(),
             )?;

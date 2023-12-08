@@ -124,7 +124,7 @@ mod test {
             .for_epoch(0, 0, root);
 
         let machine = DefaultMachine::new(&mc, bs, DummyExterns).unwrap();
-        let engine = EnginePool::new_default((&mc.network).into()).unwrap();
+        let engine = EnginePool::new((&mc.network).into()).unwrap();
         let _ = executor::DefaultExecutor::<DefaultFilecoinKernel<DefaultCallManager<_>>>::new(
             engine,
             Box::new(machine),

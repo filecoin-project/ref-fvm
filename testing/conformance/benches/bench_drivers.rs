@@ -55,7 +55,7 @@ pub fn bench_vector_variant(
                 // to do this explicitly.
                 engine
                     .acquire()
-                    .preload(
+                    .preload_all(
                         machine.blockstore(),
                         machine.builtin_actors().builtin_actor_codes(),
                     )
