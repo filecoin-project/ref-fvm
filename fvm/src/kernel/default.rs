@@ -10,12 +10,10 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::IPLD_RAW;
 use fvm_shared::address::Payload;
 use fvm_shared::crypto::signature;
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::upgrade::UpgradeInfo;
-use fvm_shared::ActorID;
 use multihash::MultihashDigest;
 
 use super::blocks::{Block, BlockRegistry};
@@ -606,7 +604,7 @@ where
         )
     }
 
-    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
+    fn hash(&self, code: u64, data: &[u8]) -> Result<Multihash> {
         let hasher = SupportedHashes::try_from(code).map_err(|e| {
             if let multihash::Error::UnsupportedCode(code) = e {
                 syscall_error!(IllegalArgument; "unsupported hash code {}", code)

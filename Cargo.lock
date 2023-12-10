@@ -2366,7 +2366,6 @@ dependencies = [
 name = "fvm_conformance_tests"
 version = "0.1.0"
 dependencies = [
- "ambassador",
  "anyhow",
  "async-std",
  "base64 0.21.4",
