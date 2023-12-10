@@ -7,7 +7,10 @@ use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
 use crate::call_manager::{backtrace, CallManager};
 use crate::gas::{Gas, GasInstant, GasTimer};
 use crate::kernel::filecoin::DefaultFilecoinKernel;
-use crate::kernel::{ExecutionError, SyscallHandler};
+use crate::kernel::{
+    ActorOps, CryptoOps, DebugOps, EventOps, ExecutionError, GasOps, IpldBlockOps, MessageOps,
+    NetworkOps, RandomnessOps, SelfOps, SyscallHandler,
+};
 
 use crate::machine::limiter::MemoryLimiter;
 use crate::{DefaultKernel, Kernel};
@@ -238,7 +241,17 @@ use self::bind::BindSyscall;
 
 impl<K> SyscallHandler<K> for DefaultKernel<K::CallManager>
 where
-    K: Kernel,
+    K: Kernel
+        + ActorOps
+        + IpldBlockOps
+        + CryptoOps
+        + DebugOps
+        + EventOps
+        + GasOps
+        + MessageOps
+        + NetworkOps
+        + RandomnessOps
+        + SelfOps,
 {
     fn bind_syscalls(
         &self,

@@ -98,7 +98,6 @@ pub trait FilecoinKernel: Kernel {
 #[delegate(NetworkOps)]
 #[delegate(RandomnessOps)]
 #[delegate(SelfOps)]
-#[delegate(LimiterOps)]
 pub struct DefaultFilecoinKernel<K>(pub K)
 where
     K: Kernel;
@@ -251,6 +250,7 @@ where
     C: CallManager,
 {
     type CallManager = C;
+    type Limiter = <DefaultKernel<C> as Kernel>::Limiter;
 
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
@@ -302,6 +302,10 @@ where
             value_received,
             read_only,
         ))
+    }
+
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
+        self.0.call_manager.limiter_mut()
     }
 }
 

@@ -33,23 +33,11 @@ pub struct CallResult {
 ///
 /// Actors may call into the kernel via the syscalls defined in the [`syscalls`][crate::syscalls]
 /// module.
-pub trait Kernel:
-    SyscallHandler<Self>
-    + ActorOps
-    + IpldBlockOps
-    + CryptoOps
-    + DebugOps
-    + EventOps
-    + GasOps
-    + MessageOps
-    + NetworkOps
-    + RandomnessOps
-    + SelfOps
-    + LimiterOps
-    + 'static
-{
+pub trait Kernel: GasOps + SyscallHandler<Self> + 'static {
     /// The [`Kernel`]'s [`CallManager`] is
     type CallManager: CallManager;
+    /// The [`Kernel`]'s memory allocation tracker.
+    type Limiter: MemoryLimiter;
 
     /// Consume the [`Kernel`] and return the underlying [`CallManager`] and [`BlockRegistry`].
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
@@ -101,6 +89,9 @@ pub trait Kernel:
         new_code_cid: Cid,
         params_id: BlockId,
     ) -> Result<CallResult>;
+
+    /// Give access to the limiter of the underlying call manager.
+    fn limiter_mut(&mut self) -> &mut Self::Limiter;
 }
 
 pub trait SyscallHandler<K: Kernel>: Sized {
@@ -293,18 +284,6 @@ pub trait DebugOps {
     fn store_artifact(&self, name: &str, data: &[u8]) -> Result<()>;
 }
 
-/// Track and limit memory expansion.
-///
-/// This interface is not one of the operations the kernel provides to actors.
-/// It's only part of the kernel out of necessity to pass it through to the
-/// call manager which tracks the limits across the whole execution stack.
-#[delegatable_trait]
-pub trait LimiterOps {
-    type Limiter: MemoryLimiter;
-    /// Give access to the limiter of the underlying call manager.
-    fn limiter_mut(&mut self) -> &mut Self::Limiter;
-}
-
 /// Eventing APIs.
 #[delegatable_trait]
 pub trait EventOps {
@@ -322,17 +301,16 @@ pub trait EventOps {
 #[doc(hidden)]
 pub use {
     ambassador_impl_CryptoOps, ambassador_impl_DebugOps, ambassador_impl_EventOps,
-    ambassador_impl_GasOps, ambassador_impl_IpldBlockOps, ambassador_impl_LimiterOps,
-    ambassador_impl_MessageOps, ambassador_impl_NetworkOps, ambassador_impl_RandomnessOps,
-    ambassador_impl_SelfOps,
+    ambassador_impl_GasOps, ambassador_impl_IpldBlockOps, ambassador_impl_MessageOps,
+    ambassador_impl_NetworkOps, ambassador_impl_RandomnessOps, ambassador_impl_SelfOps,
 };
 
 /// Import this module (with a glob) if you're implementing a kernel, _especially_ if you want to
 /// use ambassador to delegate the implementation.
 pub mod prelude {
     pub use super::{
-        ActorOps, CryptoOps, DebugOps, EventOps, GasOps, IpldBlockOps, LimiterOps, MessageOps,
-        NetworkOps, RandomnessOps, SelfOps,
+        ActorOps, CryptoOps, DebugOps, EventOps, GasOps, IpldBlockOps, MessageOps, NetworkOps,
+        RandomnessOps, SelfOps,
     };
     pub use super::{Block, BlockId, BlockRegistry, BlockStat, CallResult, Kernel, SyscallHandler};
     pub use crate::gas::{Gas, GasTimer, PriceList};
@@ -355,8 +333,8 @@ pub mod prelude {
     pub use {
         ambassador_impl_ActorOps, ambassador_impl_CryptoOps, ambassador_impl_DebugOps,
         ambassador_impl_EventOps, ambassador_impl_GasOps, ambassador_impl_IpldBlockOps,
-        ambassador_impl_LimiterOps, ambassador_impl_MessageOps, ambassador_impl_NetworkOps,
-        ambassador_impl_RandomnessOps, ambassador_impl_SelfOps,
+        ambassador_impl_MessageOps, ambassador_impl_NetworkOps, ambassador_impl_RandomnessOps,
+        ambassador_impl_SelfOps,
     };
 }
 

@@ -1,10 +1,9 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use crate::kernel::{ClassifyResult, Result};
+use crate::kernel::{ClassifyResult, DebugOps, Result};
 use crate::syscalls::context::Context;
-use crate::Kernel;
 
-pub fn log(context: Context<'_, impl Kernel>, msg_off: u32, msg_len: u32) -> Result<()> {
+pub fn log(context: Context<'_, impl DebugOps>, msg_off: u32, msg_len: u32) -> Result<()> {
     // No-op if disabled.
     if !context.kernel.debug_enabled() {
         return Ok(());
@@ -16,7 +15,7 @@ pub fn log(context: Context<'_, impl Kernel>, msg_off: u32, msg_len: u32) -> Res
     Ok(())
 }
 
-pub fn enabled(context: Context<'_, impl Kernel>) -> Result<i32> {
+pub fn enabled(context: Context<'_, impl DebugOps>) -> Result<i32> {
     Ok(if context.kernel.debug_enabled() {
         0
     } else {
@@ -25,7 +24,7 @@ pub fn enabled(context: Context<'_, impl Kernel>) -> Result<i32> {
 }
 
 pub fn store_artifact(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl DebugOps>,
     name_off: u32,
     name_len: u32,
     data_off: u32,

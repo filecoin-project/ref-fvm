@@ -3,14 +3,14 @@
 use fvm_shared::sys::out::network::NetworkContext;
 
 use super::Context;
-use crate::kernel::{Kernel, Result};
+use crate::kernel::{NetworkOps, Result};
 
-pub fn context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<NetworkContext> {
+pub fn context(context: Context<'_, impl NetworkOps>) -> crate::kernel::Result<NetworkContext> {
     context.kernel.network_context()
 }
 
 pub fn tipset_cid(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl NetworkOps>,
     epoch: i64,
     obuf_off: u32,
     obuf_len: u32,

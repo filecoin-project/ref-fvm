@@ -65,6 +65,7 @@ where
     C: CallManager,
 {
     type CallManager = C;
+    type Limiter = <<C as CallManager>::Machine as Machine>::Limiter;
 
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
@@ -263,6 +264,10 @@ where
             }
             Err(err) => Err(err),
         }
+    }
+
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
+        self.call_manager.limiter_mut()
     }
 }
 
@@ -946,17 +951,6 @@ where
             )
         }
         Ok(())
-    }
-}
-
-impl<C> LimiterOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    type Limiter = <<C as CallManager>::Machine as Machine>::Limiter;
-
-    fn limiter_mut(&mut self) -> &mut Self::Limiter {
-        self.call_manager.limiter_mut()
     }
 }
 

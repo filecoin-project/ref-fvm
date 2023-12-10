@@ -170,7 +170,6 @@ where
 #[delegate(NetworkOps)]
 #[delegate(RandomnessOps)]
 #[delegate(SelfOps)]
-#[delegate(LimiterOps)]
 pub struct TestKernel<K = DefaultFilecoinKernel<DefaultKernel<DefaultCallManager<TestMachine>>>>(
     pub K,
 );
@@ -182,6 +181,7 @@ where
     K: Kernel<CallManager = C>,
 {
     type CallManager = K::CallManager;
+    type Limiter = K::Limiter;
 
     fn into_inner(self) -> (Self::CallManager, BlockRegistry)
     where
@@ -236,6 +236,10 @@ where
 
     fn upgrade_actor<KK>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
         self.0.upgrade_actor::<Self>(new_code_cid, params_id)
+    }
+
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
+        self.0.limiter_mut()
     }
 }
 

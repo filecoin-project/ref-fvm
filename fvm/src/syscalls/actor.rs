@@ -6,11 +6,11 @@ use fvm_shared::{sys, ActorID};
 use super::bind::ControlFlow;
 use super::error::Abort;
 use super::Context;
-use crate::kernel::{CallResult, ClassifyResult, Result};
+use crate::kernel::{ActorOps, CallResult, ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
 
 pub fn resolve_address(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl ActorOps>,
     addr_off: u32, // Address
     addr_len: u32,
 ) -> Result<u64> {
@@ -20,7 +20,7 @@ pub fn resolve_address(
 }
 
 pub fn lookup_delegated_address(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl ActorOps>,
     actor_id: ActorID,
     obuf_off: u32,
     obuf_len: u32,
@@ -41,7 +41,7 @@ pub fn lookup_delegated_address(
 }
 
 pub fn get_actor_code_cid(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl ActorOps>,
     actor_id: u64,
     obuf_off: u32, // Cid
     obuf_len: u32,
@@ -59,7 +59,7 @@ pub fn get_actor_code_cid(
 /// The output buffer must be at least 21 bytes long, which is the length of a class 2 address
 /// (protocol-generated actor address).
 pub fn next_actor_address(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl ActorOps>,
     obuf_off: u32, // Address (out)
     obuf_len: u32,
 ) -> Result<u32> {
@@ -93,7 +93,7 @@ pub fn next_actor_address(
 }
 
 pub fn create_actor(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl ActorOps>,
     actor_id: u64, // ID
     typ_off: u32,  // Cid
     delegated_addr_off: u32,
@@ -143,7 +143,7 @@ pub fn upgrade_actor<K: Kernel>(
 }
 
 pub fn get_builtin_actor_type(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl ActorOps>,
     code_cid_off: u32, // Cid
 ) -> Result<i32> {
     let cid = context.memory.read_cid(code_cid_off)?;
@@ -151,7 +151,7 @@ pub fn get_builtin_actor_type(
 }
 
 pub fn get_code_cid_for_type(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl ActorOps>,
     typ: i32,
     obuf_off: u32, // Cid
     obuf_len: u32,
@@ -163,14 +163,14 @@ pub fn get_code_cid_for_type(
 }
 
 pub fn install_actor(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl ActorOps>,
     typ_off: u32, // Cid
 ) -> Result<()> {
     let typ = context.memory.read_cid(typ_off)?;
     context.kernel.install_actor(typ)
 }
 
-pub fn balance_of(context: Context<'_, impl Kernel>, actor_id: u64) -> Result<sys::TokenAmount> {
+pub fn balance_of(context: Context<'_, impl ActorOps>, actor_id: u64) -> Result<sys::TokenAmount> {
     let balance = context.kernel.balance_of(actor_id)?;
     balance
         .try_into()

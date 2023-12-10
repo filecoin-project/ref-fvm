@@ -5,7 +5,7 @@ use fvm_shared::sys::out::vm::MessageContext;
 
 use super::error::Abort;
 use super::Context;
-use crate::kernel::Kernel;
+use crate::kernel::MessageOps;
 
 /// The maximum message length included in the backtrace. Given 1024 levels, this gives us a total
 /// maximum of around 1MiB for debugging.
@@ -13,7 +13,7 @@ const MAX_MESSAGE_LEN: usize = 1024;
 
 // NOTE: this won't clobber the last syscall error because it directly returns a "trap".
 pub fn exit(
-    context: Context<'_, impl Kernel>,
+    context: Context<'_, impl Sized>, // "impl Sized" means "any struct"
     code: u32,
     blk: u32,
     message_off: u32,
@@ -52,6 +52,8 @@ pub fn exit(
     Abort::Exit(code, message, blk)
 }
 
-pub fn message_context(context: Context<'_, impl Kernel>) -> crate::kernel::Result<MessageContext> {
+pub fn message_context(
+    context: Context<'_, impl MessageOps>,
+) -> crate::kernel::Result<MessageContext> {
     context.kernel.msg_context()
 }
