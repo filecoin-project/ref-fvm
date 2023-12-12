@@ -329,13 +329,12 @@ where
     }
 }
 
-impl<C> SyscallHandler<DefaultFilecoinKernel<DefaultKernel<C>>>
-    for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<C> SyscallHandler<DefaultFilecoinKernel<C>> for DefaultFilecoinKernel<C>
 where
     C: CallManager,
 {
     fn bind_syscalls(
-        linker: &mut Linker<InvocationData<DefaultFilecoinKernel<DefaultKernel<C>>>>,
+        linker: &mut Linker<InvocationData<DefaultFilecoinKernel<C>>>,
     ) -> anyhow::Result<()> {
         DefaultKernel::<C>::bind_syscalls(linker)?;
 

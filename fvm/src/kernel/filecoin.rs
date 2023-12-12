@@ -88,24 +88,22 @@ pub trait FilecoinKernel: Kernel {
 }
 
 #[derive(Delegate)]
-#[delegate(IpldBlockOps)]
-#[delegate(ActorOps)]
-#[delegate(CryptoOps)]
-#[delegate(DebugOps)]
-#[delegate(EventOps)]
-#[delegate(GasOps)]
-#[delegate(MessageOps)]
-#[delegate(NetworkOps)]
-#[delegate(RandomnessOps)]
-#[delegate(SelfOps)]
-pub struct DefaultFilecoinKernel<K>(pub K)
-where
-    K: Kernel;
+#[delegate(IpldBlockOps, where = "C: CallManager")]
+#[delegate(ActorOps, where = "C: CallManager")]
+#[delegate(CryptoOps, where = "C: CallManager")]
+#[delegate(DebugOps, where = "C: CallManager")]
+#[delegate(EventOps, where = "C: CallManager")]
+#[delegate(GasOps, where = "C: CallManager")]
+#[delegate(MessageOps, where = "C: CallManager")]
+#[delegate(NetworkOps, where = "C: CallManager")]
+#[delegate(RandomnessOps, where = "C: CallManager")]
+#[delegate(SelfOps, where = "C: CallManager")]
+pub struct DefaultFilecoinKernel<C>(pub DefaultKernel<C>);
 
-impl<C> FilecoinKernel for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<C> FilecoinKernel for DefaultFilecoinKernel<C>
 where
     C: CallManager,
-    DefaultFilecoinKernel<DefaultKernel<C>>: Kernel,
+    DefaultFilecoinKernel<C>: Kernel,
 {
     fn compute_unsealed_sector_cid(
         &self,
@@ -245,7 +243,7 @@ where
     }
 }
 
-impl<C> Kernel for DefaultFilecoinKernel<DefaultKernel<C>>
+impl<C> Kernel for DefaultFilecoinKernel<C>
 where
     C: CallManager,
 {
