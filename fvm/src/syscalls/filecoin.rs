@@ -1,9 +1,9 @@
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use std::panic;
 
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_shared::error::ErrorNumber;
-// Copyright 2021-2023 Protocol Labs
-// SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_shared::sector::WindowPoStVerifyInfo;
 
 use super::context::Memory;
