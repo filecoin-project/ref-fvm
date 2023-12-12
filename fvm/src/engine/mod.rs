@@ -515,13 +515,7 @@ impl Engine {
                 .insert({
                     let mut linker = Linker::new(&self.inner.engine);
                     linker.allow_shadowing(true);
-
-                    store
-                        .data()
-                        .kernel
-                        .bind_syscalls(&mut linker)
-                        .map_err(Abort::Fatal)?;
-
+                    K::bind_syscalls(&mut linker).map_err(Abort::Fatal)?;
                     Box::new(Cache { linker })
                 })
                 .downcast_mut()
