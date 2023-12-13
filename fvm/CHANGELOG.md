@@ -4,6 +4,8 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+Default the concurrency of the `ThreadedExecutor` to the available parallelism instead of 8.
+
 ## 4.0.0 (2023-10-31)
 
 Final release, no changes.
