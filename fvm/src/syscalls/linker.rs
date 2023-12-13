@@ -14,7 +14,7 @@ use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
 /// A "linker" for exposing syscalls to wasm modules.
 #[repr(transparent)]
-pub struct Linker<K>(wasmtime::Linker<InvocationData<K>>);
+pub struct Linker<K>(pub(crate) wasmtime::Linker<InvocationData<K>>);
 
 impl<K> Linker<K> {
     /// Link a syscall.
@@ -39,13 +39,6 @@ impl<K> Linker<K> {
     ) -> anyhow::Result<&mut Self> {
         syscall.link(self, module, name)?;
         Ok(self)
-    }
-
-    /// Wrap a wasmtime Linker in our newtype. We use a newtype to hide the underlying
-    /// implementation.
-    pub(crate) fn from_wasmtime(l: &mut wasmtime::Linker<InvocationData<K>>) -> &mut Self {
-        // SAFETY: We're transmuting to a transparent wrapper type.
-        unsafe { &mut *(l as *mut _ as *mut _) }
     }
 }
 

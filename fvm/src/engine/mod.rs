@@ -514,10 +514,10 @@ impl Engine {
                 .expect("invalid instance cache entry"),
             Vacant(e) => &mut *e
                 .insert({
-                    let mut linker = wasmtime::Linker::new(&self.inner.engine);
-                    linker.allow_shadowing(true);
-                    K::link_syscalls(Linker::from_wasmtime(&mut linker)).map_err(Abort::Fatal)?;
-                    Box::new(Cache { linker })
+                    let mut linker = Linker(wasmtime::Linker::new(&self.inner.engine));
+                    linker.0.allow_shadowing(true);
+                    K::link_syscalls(&mut linker).map_err(Abort::Fatal)?;
+                    Box::new(Cache { linker: linker.0 })
                 })
                 .downcast_mut()
                 .expect("invalid instance cache entry"),
