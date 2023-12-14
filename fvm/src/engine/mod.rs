@@ -572,6 +572,7 @@ impl Engine {
             last_memory_bytes: memory_bytes,
             last_charge_time: GasTimer::start(),
             memory: self.inner.dummy_memory,
+            wasm_prices: self.inner.config.wasm_prices,
         };
 
         let mut store = wasmtime::Store::new(&self.inner.engine, id);

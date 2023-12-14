@@ -434,8 +434,8 @@ mod ipld {
 }
 
 mod gas {
+    use fvm::call_manager::CallManager;
     use fvm::gas::*;
-    use fvm::kernel::GasOps;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -450,12 +450,12 @@ mod gas {
         let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
         assert_eq!(kern.gas_available(), avaliable);
-        assert_eq!(kern.gas_used(), Gas::new(0));
+        assert_eq!(kern.call_manager.gas_tracker.gas_used(), Gas::new(0));
 
         let _ = kern.charge_gas("charge 6 gas", Gas::new(6))?;
 
         assert_eq!(kern.gas_available(), Gas::new(4));
-        assert_eq!(kern.gas_used(), Gas::new(6));
+        assert_eq!(kern.call_manager.gas_tracker.gas_used(), Gas::new(6));
 
         Ok(())
     }
@@ -467,7 +467,7 @@ mod gas {
 
         let (kern, _) = build_inspecting_gas_test(gas_tracker)?;
 
-        assert_eq!(kern.gas_used(), used);
+        assert_eq!(kern.call_manager.gas_tracker.gas_used(), used);
 
         Ok(())
     }
@@ -493,13 +493,13 @@ mod gas {
 
         // charge exactly as much as avaliable
         let _ = kern.charge_gas("test test 123", test_gas)?;
-        assert_eq!(kern.gas_used(), test_gas);
+        assert_eq!(kern.call_manager.gas_tracker.gas_used(), test_gas);
 
         // charge over by 1
         expect_out_of_gas!(kern.charge_gas("spend more!", Gas::new(1)));
 
         assert_eq!(
-            kern.gas_used(),
+            kern.call_manager.gas_tracker.gas_used(),
             test_gas,
             "charging gas over what is avaliable and failing should not affect gas used"
         );
@@ -518,7 +518,7 @@ mod gas {
 
         let expected_list = price_list_by_network_version(STUB_NETWORK_VER);
         assert_eq!(
-            kern.price_list(),
+            kern.call_manager.price_list(),
             expected_list,
             "price list should be the same as the one used in the kernel {}",
             STUB_NETWORK_VER
