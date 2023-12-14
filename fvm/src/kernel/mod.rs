@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use ambassador::delegatable_trait;
 use fvm_shared::event::StampedEvent;
-use wasmtime::Linker;
 
 use crate::call_manager::CallManager;
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
-use crate::syscalls::InvocationData;
+use crate::syscalls::Linker;
 
 mod blocks;
 mod error;
@@ -95,7 +94,7 @@ pub trait Kernel: GasOps + SyscallHandler<Self> + 'static {
 }
 
 pub trait SyscallHandler<K>: Sized {
-    fn bind_syscalls(linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()>;
+    fn link_syscalls(linker: &mut Linker<K>) -> anyhow::Result<()>;
 }
 
 /// Network-related operations.

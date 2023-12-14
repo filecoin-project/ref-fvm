@@ -3,9 +3,9 @@
 use anyhow::{anyhow, Context as _};
 use fvm_shared::{sys, ActorID};
 
-use super::bind::ControlFlow;
 use super::error::Abort;
 use super::Context;
+use super::ControlFlow;
 use crate::kernel::{ActorOps, CallResult, ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
 

@@ -4,7 +4,7 @@ use std::mem;
 
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sys::SyscallSafe;
-use wasmtime::{Caller, Linker, WasmTy};
+use wasmtime::{Caller, WasmTy};
 
 use super::context::Memory;
 use super::error::Abort;
@@ -12,22 +12,11 @@ use super::{charge_for_exec, update_gas_available, Context, InvocationData};
 use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
-/// Binds syscalls to a linker, converting the returned error according to the syscall convention:
-///
-/// 1. If the error is a syscall error, it's returned as the first return value.
-/// 2. If the error is a fatal error, a Trap is returned.
-pub trait BindSyscall<Args, Ret, Func> {
-    /// Bind a syscall to the linker.
-    ///
-    /// 1. The return type will be automatically adjusted to return `Result<u32, Trap>` where
-    /// `u32` is the error code.
-    /// 2. If the return type is non-empty (i.e., not `()`), an out-pointer will be prepended to the
-    /// arguments for the return-value.
-    ///
-    /// By example:
-    ///
-    /// - `fn(u32) -> kernel::Result<()>` will become `fn(u32) -> Result<u32, Trap>`.
-    /// - `fn(u32) -> kernel::Result<i64>` will become `fn(u32, u32) -> Result<u32, Trap>`.
+/// A "linker" for exposing syscalls to wasm modules.
+pub struct Linker<K>(pub(crate) wasmtime::Linker<InvocationData<K>>);
+
+impl<K> Linker<K> {
+    /// Link a syscall.
     ///
     /// # Example
     ///
@@ -41,19 +30,46 @@ pub trait BindSyscall<Args, Ret, Func> {
     /// let mut linker = wasmtime::Linker::new(&engine);
     /// linker.bind("my_module", "zero", my_module::zero);
     /// ```
-    fn bind(
+    pub fn link_syscall<Args, Ret>(
         &mut self,
         module: &'static str,
         name: &'static str,
-        syscall: Func,
-    ) -> anyhow::Result<&mut Self>;
+        syscall: impl Syscall<K, Args, Ret>,
+    ) -> anyhow::Result<&mut Self> {
+        syscall.link(self, module, name)?;
+        Ok(self)
+    }
 }
 
-/// ControlFlow is a general-purpose enum allowing us to pass syscall error up the
-/// stack to the actor and treat error handling there (decide when to abort, etc).
+/// A [`Syscall`] is a function in the form `fn(Context<'_, K>, I...) -> R` where:
+///
+/// - `K` is the kernel type. Constrain this to the precise kernel operations you need, or even
+///    a specific kernel implementation.
+/// - `I...`, the syscall parameters, are 0-8 types, each one of [`u32`], [`u64`], [`i32`], or
+///    [`i64`].
+/// - `R` is a type implementing [`IntoControlFlow`]. This is usually one of:
+///     - [`kernel::Result<T>`] or [`ControlFlow<T>`] where `T`, the return value type, is
+///       [`SyscallSafe`].
+///     - [`Abort`] for syscalls that only abort (revert) the currently running actor.
+///
+/// You generally shouldn't implement this trait yourself.
+pub trait Syscall<K, Args, Ret>: Send + Sync + 'static {
+    /// Link this syscall with the specified linker, module name, and function name.
+    fn link(
+        self,
+        linker: &mut Linker<K>,
+        module: &'static str,
+        name: &'static str,
+    ) -> anyhow::Result<()>;
+}
+
+/// ControlFlow is a general-purpose enum for returning a control-flow decision from a syscall.
 pub enum ControlFlow<T> {
+    /// Return a value to the actor.
     Return(T),
+    /// Fail with the specified syscall error.
     Error(SyscallError),
+    /// Abort the running actor (exit, out of gas, or fatal error).
     Abort(Abort),
 }
 
@@ -67,9 +83,8 @@ impl<T> From<ExecutionError> for ControlFlow<T> {
     }
 }
 
-/// The helper trait used by `BindSyscall` to convert kernel results with execution errors into
-/// results that can be handled by wasmtime. See the documentation on `BindSyscall` for details.
-#[doc(hidden)]
+/// The helper trait used by `Syscall` to convert kernel results with execution errors into
+/// results that can be handled by the wasm vm. See the documentation on [`Syscall`] for details.
 pub trait IntoControlFlow: Sized {
     type Value: SyscallSafe;
     fn into_control_flow(self) -> ControlFlow<Self::Value>;
@@ -78,7 +93,6 @@ pub trait IntoControlFlow: Sized {
 /// An uninhabited type. We use this in `abort` to make sure there's no way to return without
 /// returning an error.
 #[derive(Copy, Clone)]
-#[doc(hidden)]
 pub enum Never {}
 unsafe impl SyscallSafe for Never {}
 
@@ -137,32 +151,32 @@ macro_rules! charge_syscall_gas {
 }
 
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
-macro_rules! impl_bind_syscalls {
+macro_rules! impl_syscall {
     ($($t:ident)*) => {
         #[allow(non_snake_case)]
-        impl<$($t,)* Ret, K, Func> BindSyscall<($($t,)*), Ret, Func> for Linker<InvocationData<K>>
+        impl<$($t,)* Ret, K, Func> Syscall<K, ($($t,)*), Ret> for Func
         where
             K: Kernel,
             Func: Fn(Context<'_, K> $(, $t)*) -> Ret + Send + Sync + 'static,
             Ret: IntoControlFlow,
            $($t: WasmTy+SyscallSafe,)*
         {
-            fn bind(
-                &mut self,
+            fn link(
+                self,
+                linker: &mut Linker<K>,
                 module: &'static str,
                 name: &'static str,
-                syscall: Func,
-            ) -> anyhow::Result<&mut Self> {
+            ) -> anyhow::Result<()> {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
-                    self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
+                    linker.0.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
 
                         let (mut memory, data) = memory_and_data(&mut caller);
                         charge_syscall_gas!(data.kernel);
 
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        let out = syscall(ctx $(, $t)*).into_control_flow();
+                        let out = self(ctx $(, $t)*).into_control_flow();
 
                         let result = match out {
                             ControlFlow::Return(_) => {
@@ -182,10 +196,10 @@ macro_rules! impl_bind_syscalls {
                         update_gas_available(&mut caller)?;
 
                         result
-                    })
+                    })?;
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
-                    self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
+                    linker.0.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
 
                         let (mut memory, data) = memory_and_data(&mut caller);
@@ -200,7 +214,7 @@ macro_rules! impl_bind_syscalls {
                         }
 
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
-                        let result = match syscall(ctx $(, $t)*).into_control_flow() {
+                        let result = match self(ctx $(, $t)*).into_control_flow() {
                             ControlFlow::Return(value) => {
                                 log::trace!("syscall {}::{}: ok", module, name);
                                 unsafe {
@@ -223,19 +237,20 @@ macro_rules! impl_bind_syscalls {
                         update_gas_available(&mut caller)?;
 
                         result
-                    })
+                    })?;
                 }
+                Ok(())
             }
         }
     }
 }
 
-impl_bind_syscalls!();
-impl_bind_syscalls!(A);
-impl_bind_syscalls!(A B);
-impl_bind_syscalls!(A B C);
-impl_bind_syscalls!(A B C D);
-impl_bind_syscalls!(A B C D E);
-impl_bind_syscalls!(A B C D E F);
-impl_bind_syscalls!(A B C D E F G);
-impl_bind_syscalls!(A B C D E F G H);
+impl_syscall!();
+impl_syscall!(A);
+impl_syscall!(A B);
+impl_syscall!(A B C);
+impl_syscall!(A B C D);
+impl_syscall!(A B C D E);
+impl_syscall!(A B C D E F);
+impl_syscall!(A B C D E F G);
+impl_syscall!(A B C D E F G H);

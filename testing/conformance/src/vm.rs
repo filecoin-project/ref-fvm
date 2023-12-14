@@ -5,20 +5,19 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use fvm::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
-use fvm::syscalls::InvocationData;
 
 use fvm::call_manager::{CallManager, DefaultCallManager};
 use fvm::gas::price_list_by_network_version;
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
+use fvm::syscalls::Linker;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
 };
-use wasmtime::Linker;
 
 // We have glob imports here because delegation doesn't work well without it.
 use fvm::kernel::prelude::*;
@@ -238,8 +237,8 @@ impl Kernel for TestKernel {
 }
 
 impl SyscallHandler<TestKernel> for TestKernel {
-    fn bind_syscalls(linker: &mut Linker<InvocationData<TestKernel>>) -> anyhow::Result<()> {
-        InnerTestKernel::bind_syscalls(linker)
+    fn link_syscalls(linker: &mut Linker<TestKernel>) -> anyhow::Result<()> {
+        InnerTestKernel::link_syscalls(linker)
     }
 }
 

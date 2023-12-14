@@ -18,8 +18,8 @@ use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use num_traits::Zero;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{
-    Global, GlobalType, InstanceAllocationStrategy, Linker, Memory, MemoryType, Module, Mutability,
-    Val, ValType,
+    Global, GlobalType, InstanceAllocationStrategy, Memory, MemoryType, Module, Mutability, Val,
+    ValType,
 };
 
 use crate::gas::{Gas, GasTimer, WasmGasPrices};
@@ -28,6 +28,7 @@ use crate::machine::{Machine, NetworkConfig};
 use crate::syscalls::error::Abort;
 use crate::syscalls::{
     charge_for_exec, charge_for_init, record_init_time, update_gas_available, InvocationData,
+    Linker,
 };
 use crate::Kernel;
 
@@ -497,7 +498,7 @@ impl Engine {
     /// linker, syscalls, etc.
     ///
     /// This returns an `Abort` as it may need to execute initialization code, charge gas, etc.
-    pub fn instantiate<K: Kernel>(
+    pub(crate) fn instantiate<K: Kernel>(
         &self,
         store: &mut wasmtime::Store<InvocationData<K>>,
         k: &Cid,
@@ -513,10 +514,10 @@ impl Engine {
                 .expect("invalid instance cache entry"),
             Vacant(e) => &mut *e
                 .insert({
-                    let mut linker = Linker::new(&self.inner.engine);
-                    linker.allow_shadowing(true);
-                    K::bind_syscalls(&mut linker).map_err(Abort::Fatal)?;
-                    Box::new(Cache { linker })
+                    let mut linker = Linker(wasmtime::Linker::new(&self.inner.engine));
+                    linker.0.allow_shadowing(true);
+                    K::link_syscalls(&mut linker).map_err(Abort::Fatal)?;
+                    Box::new(Cache { linker: linker.0 })
                 })
                 .downcast_mut()
                 .expect("invalid instance cache entry"),
@@ -595,7 +596,7 @@ impl Engine {
     }
 
     /// Construct a new wasmtime "store" from the given kernel.
-    pub fn new_store<K: Kernel>(&self, mut kernel: K) -> wasmtime::Store<InvocationData<K>> {
+    pub(crate) fn new_store<K: Kernel>(&self, mut kernel: K) -> wasmtime::Store<InvocationData<K>> {
         // Take a new instance and put it into a drop-guard that removes the reservation when
         // we're done.
         #[must_use]
