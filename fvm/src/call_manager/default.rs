@@ -707,7 +707,7 @@ where
         // listed the manifest, and therefore preloaded during system initialization.
         #[cfg(feature = "m2-native")]
         self.engine
-            .prepare_actor_code(&state.code, self.blockstore())
+            .preload(&state.code, self.blockstore())
             .map_err(
                 |_| syscall_error!(NotFound; "actor code cid does not exist {}", &state.code),
             )?;
