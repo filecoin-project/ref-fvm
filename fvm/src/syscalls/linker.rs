@@ -13,7 +13,6 @@ use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
 /// A "linker" for exposing syscalls to wasm modules.
-#[repr(transparent)]
 pub struct Linker<K>(pub(crate) wasmtime::Linker<InvocationData<K>>);
 
 impl<K> Linker<K> {
