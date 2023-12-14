@@ -111,8 +111,8 @@ impl Memory {
 
     /// Write a CID to actor memory at the given offset.
     ///
-    /// If the CID's length exceeds the specified length, this function will with
-    /// [`ErrorNumber::BufferTooSmall`]. For all other failures (e.g., memory out of bounds errors),
+    /// If the CID's length exceeds the specified length, this method returns an
+    /// [`ErrorNumber::BufferTooSmall`] error. For all other failures (e.g., memory out of bounds errors),
     /// this method returns an [`ErrorNumber::IllegalArgument`] error.
     pub fn write_cid(&mut self, k: &Cid, offset: u32, len: u32) -> Result<u32> {
         let out = self.try_slice_mut(offset, len)?;
