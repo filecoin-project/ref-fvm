@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Context as _};
 use num_traits::Zero;
-use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
+use wasmtime::{AsContextMut, ExternType, Global, Linker, Module, Val};
 
 use crate::call_manager::backtrace;
 use crate::gas::{Gas, GasInstant, GasTimer};
@@ -32,7 +32,7 @@ mod send;
 mod sself;
 mod vm;
 
-pub use context::Context;
+pub use context::{Context, Memory};
 pub use error::Abort;
 
 /// Invocation data attached to a wasm "store" and available to the syscall binding.
@@ -61,7 +61,7 @@ pub struct InvocationData<K> {
     pub last_charge_time: GasInstant,
 
     /// The invocation's imported "memory".
-    pub memory: Memory,
+    pub memory: wasmtime::Memory,
 }
 
 /// Updates the global available gas in the Wasm module after a syscall, to account for any
