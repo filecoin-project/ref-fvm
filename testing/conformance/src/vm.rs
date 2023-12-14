@@ -169,6 +169,8 @@ type InnerTestKernel = DefaultFilecoinKernel<DefaultCallManager<TestMachine>>;
 #[delegate(NetworkOps)]
 #[delegate(RandomnessOps)]
 #[delegate(SelfOps)]
+#[delegate(SendOps<K>, generics = "K", where = "K: FilecoinKernel")]
+#[delegate(UpgradeOps<K>, generics = "K", where = "K: FilecoinKernel")]
 pub struct TestKernel(pub InnerTestKernel);
 
 impl TestKernel {
@@ -213,27 +215,6 @@ impl Kernel for TestKernel {
 
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
         self.0.machine()
-    }
-
-    fn send<KK>(
-        &mut self,
-        recipient: &Address,
-        method: u64,
-        params: BlockId,
-        value: &TokenAmount,
-        gas_limit: Option<Gas>,
-        flags: SendFlags,
-    ) -> Result<CallResult> {
-        // Note that KK, the type of the kernel to crate for the receiving actor, is ignored,
-        // and Self is passed as the type parameter for the nested call.
-        // If we could find the correct bound to specify KK for the call, we would.
-        // This restricts the ability for the TestKernel to itself be wrapped by another kernel type.
-        self.0
-            .send::<Self>(recipient, method, params, value, gas_limit, flags)
-    }
-
-    fn upgrade_actor<KK>(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
-        self.0.upgrade_actor::<Self>(new_code_cid, params_id)
     }
 
     fn limiter_mut(&mut self) -> &mut Self::Limiter {

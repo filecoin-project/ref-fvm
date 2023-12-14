@@ -6,6 +6,7 @@ use fvm_shared::{sys, ActorID};
 use super::error::Abort;
 use super::Context;
 use super::ControlFlow;
+use crate::kernel::UpgradeOps;
 use crate::kernel::{ActorOps, CallResult, ClassifyResult, Result};
 use crate::{syscall_error, Kernel};
 
@@ -111,8 +112,8 @@ pub fn create_actor(
     context.kernel.create_actor(typ, actor_id, addr)
 }
 
-pub fn upgrade_actor<K: Kernel>(
-    context: Context<'_, K>,
+pub fn upgrade_actor(
+    context: Context<'_, impl UpgradeOps + Kernel>,
     new_code_cid_off: u32,
     params_id: u32,
 ) -> ControlFlow<sys::out::send::Send> {
@@ -121,7 +122,7 @@ pub fn upgrade_actor<K: Kernel>(
         Err(err) => return err.into(),
     };
 
-    match context.kernel.upgrade_actor::<K>(cid, params_id) {
+    match context.kernel.upgrade_actor(cid, params_id) {
         Ok(CallResult {
             block_id,
             block_stat,

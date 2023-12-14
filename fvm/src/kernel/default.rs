@@ -98,7 +98,34 @@ where
         self.call_manager.machine()
     }
 
-    fn send<K: Kernel<CallManager = C>>(
+    fn limiter_mut(&mut self) -> &mut Self::Limiter {
+        self.call_manager.limiter_mut()
+    }
+
+    fn gas_available(&self) -> Gas {
+        self.call_manager.gas_tracker().gas_available()
+    }
+
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
+        self.call_manager.gas_tracker().charge_gas(name, compute)
+    }
+}
+
+impl<C> DefaultKernel<C>
+where
+    C: CallManager,
+{
+    /// Returns `Some(actor_state)` or `None` if this actor has been deleted.
+    fn get_self(&self) -> Result<Option<ActorState>> {
+        self.call_manager.get_actor(self.actor_id)
+    }
+}
+
+impl<K> SendOps<K> for DefaultKernel<K::CallManager>
+where
+    K: Kernel,
+{
+    fn send(
         &mut self,
         recipient: &Address,
         method: MethodNum,
@@ -171,12 +198,13 @@ where
             },
         })
     }
+}
 
-    fn upgrade_actor<K: Kernel<CallManager = C>>(
-        &mut self,
-        new_code_cid: Cid,
-        params_id: BlockId,
-    ) -> Result<CallResult> {
+impl<K> UpgradeOps<K> for DefaultKernel<K::CallManager>
+where
+    K: Kernel,
+{
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult> {
         if self.read_only {
             return Err(
                 syscall_error!(ReadOnly, "upgrade_actor cannot be called while read-only").into(),
@@ -264,28 +292,6 @@ where
             }
             Err(err) => Err(err),
         }
-    }
-
-    fn limiter_mut(&mut self) -> &mut Self::Limiter {
-        self.call_manager.limiter_mut()
-    }
-
-    fn gas_available(&self) -> Gas {
-        self.call_manager.gas_tracker().gas_available()
-    }
-
-    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
-        self.call_manager.gas_tracker().charge_gas(name, compute)
-    }
-}
-
-impl<C> DefaultKernel<C>
-where
-    C: CallManager,
-{
-    /// Returns `Some(actor_state)` or `None` if this actor has been deleted.
-    fn get_self(&self) -> Result<Option<ActorState>> {
-        self.call_manager.get_actor(self.actor_id)
     }
 }
 
