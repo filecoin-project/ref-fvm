@@ -4,9 +4,9 @@ use anyhow::{anyhow, Context as _};
 use num_traits::Zero;
 use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
 
-use crate::call_manager::{backtrace, CallManager};
+use crate::call_manager::backtrace;
 use crate::gas::{Gas, GasInstant, GasTimer};
-use crate::kernel::filecoin::DefaultFilecoinKernel;
+use crate::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
 use crate::kernel::{
     ActorOps, CryptoOps, DebugOps, EventOps, ExecutionError, GasOps, IpldBlockOps, MessageOps,
     NetworkOps, RandomnessOps, SelfOps, SyscallHandler,
@@ -329,14 +329,22 @@ where
     }
 }
 
-impl<C> SyscallHandler<DefaultFilecoinKernel<C>> for DefaultFilecoinKernel<C>
+impl<K> SyscallHandler<K> for DefaultFilecoinKernel<K::CallManager>
 where
-    C: CallManager,
+    K: FilecoinKernel
+        + ActorOps
+        + IpldBlockOps
+        + CryptoOps
+        + DebugOps
+        + EventOps
+        + GasOps
+        + MessageOps
+        + NetworkOps
+        + RandomnessOps
+        + SelfOps,
 {
-    fn bind_syscalls(
-        linker: &mut Linker<InvocationData<DefaultFilecoinKernel<C>>>,
-    ) -> anyhow::Result<()> {
-        DefaultKernel::<C>::bind_syscalls(linker)?;
+    fn bind_syscalls(linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()> {
+        DefaultKernel::<K::CallManager>::bind_syscalls(linker)?;
 
         // Bind the circulating supply call.
         linker.bind(

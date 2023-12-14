@@ -94,7 +94,7 @@ pub trait Kernel: GasOps + SyscallHandler<Self> + 'static {
     fn limiter_mut(&mut self) -> &mut Self::Limiter;
 }
 
-pub trait SyscallHandler<K: Kernel>: Sized {
+pub trait SyscallHandler<K>: Sized {
     fn bind_syscalls(linker: &mut Linker<InvocationData<K>>) -> anyhow::Result<()>;
 }
 
