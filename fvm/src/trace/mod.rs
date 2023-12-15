@@ -1,13 +1,12 @@
-use cid::Cid;
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
-use fvm_shared::ActorID;
+use fvm_shared::state::ActorState;
+use fvm_shared::{ActorID, MethodNum};
 
-use crate::call_manager::Entrypoint;
 use crate::gas::GasCharge;
 use crate::kernel::SyscallError;
 
@@ -26,7 +25,7 @@ pub enum ExecutionEvent {
     Call {
         from: ActorID,
         to: Address,
-        entrypoint: Entrypoint,
+        method: MethodNum,
         params: Option<IpldBlock>,
         value: TokenAmount,
         gas_limit: u64,
@@ -34,6 +33,9 @@ pub enum ExecutionEvent {
     },
     CallReturn(ExitCode, Option<IpldBlock>),
     CallError(SyscallError),
-    /// Emitted every time we successfully invoke an actor
-    InvokeActor(Cid),
+    /// Emitted every time an actor is successfully invoked.
+    InvokeActor {
+        id: ActorID,
+        state: ActorState,
+    },
 }

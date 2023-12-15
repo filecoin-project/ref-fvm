@@ -6,7 +6,7 @@ use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::upgrade::UpgradeInfo;
-use fvm_shared::{ActorID, MethodNum};
+use fvm_shared::{ActorID, MethodNum, METHOD_CONSTRUCTOR};
 
 use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
@@ -205,7 +205,11 @@ pub struct FinishRet {
 
 #[derive(Clone, Debug, Copy)]
 pub enum Entrypoint {
+    /// Implicitly invoke a constructor. We keep this separate for better tracing.
+    ImplicitConstructor,
+    /// Invoke a method.
     Invoke(MethodNum),
+    /// Upgrade to a new actor code CID.
     Upgrade(UpgradeInfo),
 }
 
@@ -217,6 +221,7 @@ const METHOD_UPGRADE: MethodNum = 932083;
 impl std::fmt::Display for Entrypoint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Entrypoint::ImplicitConstructor => write!(f, "implicit_constructor"),
             Entrypoint::Invoke(method) => write!(f, "invoke({})", method),
             Entrypoint::Upgrade(_) => write!(f, "upgrade"),
         }
@@ -226,6 +231,7 @@ impl std::fmt::Display for Entrypoint {
 impl Entrypoint {
     fn method_num(&self) -> MethodNum {
         match self {
+            Entrypoint::ImplicitConstructor => METHOD_CONSTRUCTOR,
             Entrypoint::Invoke(num) => *num,
             Entrypoint::Upgrade(_) => METHOD_UPGRADE,
         }
@@ -233,13 +239,14 @@ impl Entrypoint {
 
     fn func_name(&self) -> &'static str {
         match self {
-            Entrypoint::Invoke(_) => INVOKE_FUNC_NAME,
+            Entrypoint::ImplicitConstructor | Entrypoint::Invoke(_) => INVOKE_FUNC_NAME,
             Entrypoint::Upgrade(_) => UPGRADE_FUNC_NAME,
         }
     }
 
     fn invokes(&self, method: MethodNum) -> bool {
         match self {
+            Entrypoint::ImplicitConstructor => method == METHOD_CONSTRUCTOR,
             Entrypoint::Invoke(num) => *num == method,
             Entrypoint::Upgrade(_) => false,
         }
@@ -247,7 +254,7 @@ impl Entrypoint {
 
     fn into_params(self, br: &mut BlockRegistry) -> Result<Vec<wasmtime::Val>> {
         match self {
-            Entrypoint::Invoke(_) => Ok(Vec::new()),
+            Entrypoint::ImplicitConstructor | Entrypoint::Invoke(_) => Ok(Vec::new()),
             Entrypoint::Upgrade(ui) => {
                 let ui_params = to_vec(&ui)
                     .or_fatal()
