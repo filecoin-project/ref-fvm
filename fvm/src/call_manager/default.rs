@@ -919,11 +919,9 @@ where
         F: FnOnce(&mut Self) -> Result<V>,
     {
         if self.call_stack_depth >= self.machine.context().max_call_depth {
-            let sys_err = syscall_error!(LimitExceeded, "message execution exceeds call depth");
-            if self.machine.context().tracing {
-                self.trace(ExecutionEvent::CallError(sys_err.clone()));
-            }
-            return Err(sys_err.into());
+            return Err(
+                syscall_error!(LimitExceeded, "message execution exceeds call depth").into(),
+            );
         }
 
         self.call_stack_depth += 1;
