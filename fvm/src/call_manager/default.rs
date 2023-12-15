@@ -183,18 +183,20 @@ where
         K: Kernel<CallManager = Self>,
     {
         if self.machine.context().tracing {
-            self.trace(ExecutionEvent::Call {
-                from,
-                to,
-                entrypoint,
-                params: params.as_ref().map(Into::into),
-                value: value.clone(),
-                gas_limit: std::cmp::min(
-                    gas_limit.unwrap_or(Gas::from_milligas(u64::MAX)).round_up(),
-                    self.gas_tracker.gas_available().round_up(),
-                ),
-                read_only,
-            });
+            if let Entrypoint::Invoke(method) = &entrypoint {
+                self.trace(ExecutionEvent::Call {
+                    from,
+                    to,
+                    method: *method,
+                    params: params.as_ref().map(Into::into),
+                    value: value.clone(),
+                    gas_limit: std::cmp::min(
+                        gas_limit.unwrap_or(Gas::from_milligas(u64::MAX)).round_up(),
+                        self.gas_tracker.gas_available().round_up(),
+                    ),
+                    read_only,
+                });
+            }
         }
 
         // If a specific gas limit has been requested, push a new limit into the gas tracker.
@@ -222,7 +224,7 @@ where
             })
         }
 
-        if self.machine.context().tracing {
+        if self.machine.context().tracing && matches!(entrypoint, Entrypoint::Invoke(_)) {
             self.trace(match &result {
                 Ok(InvocationResult { exit_code, value }) => {
                     ExecutionEvent::CallReturn(*exit_code, value.as_ref().map(Into::into))
@@ -578,7 +580,7 @@ where
         self.call_actor_resolved::<K>(
             system_actor::SYSTEM_ACTOR_ID,
             id,
-            Entrypoint::Invoke(fvm_shared::METHOD_CONSTRUCTOR),
+            Entrypoint::ImplicitConstructor,
             Some(Block::new(CBOR, params, Vec::new())),
             &TokenAmount::zero(),
             false,
@@ -660,8 +662,17 @@ where
             .get_actor(to)?
             .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
 
-        if self.machine.context().tracing {
-            self.trace(ExecutionEvent::InvokeActor(state.code));
+        // We're only tracing explicit "invokes" (no upgrades or implicit constructions, for now) as
+        // we want to be able to pair the invoke with another event in the trace. I.e. call ->
+        // invoke, upgrade -> invoke, construct -> invoke.
+        //
+        // Once we add tracing support for upgrades, we can start recording those actor invocations
+        // as well.
+        if self.machine.context().tracing && matches!(entrypoint, Entrypoint::Invoke(_)) {
+            self.trace(ExecutionEvent::InvokeActor {
+                id: to,
+                state: state.clone(),
+            });
         }
 
         // Transfer, if necessary.
