@@ -9,7 +9,7 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
 cid = { workspace = true, features = ["serde-codec", "std"] }
-anyhow = "1.0.71"
+anyhow = { workspace = true }
 # multihash is also re-exported by `cid`. Having `multihash` here as a
 # depdendency is needed to enable the features of the re-export.
 multihash = { workspace = true, features = ["multihash-impl"] }

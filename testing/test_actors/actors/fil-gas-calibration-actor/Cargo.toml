@@ -5,17 +5,17 @@ edition = "2021"
 publish = false
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-fvm_sdk = { version = "4.0.0", path = "../../../../sdk" }
-fvm_shared = { version = "4.0.0", path = "../../../../shared" }
-fvm_ipld_encoding = { version = "0.4.0", path = "../../../../ipld/encoding" }
+fvm_sdk = { workspace = true }
+fvm_shared = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
 fvm_gas_calibration_shared = { path = "../../../calibration/shared" }
 
 cid = { workspace = true }
-num-derive = "0.4"
-num-traits = "0.2"
-serde = { version = "1.0", features = ["derive"] }
-anyhow = "1.0.71"
-libipld = { version = "0.16.0", default-features = false, features = ["serde-codec"] }
+num-derive = { workspace = true }
+num-traits = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+libipld = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"]

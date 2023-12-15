@@ -8,14 +8,66 @@ members = [
     "testing/integration",
     "testing/calibration/shared",
     "ipld/*",
+    "ipld/amt/fuzz",
+    "ipld/kamt/fuzz",
     "testing/test_actors",
     "testing/test_actors/actors/*",
     "tools/fvm-bench",
 ]
 
 [workspace.dependencies]
+# common
+serde = { version = "1.0.164", features = ["derive"] }
+thiserror = "1.0.40"
+anyhow = "1.0.71"
+rand = "0.8.5"
+rand_chacha = "0.3.0"
+serde_json = "1.0.99"
+serde_tuple = "0.5.0"
+byteorder = "1.4.3"
+hex = "0.4.3"
+num-traits = "0.2.14"
+num-derive = "0.4.0"
+lazy_static = "1.4.0"
+log = "0.4.19"
+futures = "0.3.28"
+
+# IPLD/Encoding
 cid = { version = "0.10.1", default-features = false }
 multihash = { version = "0.18.1", default-features = false }
+libipld = { version = "0.16.0",  features = ["serde-codec"] }
+libipld-core = { version = "0.16.0", features = ["serde-codec"] }
+
+# crypto
+blake2b_simd = "1.0.1"
+libsecp256k1 = { version = "0.7.1" }
+bls-signatures = { version = "0.15", default-features = false }
+
+# misc
+libfuzzer-sys = "0.4"
+arbitrary = "1.3.0"
+ahash = "0.7.6"
+itertools = "0.11.0"
+once_cell = "1.18.0"
+unsigned-varint = "0.7.2"
+
+# dev/tools/tests
+criterion = "0.5.1"
+quickcheck = "1.0.0"
+quickcheck_macros = "1.0.0"
+minstant = "0.1.3"
+
+# workspace
+fvm = { path = "fvm" }
+fvm_sdk = { path = "sdk" }
+fvm_ipld_amt = { path = "ipld/amt" }
+fvm_ipld_hamt = { path = "ipld/hamt" }
+fvm_ipld_kamt = { path = "ipld/kamt" }
+fvm_ipld_car = { path = "ipld/car" }
+fvm_ipld_blockstore = { path = "ipld/blockstore" }
+fvm_ipld_bitfield = { path = "ipld/bitfield" }
+fvm_ipld_encoding = { path = "ipld/encoding" }
+fvm_shared = { path = "shared" }
 
 [profile.actor]
 inherits = "release"

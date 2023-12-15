@@ -9,20 +9,12 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
-arbitrary = { version = "1.1", features = ["derive"] }
-ahash = "0.7.6"
+libfuzzer-sys = { workspace = true }
+arbitrary = { workspace = true, features = ["derive"] }
+ahash = { workspace = true }
 
-fvm_ipld_kamt = { path = ".." }
-fvm_ipld_blockstore = { path = "../../blockstore" }
-
-
-# Prevent this from interfering with workspaces
-[workspace]
-members = ["."]
-
-[workspace.dependencies]
-cid = "0.10.1"
+fvm_ipld_kamt = { workspace = true }
+fvm_ipld_blockstore = { workspace = true }
 
 [[bin]]
 name = "simple"
