@@ -16,13 +16,8 @@ ahash = { workspace = true }
 fvm_ipld_hamt = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
 
-
-# Prevent this from interfering with workspaces
-[workspace]
-members = ["."]
-
 [[bin]]
-name = "simple"
+name = "hamt-simple"
 path = "fuzz_targets/simple.rs"
 test = false
 doc = false
