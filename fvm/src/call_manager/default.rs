@@ -859,16 +859,21 @@ where
                     };
 
                     if !code.is_success() {
-                        if let Some(err) = last_error {
-                            cm.backtrace.begin(err);
-                        }
+                        // Only record backtrace frames for explicit messages sent by the user. We
+                        // may want to record frames for failed upgrades, but that complicates
+                        // things a bit and I'd like to keep this API the same for now.
+                        if let &Entrypoint::Invoke(method) = &entrypoint {
+                            if let Some(err) = last_error {
+                                cm.backtrace.begin(err);
+                            }
 
-                        cm.backtrace.push_frame(Frame {
-                            source: to,
-                            entrypoint,
-                            message,
-                            code,
-                        });
+                            cm.backtrace.push_frame(Frame {
+                                source: to,
+                                method,
+                                message,
+                                code,
+                            });
+                        }
                     }
 
                     res
