@@ -1,11 +1,11 @@
 [package]
 name = "fvm"
 description = "Filecoin Virtual Machine reference implementation"
-version = "4.0.0"
-license = "MIT OR Apache-2.0"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
 authors = ["Protocol Labs", "Filecoin Core Devs"]
-edition = "2021"
-repository = "https://github.com/filecoin-project/ref-fvm"
 keywords = ["filecoin", "web3", "wasm"]
 
 [lib]
@@ -22,6 +22,9 @@ fvm_ipld_hamt = { workspace = true }
 fvm_ipld_amt = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
+wasmtime = { workspace = true }
+wasmtime-environ = { workspace = true }
+wasmtime-runtime = { workspace = true }
 serde = { workspace = true }
 serde_tuple = { workspace = true }
 lazy_static = { workspace = true }
@@ -46,18 +49,6 @@ ambassador = "0.3.5"
 [dev-dependencies]
 pretty_assertions = "1.3.0"
 fvm = { workspace = true, features = ["testing"], default-features = false }
-
-[dependencies.wasmtime]
-version = "12.0.2"
-default-features = false
-features = ["cranelift", "pooling-allocator", "parallel-compilation"]
-
-[dependencies.wasmtime-environ]
-version = "12.0.1"
-
-[dependencies.wasmtime-runtime]
-version = "12.0.1"
-default-features = false
 
 [features]
 default = ["opencl"]

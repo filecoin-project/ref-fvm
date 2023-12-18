@@ -1,11 +1,11 @@
 [package]
 name = "fvm_integration_tests"
 description = "Filecoin Virtual Machine integration tests framework"
-version = "4.0.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
 authors = ["Protocol Labs", "Filecoin Core Devs", "Polyphene"]
-repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
 fvm = { workspace = true, default-features = false, features = ["testing", "upgrade-actor"] }
@@ -26,11 +26,7 @@ rand_chacha = { workspace = true }
 serde = { workspace = true }
 serde_tuple = { workspace = true }
 thiserror = { workspace = true }
-
-[dependencies.wasmtime]
-version = "12.0.2"
-default-features = false
-features = ["cranelift", "parallel-compilation"]
+wasmtime = { workspace = true, default-features = false, features = ["cranelift", "parallel-compilation"] }
 
 [dev-dependencies]
 actors-v12 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "master" }

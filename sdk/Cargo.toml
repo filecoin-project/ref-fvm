@@ -1,11 +1,11 @@
 [package]
 name = "fvm_sdk"
 description = "Filecoin Virtual Machine actor development SDK"
-version = "4.0.0"
-license = "MIT OR Apache-2.0"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
 authors = ["Protocol Labs", "Filecoin Core Devs"]
-edition = "2021"
-repository = "https://github.com/filecoin-project/ref-fvm"
 
 [lib]
 crate-type = ["lib"]

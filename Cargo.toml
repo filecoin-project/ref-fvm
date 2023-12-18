@@ -16,6 +16,13 @@ members = [
     "tools/fvm-bench",
 ]
 
+[workspace.package]
+version = "4.0.0"
+license = "MIT OR Apache-2.0"
+edition = "2021"
+repository = "https://github.com/filecoin-project/ref-fvm"
+authors = ["Protocol Labs", "Filecoin Core Devs"]
+
 [workspace.dependencies]
 # common
 serde = { version = "1.0.164", default-features = false, features = ["derive"] }
@@ -43,6 +50,11 @@ libipld-core = { version = "0.16.0", features = ["serde-codec"] }
 blake2b_simd = "1.0.1"
 libsecp256k1 = { version = "0.7.1" }
 bls-signatures = { version = "0.15", default-features = false }
+
+# wasmtime
+wasmtime = {version = "12.0.2", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation"] }
+wasmtime-environ = "12.0.2"
+wasmtime-runtime = { version = "12.0.2", default-features = false }
 
 # misc
 libfuzzer-sys = "0.4"
