@@ -39,22 +39,12 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.7.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a824f2aa7e75a0c98c5a504fceb80649e9c35265d44525b5f94de4771a395cd"
-dependencies = [
- "getrandom",
- "once_cell",
- "version_check",
-]
-
-[[package]]
-name = "ahash"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2c99f64d1e06488f620f932677e24bc6e2897582980441ae90a671415bd7ec2f"
 dependencies = [
  "cfg-if",
+ "getrandom",
  "once_cell",
  "version_check",
 ]
@@ -2905,7 +2895,7 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 dependencies = [
- "ahash 0.8.3",
+ "ahash",
 ]
 
 [[package]]
@@ -3084,7 +3074,7 @@ dependencies = [
 name = "ipld_amt_fuzz"
 version = "0.0.0"
 dependencies = [
- "ahash 0.7.7",
+ "ahash",
  "arbitrary",
  "cid 0.10.1",
  "fvm_ipld_amt 0.6.2",
@@ -3097,7 +3087,7 @@ dependencies = [
 name = "ipld_hamt-fuzz"
 version = "0.0.0"
 dependencies = [
- "ahash 0.7.7",
+ "ahash",
  "arbitrary",
  "fvm_ipld_blockstore 0.2.0",
  "fvm_ipld_hamt 0.9.0",
@@ -3108,7 +3098,7 @@ dependencies = [
 name = "ipld_kamt-fuzz"
 version = "0.0.0"
 dependencies = [
- "ahash 0.7.7",
+ "ahash",
  "arbitrary",
  "fvm_ipld_blockstore 0.2.0",
  "fvm_ipld_kamt 0.3.0",
