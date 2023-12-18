@@ -81,6 +81,9 @@ fvm_ipld_car = { path = "ipld/car" }
 fvm_ipld_blockstore = { path = "ipld/blockstore" }
 fvm_ipld_bitfield = { path = "ipld/bitfield" }
 fvm_ipld_encoding = { path = "ipld/encoding" }
+fvm_gas_calibration_shared = { path = "testing/calibration/shared" }
+fvm_integration_tests = { path = "testing/integration" }
+fvm_test_actors = { path = "testing/test_actors" }
 
 [profile.actor]
 inherits = "release"

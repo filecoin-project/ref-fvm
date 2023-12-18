@@ -8,7 +8,7 @@ publish = false
 fvm_sdk = { workspace = true }
 fvm_shared = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
-fvm_gas_calibration_shared = { path = "../../../calibration/shared" }
+fvm_gas_calibration_shared = { workspace = true }
 
 cid = { workspace = true }
 num-derive = { workspace = true }
