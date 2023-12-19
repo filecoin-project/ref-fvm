@@ -165,12 +165,17 @@ type InnerTestKernel = DefaultFilecoinKernel<DefaultCallManager<TestMachine>>;
 #[delegate(CryptoOps)]
 #[delegate(DebugOps)]
 #[delegate(EventOps)]
-#[delegate(GasOps)]
 #[delegate(MessageOps)]
 #[delegate(NetworkOps)]
 #[delegate(RandomnessOps)]
 #[delegate(SelfOps)]
 pub struct TestKernel(pub InnerTestKernel);
+
+impl TestKernel {
+    fn price_list(&self) -> &PriceList {
+        (self.0).0.call_manager.price_list()
+    }
+}
 
 impl Kernel for TestKernel {
     type CallManager = <InnerTestKernel as Kernel>::CallManager;
@@ -234,6 +239,14 @@ impl Kernel for TestKernel {
     fn limiter_mut(&mut self) -> &mut Self::Limiter {
         self.0.limiter_mut()
     }
+
+    fn gas_available(&self) -> Gas {
+        self.0.gas_available()
+    }
+
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
+        self.0.charge_gas(name, compute)
+    }
 }
 
 impl SyscallHandler<TestKernel> for TestKernel {
@@ -268,24 +281,23 @@ impl FilecoinKernel for TestKernel {
         extra: &[u8],
     ) -> Result<Option<ConsensusFault>> {
         let charge = self
-            .0
             .price_list()
             .on_verify_consensus_fault(h1.len(), h2.len(), extra.len());
-        let _ = self.0.charge_gas(&charge.name, charge.total())?;
+        let _ = self.charge_gas(&charge.name, charge.total())?;
         Ok(None)
     }
 
     // NOT forwarded
     fn verify_aggregate_seals(&self, agg: &AggregateSealVerifyProofAndInfos) -> Result<bool> {
-        let charge = self.0.price_list().on_verify_aggregate_seals(agg);
-        let _ = self.0.charge_gas(&charge.name, charge.total())?;
+        let charge = self.price_list().on_verify_aggregate_seals(agg);
+        let _ = self.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 
     // NOT forwarded
     fn verify_replica_update(&self, rep: &ReplicaUpdateInfo) -> Result<bool> {
-        let charge = self.0.price_list().on_verify_replica_update(rep);
-        let _ = self.0.charge_gas(&charge.name, charge.total())?;
+        let charge = self.price_list().on_verify_replica_update(rep);
+        let _ = self.charge_gas(&charge.name, charge.total())?;
         Ok(true)
     }
 

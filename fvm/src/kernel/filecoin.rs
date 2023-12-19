@@ -93,7 +93,6 @@ pub trait FilecoinKernel: Kernel {
 #[delegate(CryptoOps, where = "C: CallManager")]
 #[delegate(DebugOps, where = "C: CallManager")]
 #[delegate(EventOps, where = "C: CallManager")]
-#[delegate(GasOps, where = "C: CallManager")]
 #[delegate(MessageOps, where = "C: CallManager")]
 #[delegate(NetworkOps, where = "C: CallManager")]
 #[delegate(RandomnessOps, where = "C: CallManager")]
@@ -303,7 +302,15 @@ where
     }
 
     fn limiter_mut(&mut self) -> &mut Self::Limiter {
-        self.0.call_manager.limiter_mut()
+        self.0.limiter_mut()
+    }
+
+    fn gas_available(&self) -> Gas {
+        self.0.gas_available()
+    }
+
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
+        self.0.charge_gas(name, compute)
     }
 }
 

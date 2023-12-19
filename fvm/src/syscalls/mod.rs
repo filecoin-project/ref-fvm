@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Context as _};
 use num_traits::Zero;
-use wasmtime::{AsContextMut, ExternType, Global, Module, Val};
+use wasmtime::{AsContext, AsContextMut, ExternType, Global, Module, Val};
 
 use crate::call_manager::backtrace;
-use crate::gas::{Gas, GasInstant, GasTimer};
+use crate::gas::{Gas, GasInstant, GasTimer, WasmGasPrices};
 use crate::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
 use crate::kernel::{
-    ActorOps, CryptoOps, DebugOps, EventOps, ExecutionError, GasOps, IpldBlockOps, MessageOps,
-    NetworkOps, RandomnessOps, SelfOps, SyscallHandler,
+    ActorOps, CryptoOps, DebugOps, EventOps, ExecutionError, IpldBlockOps, MessageOps, NetworkOps,
+    RandomnessOps, SelfOps, SyscallHandler,
 };
 
 use crate::machine::limiter::MemoryLimiter;
@@ -65,6 +65,8 @@ pub(crate) struct InvocationData<K> {
 
     /// The invocation's imported "memory".
     pub memory: wasmtime::Memory,
+
+    pub wasm_prices: &'static WasmGasPrices,
 }
 
 /// Updates the global available gas in the Wasm module after a syscall, to account for any
@@ -136,7 +138,7 @@ pub(crate) fn charge_for_exec<K: Kernel>(
     let memory_bytes = data.kernel.limiter_mut().memory_used();
     let memory_delta_bytes = memory_bytes.saturating_sub(data.last_memory_bytes);
 
-    let mut memory_gas_charge = data.kernel.price_list().grow_memory_gas(memory_delta_bytes);
+    let mut memory_gas_charge = data.wasm_prices.grow_memory_gas(memory_delta_bytes);
     if memory_gas_charge <= exec_gas_charge {
         exec_gas_charge -= memory_gas_charge;
     } else {
@@ -169,6 +171,16 @@ pub(crate) fn charge_for_exec<K: Kernel>(
     Ok(())
 }
 
+pub(crate) fn charge_syscall_gas(
+    ctx: &mut impl AsContext<Data = InvocationData<impl Kernel>>,
+) -> Result<(), Abort> {
+    let data = ctx.as_context().data();
+    data.kernel
+        .charge_gas("OnSyscall", data.wasm_prices.host_call_cost)
+        .map_err(Abort::from_error_as_fatal)?;
+    Ok(())
+}
+
 /// Charge for the initial memory and tables before a Wasm module is instantiated.
 ///
 /// The Wasm instrumentation machinery via [fvm_wasm_instrument::gas_metering::MemoryGrowCost]
@@ -181,13 +193,13 @@ pub(crate) fn charge_for_init<K: Kernel>(
     let min_memory_bytes = min_memory_bytes(module)?;
     let mut ctx = ctx.as_context_mut();
     let data = ctx.data_mut();
-    let memory_gas = data.kernel.price_list().init_memory_gas(min_memory_bytes);
+    let memory_gas = data.wasm_prices.init_memory_gas(min_memory_bytes);
 
     // Adjust `last_memory_bytes` so that we don't charge for it again in `charge_for_exec`.
     data.last_memory_bytes += min_memory_bytes;
 
     if let Some(min_table_elements) = min_table_elements(module) {
-        let table_gas = data.kernel.price_list().init_table_gas(min_table_elements);
+        let table_gas = data.wasm_prices.init_table_gas(min_table_elements);
         data.kernel.charge_gas("wasm_table_init", table_gas)?;
     }
 
@@ -248,7 +260,6 @@ where
         + CryptoOps
         + DebugOps
         + EventOps
-        + GasOps
         + MessageOps
         + NetworkOps
         + RandomnessOps
@@ -338,7 +349,6 @@ where
         + CryptoOps
         + DebugOps
         + EventOps
-        + GasOps
         + MessageOps
         + NetworkOps
         + RandomnessOps

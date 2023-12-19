@@ -8,7 +8,7 @@ use wasmtime::{Caller, WasmTy};
 
 use super::context::Memory;
 use super::error::Abort;
-use super::{charge_for_exec, update_gas_available, Context, InvocationData};
+use super::{charge_for_exec, charge_syscall_gas, update_gas_available, Context, InvocationData};
 use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
@@ -141,15 +141,6 @@ fn memory_and_data<'a, K: Kernel>(
     (Memory::new(mem), data)
 }
 
-macro_rules! charge_syscall_gas {
-    ($kernel:expr) => {
-        let charge = $kernel.price_list().on_syscall();
-        $kernel
-            .charge_gas(&charge.name, charge.compute_gas)
-            .map_err(Abort::from_error_as_fatal)?;
-    };
-}
-
 // Unfortunately, we can't implement this for _all_ functions. So we implement it for functions of up to 6 arguments.
 macro_rules! impl_syscall {
     ($($t:ident)*) => {
@@ -171,9 +162,9 @@ macro_rules! impl_syscall {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
                     linker.0.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
+                        charge_syscall_gas(&mut caller)?;
 
                         let (mut memory, data) = memory_and_data(&mut caller);
-                        charge_syscall_gas!(data.kernel);
 
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
                         let out = self(ctx $(, $t)*).into_control_flow();
@@ -201,9 +192,9 @@ macro_rules! impl_syscall {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
                     linker.0.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
+                        charge_syscall_gas(&mut caller)?;
 
                         let (mut memory, data) = memory_and_data(&mut caller);
-                        charge_syscall_gas!(data.kernel);
 
                         // We need to check to make sure we can store the return value _before_ we do anything.
                         if (ret as u64) > (memory.len() as u64)

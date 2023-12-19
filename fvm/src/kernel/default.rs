@@ -269,6 +269,14 @@ where
     fn limiter_mut(&mut self) -> &mut Self::Limiter {
         self.call_manager.limiter_mut()
     }
+
+    fn gas_available(&self) -> Gas {
+        self.call_manager.gas_tracker().gas_available()
+    }
+
+    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
+        self.call_manager.gas_tracker().charge_gas(name, compute)
+    }
 }
 
 impl<C> DefaultKernel<C>
@@ -625,27 +633,6 @@ where
         )?;
 
         t.record(Ok(hasher.digest(data)))
-    }
-}
-
-impl<C> GasOps for DefaultKernel<C>
-where
-    C: CallManager,
-{
-    fn gas_used(&self) -> Gas {
-        self.call_manager.gas_tracker().gas_used()
-    }
-
-    fn gas_available(&self) -> Gas {
-        self.call_manager.gas_tracker().gas_available()
-    }
-
-    fn charge_gas(&self, name: &str, compute: Gas) -> Result<GasTimer> {
-        self.call_manager.gas_tracker().charge_gas(name, compute)
-    }
-
-    fn price_list(&self) -> &PriceList {
-        self.call_manager.price_list()
     }
 }
 

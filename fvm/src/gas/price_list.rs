@@ -259,8 +259,6 @@ lazy_static! {
 
         block_persist_compute: Gas::new(172000),
 
-        syscall_cost: Gas::new(14000),
-
         // TODO(#1347)
         builtin_actor_manifest_lookup: Zero::zero(),
         // TODO(#1347)
@@ -286,6 +284,8 @@ lazy_static! {
             // Charge 0.4gas/byte for copying/fill.
             memory_copy_per_byte_cost: Gas::from_milligas(400),
             memory_fill_per_byte_cost: Gas::from_milligas(400),
+
+            host_call_cost: Gas::new(14000),
         },
 
         event_per_entry: ScalingCost {
@@ -441,9 +441,6 @@ pub struct PriceList {
     /// Gas cost to cover the cost of flushing a block.
     pub(crate) block_persist_compute: Gas,
 
-    /// General gas cost for performing a syscall, accounting for the overhead thereof.
-    pub(crate) syscall_cost: Gas,
-
     /// Rules for execution gas.
     pub(crate) wasm_rules: WasmGasPrices,
 
@@ -504,6 +501,27 @@ pub struct WasmGasPrices {
     pub(crate) memory_access_cost: Gas,
     /// Gas cost for every byte copied in Wasm memory.
     pub(crate) memory_copy_per_byte_cost: Gas,
+
+    /// Gas cost for a call from wasm to the system.
+    pub(crate) host_call_cost: Gas,
+}
+
+impl WasmGasPrices {
+    /// Returns the gas required for initializing memory.
+    pub(crate) fn init_memory_gas(&self, min_memory_bytes: usize) -> Gas {
+        self.memory_fill_base_cost + self.memory_fill_per_byte_cost * min_memory_bytes
+    }
+
+    /// Returns the gas required for growing memory.
+    pub(crate) fn grow_memory_gas(&self, grow_memory_bytes: usize) -> Gas {
+        self.memory_fill_base_cost + self.memory_fill_per_byte_cost * grow_memory_bytes
+    }
+
+    /// Returns the gas required for initializing tables.
+    pub(crate) fn init_table_gas(&self, min_table_elements: u32) -> Gas {
+        self.memory_fill_base_cost
+            + self.memory_fill_per_byte_cost * min_table_elements * TABLE_ELEMENT_SIZE
+    }
 }
 
 impl PriceList {
@@ -553,11 +571,6 @@ impl PriceList {
                 Zero::zero(),
             )
         }
-    }
-
-    /// Returns the gas cost to be applied on a syscall.
-    pub fn on_syscall(&self) -> GasCharge {
-        GasCharge::new("OnSyscall", self.syscall_cost, Zero::zero())
     }
 
     /// Returns the gas required for creating an actor. Pass `true` to when explicitly assigning a
@@ -907,24 +920,6 @@ impl PriceList {
             self.install_wasm_per_byte_cost * wasm_size,
             Zero::zero(),
         )
-    }
-
-    /// Returns the gas required for initializing memory.
-    pub fn init_memory_gas(&self, min_memory_bytes: usize) -> Gas {
-        self.wasm_rules.memory_fill_base_cost
-            + self.wasm_rules.memory_fill_per_byte_cost * min_memory_bytes
-    }
-
-    /// Returns the gas required for growing memory.
-    pub fn grow_memory_gas(&self, grow_memory_bytes: usize) -> Gas {
-        self.wasm_rules.memory_fill_base_cost
-            + self.wasm_rules.memory_fill_per_byte_cost * grow_memory_bytes
-    }
-
-    /// Returns the gas required for initializing tables.
-    pub fn init_table_gas(&self, min_table_elements: u32) -> Gas {
-        self.wasm_rules.memory_fill_base_cost
-            + self.wasm_rules.memory_fill_per_byte_cost * min_table_elements * TABLE_ELEMENT_SIZE
     }
 
     #[inline]
