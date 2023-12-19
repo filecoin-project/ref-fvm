@@ -9,6 +9,8 @@ use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|bfs: [BitField; 3]| {
     let [bf1, bf2, bf3] = &bfs;
+
+    #[allow(clippy::eq_op)]
     {
         assert_eq!(bf1 | bf2, bf2 | bf1);
         assert_eq!(bf1 | bf3, bf3 | bf1);

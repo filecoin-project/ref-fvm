@@ -17,7 +17,7 @@ fuzz_target!(|p: Payload| {
             "artifacts/cbor_encode/bytes_produced_but_wont_decode.cbor",
         ))
         .unwrap();
-        f.write(out.as_slice()).unwrap();
+        f.write_all(out.as_slice()).unwrap();
     }
     let p2 = encoding::from_slice::<Payload>(&out).expect("everything that encodes must decode");
     let out2 = encoding::to_vec(&p2).expect("decoded payload must be possible to encode2");

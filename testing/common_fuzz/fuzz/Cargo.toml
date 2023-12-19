@@ -9,22 +9,16 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
-arbitrary = { version = "1.1", features = ["derive"] }
-rand = "0.8.5"
+libfuzzer-sys = { workspace = true }
+arbitrary ={ workspace = true, features = ["derive"] }
+rand = { workspace = true }
 cid = { workspace = true, features = ["serde-codec", "arb", "std"] }
-fvm_ipld_bitfield = { path = "../../../ipld/bitfield", features = ["enable-arbitrary"] }
-fvm_ipld_encoding = { path = "../../../ipld/encoding" }
-fvm_shared = { path = "../../../shared", features = ["arb"] }
-serde = { version = "1", features = ["derive"] }
+multihash = { workspace = true }
 
-# Prevent this from interfering with workspaces
-[workspace]
-members = ["."]
-
-[workspace.dependencies]
-cid = "0.10.1"
-multihash = "0.18.1"
+fvm_ipld_bitfield = { workspace = true, features = ["enable-arbitrary"] }
+fvm_ipld_encoding = { workspace = true }
+fvm_shared = { workspace = true, features = ["arb"] }
+serde = { workspace = true }
 
 [[bin]]
 name = "rle_ops"

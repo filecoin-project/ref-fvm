@@ -9,12 +9,12 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
 cid = { workspace = true }
-serde = { version = "1.0", features = ["derive"] }
-thiserror = "1.0"
-futures = "0.3.28"
-fvm_ipld_blockstore = { version = "0.2", path = "../blockstore" }
-fvm_ipld_encoding = { version = "0.4", path = "../encoding" }
-unsigned-varint = { version = "0.7.2", features = ["futures"] }
+serde = { workspace = true }
+thiserror = { workspace = true }
+unsigned-varint = { workspace = true, features = ["futures"] }
+fvm_ipld_blockstore = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+futures = { workspace = true }
 
 [dev-dependencies]
 async-std = { version = "1.12", features = ["attributes"] }

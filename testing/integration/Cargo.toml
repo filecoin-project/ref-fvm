@@ -1,47 +1,43 @@
 [package]
 name = "fvm_integration_tests"
 description = "Filecoin Virtual Machine integration tests framework"
-version = "4.0.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
 authors = ["Protocol Labs", "Filecoin Core Devs", "Polyphene"]
-repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-fvm = { version = "4.0.0", path = "../../fvm", default-features = false, features = ["testing", "upgrade-actor"] }
-fvm_shared = { version = "4.0.0", path = "../../shared", features = ["testing"] }
-fvm_ipld_car = { version = "0.7.1", path = "../../ipld/car" }
-fvm_ipld_blockstore = { version = "0.2.0", path = "../../ipld/blockstore" }
-fvm_ipld_encoding = { version = "0.4.0", path = "../../ipld/encoding" }
+fvm = { workspace = true, default-features = false, features = ["testing", "upgrade-actor"] }
+fvm_shared = { workspace = true, features = ["testing"] }
+fvm_ipld_car = { workspace = true }
+fvm_ipld_blockstore = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
 
-anyhow = "1.0.71"
+anyhow = { workspace = true }
 cid = { workspace = true }
-futures = "0.3.28"
+futures = { workspace = true }
 multihash = { workspace = true }
-num-traits = "0.2"
-lazy_static = "1.4.0"
-libsecp256k1 = "0.7.1"
-rand = "0.8.5"
-rand_chacha = "0.3"
-serde = { version = "1.0", features = ["derive"] }
-serde_tuple = "0.5"
-thiserror = "1.0.40"
-
-[dependencies.wasmtime]
-version = "12.0.2"
-default-features = false
-features = ["cranelift", "parallel-compilation"]
+num-traits = { workspace = true }
+lazy_static = { workspace = true }
+libsecp256k1 = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+serde = { workspace = true }
+serde_tuple = { workspace = true }
+thiserror = { workspace = true }
+wasmtime = { workspace = true, default-features = false, features = ["cranelift", "parallel-compilation"] }
 
 [dev-dependencies]
 actors-v12 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "master" }
-fvm_test_actors = { path = "../test_actors" }
-fvm_gas_calibration_shared = { path = "../calibration/shared" }
-blake2b_simd = "1.0.1"
-serde_json = "1.0"
+fvm_test_actors = { workspace = true }
+fvm_gas_calibration_shared = { workspace = true }
+blake2b_simd = { workspace = true }
+serde_json = { workspace = true }
+bls-signatures = { workspace = true }
+hex = { workspace = true }
+minstant =  { workspace = true }
 wat = "1.0.66"
-bls-signatures = { version = "0.15", default-features = false }
-hex = "0.4.3"
-minstant = "0.1.3"
 
 [features]
 default = []
