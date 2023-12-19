@@ -97,6 +97,8 @@ pub trait FilecoinKernel: Kernel {
 #[delegate(NetworkOps, where = "C: CallManager")]
 #[delegate(RandomnessOps, where = "C: CallManager")]
 #[delegate(SelfOps, where = "C: CallManager")]
+#[delegate(SendOps<K>, generics = "K", where = "K: FilecoinKernel")]
+#[delegate(UpgradeOps<K>, generics = "K", where = "K: FilecoinKernel")]
 pub struct DefaultFilecoinKernel<C>(pub DefaultKernel<C>);
 
 impl<C> FilecoinKernel for DefaultFilecoinKernel<C>
@@ -258,27 +260,6 @@ where
 
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine {
         self.0.machine()
-    }
-
-    fn send<K: Kernel<CallManager = C>>(
-        &mut self,
-        recipient: &Address,
-        method: u64,
-        params: BlockId,
-        value: &TokenAmount,
-        gas_limit: Option<Gas>,
-        flags: SendFlags,
-    ) -> Result<CallResult> {
-        self.0
-            .send::<Self>(recipient, method, params, value, gas_limit, flags)
-    }
-
-    fn upgrade_actor<K: Kernel<CallManager = Self::CallManager>>(
-        &mut self,
-        new_code_cid: Cid,
-        params_id: BlockId,
-    ) -> Result<CallResult> {
-        self.0.upgrade_actor::<Self>(new_code_cid, params_id)
     }
 
     fn new(

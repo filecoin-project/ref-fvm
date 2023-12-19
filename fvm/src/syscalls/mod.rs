@@ -9,7 +9,7 @@ use crate::gas::{Gas, GasInstant, GasTimer, WasmGasPrices};
 use crate::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
 use crate::kernel::{
     ActorOps, CryptoOps, DebugOps, EventOps, ExecutionError, IpldBlockOps, MessageOps, NetworkOps,
-    RandomnessOps, SelfOps, SyscallHandler,
+    RandomnessOps, SelfOps, SendOps, SyscallHandler, UpgradeOps,
 };
 
 use crate::machine::limiter::MemoryLimiter;
@@ -257,6 +257,8 @@ where
     K: Kernel
         + ActorOps
         + IpldBlockOps
+        + SendOps
+        + UpgradeOps
         + CryptoOps
         + DebugOps
         + EventOps
@@ -345,6 +347,8 @@ impl<K> SyscallHandler<K> for DefaultFilecoinKernel<K::CallManager>
 where
     K: FilecoinKernel
         + ActorOps
+        + SendOps
+        + UpgradeOps
         + IpldBlockOps
         + CryptoOps
         + DebugOps

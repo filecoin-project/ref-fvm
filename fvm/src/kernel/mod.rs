@@ -66,29 +66,6 @@ pub trait Kernel: SyscallHandler<Self> + 'static {
     /// The kernel's underlying "machine".
     fn machine(&self) -> &<Self::CallManager as CallManager>::Machine;
 
-    /// Sends a message to another actor.
-    /// The method type parameter K is the type of the kernel to instantiate for
-    /// the receiving actor. This is necessary to support wrapping a kernel, so the outer
-    /// kernel can specify its Self as the receiver's kernel type, rather than the wrapped
-    /// kernel specifying its Self.
-    /// This method is part of the Kernel trait so it can refer to the Self::CallManager
-    /// associated type necessary to constrain K.
-    fn send<K: Kernel<CallManager = Self::CallManager>>(
-        &mut self,
-        recipient: &Address,
-        method: u64,
-        params: BlockId,
-        value: &TokenAmount,
-        gas_limit: Option<Gas>,
-        flags: SendFlags,
-    ) -> Result<CallResult>;
-
-    fn upgrade_actor<K: Kernel<CallManager = Self::CallManager>>(
-        &mut self,
-        new_code_cid: Cid,
-        params_id: BlockId,
-    ) -> Result<CallResult>;
-
     /// Give access to the limiter of the underlying call manager.
     fn limiter_mut(&mut self) -> &mut Self::Limiter;
 
@@ -119,6 +96,34 @@ pub trait NetworkOps {
 pub trait MessageOps {
     /// Message information.
     fn msg_context(&self) -> Result<MessageContext>;
+}
+
+/// The actor calling operations.
+#[delegatable_trait]
+pub trait SendOps<K: Kernel = Self> {
+    /// Sends a message to another actor.
+    /// The method type parameter K is the type of the kernel to instantiate for
+    /// the receiving actor. This is necessary to support wrapping a kernel, so the outer
+    /// kernel can specify its Self as the receiver's kernel type, rather than the wrapped
+    /// kernel specifying its Self.
+    /// This method is part of the Kernel trait so it can refer to the Self::CallManager
+    /// associated type necessary to constrain K.
+    fn send(
+        &mut self,
+        recipient: &Address,
+        method: u64,
+        params: BlockId,
+        value: &TokenAmount,
+        gas_limit: Option<Gas>,
+        flags: SendFlags,
+    ) -> Result<CallResult>;
+}
+
+/// The actor upgrade operations.
+#[delegatable_trait]
+pub trait UpgradeOps<K: Kernel = Self> {
+    /// Upgrades the running actor to the specified code CID.
+    fn upgrade_actor(&mut self, new_code_cid: Cid, params_id: BlockId) -> Result<CallResult>;
 }
 
 /// The IPLD subset of the kernel.
@@ -291,7 +296,8 @@ pub trait EventOps {
 pub use {
     ambassador_impl_CryptoOps, ambassador_impl_DebugOps, ambassador_impl_EventOps,
     ambassador_impl_IpldBlockOps, ambassador_impl_MessageOps, ambassador_impl_NetworkOps,
-    ambassador_impl_RandomnessOps, ambassador_impl_SelfOps,
+    ambassador_impl_RandomnessOps, ambassador_impl_SelfOps, ambassador_impl_SendOps,
+    ambassador_impl_UpgradeOps,
 };
 
 /// Import this module (with a glob) if you're implementing a kernel, _especially_ if you want to
@@ -299,7 +305,7 @@ pub use {
 pub mod prelude {
     pub use super::{
         ActorOps, CryptoOps, DebugOps, EventOps, IpldBlockOps, MessageOps, NetworkOps,
-        RandomnessOps, SelfOps,
+        RandomnessOps, SelfOps, SendOps, UpgradeOps,
     };
     pub use super::{Block, BlockId, BlockRegistry, BlockStat, CallResult, Kernel, SyscallHandler};
     pub use crate::gas::{Gas, GasTimer, PriceList};
@@ -323,6 +329,7 @@ pub mod prelude {
         ambassador_impl_ActorOps, ambassador_impl_CryptoOps, ambassador_impl_DebugOps,
         ambassador_impl_EventOps, ambassador_impl_IpldBlockOps, ambassador_impl_MessageOps,
         ambassador_impl_NetworkOps, ambassador_impl_RandomnessOps, ambassador_impl_SelfOps,
+        ambassador_impl_SendOps, ambassador_impl_UpgradeOps,
     };
 }
 
