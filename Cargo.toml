@@ -10,6 +10,7 @@ members = [
     "ipld/kamt/fuzz",
     "testing/calibration/shared",
     "testing/conformance",
+    "testing/common_fuzz",
     "testing/common_fuzz/fuzz",
     "testing/integration",
     "testing/test_actors",
