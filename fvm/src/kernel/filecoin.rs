@@ -97,8 +97,8 @@ pub trait FilecoinKernel: Kernel {
 #[delegate(NetworkOps, where = "C: CallManager")]
 #[delegate(RandomnessOps, where = "C: CallManager")]
 #[delegate(SelfOps, where = "C: CallManager")]
-#[delegate(SendOps<K>, generics = "K", where = "C: CallManager, K: FilecoinKernel")]
-#[delegate(UpgradeOps<K>, generics = "K", where = "C: CallManager, K: FilecoinKernel")]
+#[delegate(SendOps<K>, generics = "K", where = "K: FilecoinKernel")]
+#[delegate(UpgradeOps<K>, generics = "K", where = "K: FilecoinKernel")]
 pub struct DefaultFilecoinKernel<C>(pub DefaultKernel<C>);
 
 impl<C> FilecoinKernel for DefaultFilecoinKernel<C>
