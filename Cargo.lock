@@ -740,6 +740,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "common_fuzz"
+version = "0.0.0"
+dependencies = [
+ "arbitrary",
+ "cid 0.10.1",
+ "fvm_ipld_bitfield 0.6.0",
+ "fvm_ipld_encoding 0.4.0",
+ "fvm_shared 4.0.0",
+ "libfuzzer-sys",
+ "multihash 0.18.1",
+ "rand",
+ "serde",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
