@@ -11,6 +11,7 @@ use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
+use crate::iter::IterImpl;
 use crate::node::Node;
 use crate::{AsHashedKey, Config, Error};
 
@@ -352,6 +353,24 @@ where
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
-        self.root.for_each(self.store.borrow(), &mut f)
+        for res in self {
+            let (k, v) = res?;
+            (f)(k, v)?;
+        }
+        Ok(())
+        }
+}
+impl<'a, BS, V, K, H, const N: usize > IntoIterator for &'a Kamt<BS, K, V, H, N>
+where
+    K: DeserializeOwned + PartialOrd,
+    V: DeserializeOwned,
+
+    BS: Blockstore,
+{
+    type Item = Result<(&'a K, &'a V), Error>;
+    type IntoIter = IterImpl<'a, BS, V, K, H, N>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }

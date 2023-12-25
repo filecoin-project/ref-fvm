@@ -22,6 +22,8 @@ pub enum Error {
     /// Cid not found in store error
     #[error("Cid ({0}) did not match any in database")]
     CidNotFound(String),
+    #[error("Iteration starting key not found in KAMT")]
+    StartKeyNotFound,
     /// Dynamic error for when the error needs to be forwarded as is.
     #[error("{0}")]
     Dynamic(anyhow::Error),

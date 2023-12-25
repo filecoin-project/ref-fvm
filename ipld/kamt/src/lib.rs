@@ -22,14 +22,14 @@ pub mod id;
 mod kamt;
 mod node;
 mod pointer;
-
+mod iter;
 use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
 pub use self::error::Error;
 pub use self::kamt::Kamt;
-
+pub use self::iter::Iter;
 /// Default bit width for indexing a hash at each depth level
 #[deprecated]
 const DEFAULT_BIT_WIDTH: u32 = 8;
