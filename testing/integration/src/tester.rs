@@ -6,7 +6,6 @@ use fvm::call_manager::DefaultCallManager;
 use fvm::engine::EnginePool;
 use fvm::executor::DefaultExecutor;
 use fvm::externs::Externs;
-use fvm::kernel::filecoin::DefaultFilecoinKernel;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor};
@@ -24,6 +23,7 @@ use multihash::Code;
 use crate::builtin::{
     fetch_builtin_code_cid, set_burnt_funds_account, set_eam_actor, set_init_actor, set_sys_actor,
 };
+use crate::custom_kernel::DefaultCustomKernel;
 use crate::dummy::DummyExterns;
 use crate::error::Error::{FailedToFlushTree, NoManifestInformation};
 
@@ -36,7 +36,7 @@ lazy_static! {
 pub trait Store: Blockstore + Sized + 'static {}
 
 pub type IntegrationExecutor<B, E> =
-    DefaultExecutor<DefaultFilecoinKernel<DefaultCallManager<DefaultMachine<B, E>>>>;
+    DefaultExecutor<DefaultCustomKernel<DefaultCallManager<DefaultMachine<B, E>>>>;
 
 pub type Account = (ActorID, Address);
 
@@ -298,7 +298,7 @@ where
         let machine = DefaultMachine::new(&mc, blockstore, externs)?;
 
         let executor = DefaultExecutor::<
-            DefaultFilecoinKernel<DefaultCallManager<DefaultMachine<B, E>>>,
+            DefaultCustomKernel<DefaultCallManager<DefaultMachine<B, E>>>,
         >::new(engine, machine)?;
 
         self.executor = Some(executor);

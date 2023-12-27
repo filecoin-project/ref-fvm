@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 mod builtin;
 pub mod bundle;
+pub mod custom_kernel;
 pub mod dummy;
 pub mod error;
 pub mod tester;

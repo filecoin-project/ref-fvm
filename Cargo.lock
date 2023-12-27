@@ -1828,6 +1828,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "fil_custom_syscall_actor"
+version = "0.1.0"
+dependencies = [
+ "cid 0.10.1",
+ "fvm_ipld_encoding 0.4.0",
+ "fvm_sdk 4.0.0",
+ "fvm_shared 4.0.0",
+ "num-traits",
+ "serde",
+ "serde_tuple",
+]
+
+[[package]]
 name = "fil_events_actor"
 version = "0.1.0"
 dependencies = [
@@ -2445,6 +2458,7 @@ dependencies = [
 name = "fvm_integration_tests"
 version = "4.0.0"
 dependencies = [
+ "ambassador",
  "anyhow",
  "blake2b_simd",
  "bls-signatures",
@@ -2456,6 +2470,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.2.0",
  "fvm_ipld_car 0.7.1",
  "fvm_ipld_encoding 0.4.0",
+ "fvm_sdk 4.0.0",
  "fvm_shared 4.0.0",
  "fvm_test_actors",
  "hex",

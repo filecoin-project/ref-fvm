@@ -20,9 +20,9 @@ use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_test_actors::wasm_bin::{
-    ADDRESS_ACTOR_BINARY, CREATE_ACTOR_BINARY, EXIT_DATA_ACTOR_BINARY, HELLO_WORLD_ACTOR_BINARY,
-    IPLD_ACTOR_BINARY, OOM_ACTOR_BINARY, READONLY_ACTOR_BINARY, SSELF_ACTOR_BINARY,
-    STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY, UPGRADE_ACTOR_BINARY,
+    ADDRESS_ACTOR_BINARY, CREATE_ACTOR_BINARY, CUSTOM_SYSCALL_ACTOR_BINARY, EXIT_DATA_ACTOR_BINARY,
+    HELLO_WORLD_ACTOR_BINARY, IPLD_ACTOR_BINARY, OOM_ACTOR_BINARY, READONLY_ACTOR_BINARY,
+    SSELF_ACTOR_BINARY, STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY, UPGRADE_ACTOR_BINARY,
     UPGRADE_RECEIVE_ACTOR_BINARY,
 };
 use num_traits::Zero;
@@ -1106,6 +1106,57 @@ fn readonly_actor_tests() {
         res.failure_info
     );
     assert!(res.msg_receipt.events_root.is_none());
+}
+
+#[test]
+fn custom_syscall() {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V21,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let [(_sender_id, sender_address)] = tester.create_accounts().unwrap();
+
+    let wasm_bin = CUSTOM_SYSCALL_ACTOR_BINARY;
+
+    // Set actor state
+    let actor_state = [(); 0];
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    let executor = tester.executor.as_mut().unwrap();
+
+    let message = Message {
+        from: sender_address,
+        to: actor_address,
+        gas_limit: 1000000000,
+        method_num: 1,
+        sequence: 0,
+        value: TokenAmount::from_atto(100),
+        ..Message::default()
+    };
+
+    let res = executor
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+
+    assert!(
+        res.msg_receipt.exit_code.is_success(),
+        "{:?}",
+        res.failure_info
+    );
 }
 
 #[test]
