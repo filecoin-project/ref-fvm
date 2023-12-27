@@ -168,7 +168,6 @@ where
         )
     }
 
-
     /// Search for a key.
     fn search<Q, S: Blockstore>(
         &self,
@@ -540,8 +539,6 @@ where
         self.bitfield.set_bit(idx);
         self.pointers.insert(i, Pointer::Dirty { node, ext })
     }
-
-
 
     fn get_child_mut(&mut self, i: usize) -> &mut Pointer<K, V, H, N> {
         &mut self.pointers[i]

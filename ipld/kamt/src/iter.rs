@@ -5,30 +5,29 @@ use std::iter::FusedIterator;
 
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::de::DeserializeOwned;
+use fvm_ipld_encoding::CborStore;
 
 use crate::hash_bits::HashBits;
 use crate::node::Node;
-use crate::pointer:: Pointer;
-use crate::{Config, Error, KeyValuePair,AsHashedKey};
+use crate::pointer::Pointer;
+use crate::{AsHashedKey, Config, Error, KeyValuePair};
 
 #[doc(hidden)]
-pub struct IterImpl<'a, BS, V, K , H , const N: usize = 32> {
+pub struct IterImpl<'a, BS, V, K, H, const N: usize = 32> {
     store: &'a BS,
-    conf: &'a Config,
     stack: Vec<std::slice::Iter<'a, Pointer<K, V, H, N>>>,
     current: std::slice::Iter<'a, KeyValuePair<K, V>>,
 }
 
-pub type Iter<'a, BS, V, K , H , const N: usize = 32> = IterImpl<'a, BS, V, K, H, N>;
-impl<'a, K, V, BS, H, const N: usize > IterImpl<'a, BS, V, K, H, N>
+pub type Iter<'a, BS, V, K, H, const N: usize = 32> = IterImpl<'a, BS, V, K, H, N>;
+impl<'a, K, V, BS, H, const N: usize> IterImpl<'a, BS, V, K, H, N>
 where
     K: DeserializeOwned,
     V: DeserializeOwned,
     BS: Blockstore,
 {
-    pub(crate) fn new(store: &'a BS, root: &'a Node<K, V, H, N>, conf: &'a Config) -> Self {
+    pub(crate) fn new(store: &'a BS, root: &'a Node<K, V, H, N>) -> Self {
         Self {
-            conf,
             store,
             stack: vec![root.pointers.iter()],
             current: [].iter(),
@@ -42,8 +41,8 @@ where
         conf: &'a Config,
     ) -> Result<Self, Error>
     where
-        K: Borrow<Q> ,
-        Q: PartialEq ,
+        K: Borrow<Q>,
+        Q: PartialEq,
         H: AsHashedKey<Q, N>,
     {
         let hashed_key = H::as_hashed_key(key);
@@ -55,30 +54,43 @@ where
             stack.push(node.pointers[node.index_for_bit_pos(idx)..].iter());
             node = match stack.last_mut().unwrap().next() {
                 Some(p) => match p {
-                    // Pointer::Link { cid, cache, .. } => cache.get_or_try_init(|| {
-                    //     Node::load(conf, store, cid, stack.len() as u32).map(Box::new)
-                    // })?,
-                    Pointer::Dirty{node, ..} => node,
+                    Pointer::Link { cid, cache, .. } => {
+                        if let Some(cached_node) = cache.get() {
+                            cached_node
+                        } else {
+                            let node =
+                                if let Some(node) = store.get_cbor::<Node<K, V, H, N>>(cid)? {
+                                    node
+                                } else {
+                                    #[cfg(not(feature = "ignore-dead-links"))]
+                                    return Err(Error::CidNotFound(cid.to_string()));
+
+                                    #[cfg(feature = "ignore-dead-links")]
+                                    continue;
+                                };
+
+                            // Ignore error intentionally, the cache value will always be the same
+                            cache.get_or_init(|| Box::new(node))
+                        }
+                    }
+                    Pointer::Dirty { node, .. } => node,
                     Pointer::Values(values) => {
                         return match values.iter().position(|kv| kv.key().borrow() == key) {
                             Some(offset) => Ok(Self {
-                                conf,
                                 store,
                                 stack,
                                 current: values[offset..].iter(),
                             }),
                             None => Err(Error::StartKeyNotFound),
                         }
-                    },
-                    _ => unimplemented!(),
-
+                    }
                 },
                 None => continue,
             };
         }
     }
 }
-impl<'a, K, V, BS, H, const N: usize > Iterator for IterImpl<'a, BS, V, K, H, N>
+impl<'a, K, V, BS, H, const N: usize> Iterator for IterImpl<'a, BS, V, K, H, N>
 where
     BS: Blockstore,
     K: DeserializeOwned + PartialOrd,
@@ -96,35 +108,40 @@ where
                 continue;
             };
             match next {
-                // Pointer::Link { cid, cache } => {
-                //     let node = match cache.get_or_try_init(|| {
-                //         Node::load(self.conf, &self.store, cid, self.stack.len() as u32)
-                //             .map(Box::new)
-                //     }) {
-                //         Ok(node) => node,
-                //         Err(e) => return Some(Err(e)),
-                //     };
-                //     self.stack.push(node.pointers.iter())
-                // }
-                Pointer::Dirty {node, ..} => self.stack.push(node.pointers.iter()),
+                Pointer::Link { cid, cache, .. } => {
+                    let node = if let Some(cached_node) = cache.get() {
+                        cached_node
+                    } else {
+                        let node = match self.store.get_cbor::<Node<K, V, H, N>>(cid) {
+                            Ok(Some(node)) => node,
+                            #[cfg(not(feature = "ignore-dead-links"))]
+                            Ok(None) => return Some(Err(Error::CidNotFound(cid.to_string()))),
+                            #[cfg(feature = "ignore-dead-links")]
+                            Ok(None) => continue,
+                            Err(err) => return Some(Err(err.into())),
+                        };
+
+                        // Ignore error intentionally, the cache value will always be the same
+                        cache.get_or_init(|| Box::new(node))
+                    };
+                    self.stack.push(node.pointers.iter())
+                }
+                Pointer::Dirty { node, .. } => self.stack.push(node.pointers.iter()),
                 Pointer::Values(kvs) => {
                     self.current = kvs.iter();
                     if let Some(v) = self.current.next() {
                         return Some(Ok((v.key(), v.value())));
                     }
                 }
-                _ => unimplemented!(),
             }
         }
     }
 }
 
-impl<'a, K, V, BS, H, const N: usize > FusedIterator for IterImpl<'a, BS, V, K, H, N>
+impl<'a, K, V, BS, H, const N: usize> FusedIterator for IterImpl<'a, BS, V, K, H, N>
 where
     K: DeserializeOwned + PartialOrd,
     V: DeserializeOwned,
     BS: Blockstore,
 {
 }
-
-
