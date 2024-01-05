@@ -1,0 +1,17 @@
+[package]
+name = "fil_custom_syscall_actor"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+fvm_sdk = { workspace = true }
+fvm_shared = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+cid = { workspace = true }
+serde = { workspace = true }
+serde_tuple = { workspace = true }
+num-traits = { workspace = true }
+
+[lib]
+crate-type = ["cdylib"] ## cdylib is necessary for Wasm build
