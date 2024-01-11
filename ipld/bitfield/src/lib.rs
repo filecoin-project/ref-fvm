@@ -39,7 +39,7 @@ impl From<OutOfRangeError> for Error {
 
 /// A bit field with buffered insertion/removal that serializes to/from RLE+. Similar to
 /// `HashSet<u64>`, but more memory-efficient when long runs of 1s and 0s are present.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Eq)]
 pub struct BitField {
     /// The underlying ranges of 1s.
     ranges: Vec<Range<u64>>,
