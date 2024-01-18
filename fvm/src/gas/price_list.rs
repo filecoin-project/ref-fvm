@@ -949,14 +949,18 @@ impl PriceList {
         // Charge for the hashing on AMT insertion.
         let hash = self.hashing_cost[&SupportedHashes::Blake2b256].apply(estimated_size);
 
-        GasCharge::new(
+        let gas =  GasCharge::new(
             "OnActorEvent",
             // Charge for validation/storing/serializing events.
             mem * 2u32 + validate_entries + validate_utf8,
             // Charge for forming the AMT and returning the events to the client.
             // one copy into the AMT, one copy to the client.
             hash + mem,
-        )
+        );
+
+        println!("OnActorEvent gas charge {}", gas.total());
+
+        gas
     }
 
     #[inline]

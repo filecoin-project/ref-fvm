@@ -417,13 +417,13 @@ where
             sender_state.code = *self.builtin_actors().get_ethaccount_code();
         }
 
-        if !sender_is_valid {
+      /*  if !sender_is_valid {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SYS_SENDER_INVALID,
                 "Send not from valid sender",
                 miner_penalty_amount,
             )));
-        };
+        };*/
 
         // Check sequence is correct
         if msg.sequence != sender_state.sequence {
