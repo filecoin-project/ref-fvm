@@ -24,3 +24,4 @@ fvm_ipld_encoding = { workspace = true }
 [features]
 default = []
 m2-native = []
+upgrade-actor = []
