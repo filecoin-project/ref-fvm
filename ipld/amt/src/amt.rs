@@ -462,6 +462,7 @@ where
 
     /// Iterates over each value in the Amt and runs a function on the values, for as long as that
     /// function keeps returning `true`.
+    #[deprecated = "use `.iter()` instead"]
     pub fn for_each_while<F>(&self, mut f: F) -> Result<(), Error>
     where
         F: FnMut(u64, &V) -> anyhow::Result<bool>,
