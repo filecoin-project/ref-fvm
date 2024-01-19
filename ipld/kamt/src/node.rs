@@ -608,7 +608,7 @@ where
 /// Helper method to check if a key matches an extension (if there is one)
 /// and return the number of levels skipped. If the key doesn't match,
 /// this will be the number of levels where the extension has to be split.
-fn match_extension<'a>(
+pub(crate) fn match_extension<'a>(
     conf: &Config,
     hashed_key: &mut HashBits,
     ext: &'a Extension,
@@ -628,14 +628,14 @@ fn match_extension<'a>(
 }
 
 /// Result of matching a `HashedKey` to an `Extension`.
-enum ExtensionMatch<'a> {
+pub(crate) enum ExtensionMatch<'a> {
     /// The hash fully matched the extension, which is also the case if there was no extension at all.
     Full { skipped: u32 },
     /// The hash matched some (potentially empty) prefix of the extension.
     Partial(PartialMatch<'a>),
 }
 
-struct PartialMatch<'a> {
+pub(crate) struct PartialMatch<'a> {
     /// The original extension.
     ext: &'a Extension,
     /// Number of bits matched.

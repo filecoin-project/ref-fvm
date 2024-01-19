@@ -7,9 +7,8 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::CborStore;
 
-use crate::ext::Extension;
 use crate::hash_bits::HashBits;
-use crate::node::Node;
+use crate::node::{match_extension, ExtensionMatch, Node};
 use crate::pointer::Pointer;
 use crate::{AsHashedKey, Config, Error, KeyValuePair};
 #[doc(hidden)]
@@ -154,41 +153,4 @@ where
     V: DeserializeOwned,
     BS: Blockstore,
 {
-}
-
-/// Helper method to check if a key matches an extension (if there is one)
-/// and return the number of levels skipped. If the key doesn't match,
-/// this will be the number of levels where the extension has to be split.
-fn match_extension<'a>(
-    conf: &Config,
-    hashed_key: &mut HashBits,
-    ext: &'a Extension,
-) -> Result<ExtensionMatch<'a>, Error> {
-    if ext.is_empty() {
-        Ok(ExtensionMatch::Full { skipped: 0 })
-    } else {
-        let matched = ext.longest_match(hashed_key, conf.bit_width)?;
-        let skipped = matched / conf.bit_width;
-
-        if matched == ext.len() {
-            Ok(ExtensionMatch::Full { skipped })
-        } else {
-            Ok(ExtensionMatch::Partial(PartialMatch { ext, matched }))
-        }
-    }
-}
-
-/// Result of matching a `HashedKey` to an `Extension`.
-enum ExtensionMatch<'a> {
-    /// The hash fully matched the extension, which is also the case if there was no extension at all.
-    Full { skipped: u32 },
-    /// The hash matched some (potentially empty) prefix of the extension.
-    Partial(PartialMatch<'a>),
-}
-
-struct PartialMatch<'a> {
-    /// The original extension.
-    ext: &'a Extension,
-    /// Number of bits matched.
-    matched: u32,
 }
