@@ -28,7 +28,6 @@ use std::borrow::Cow;
 use serde::{Deserialize, Serialize};
 
 pub use self::error::Error;
-pub use self::iter::Iter;
 pub use self::kamt::Kamt;
 /// Default bit width for indexing a hash at each depth level
 #[deprecated]

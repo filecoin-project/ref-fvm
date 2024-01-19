@@ -18,7 +18,6 @@ pub struct IterImpl<'a, BS, V, K, H, const N: usize = 32> {
     current: std::slice::Iter<'a, KeyValuePair<K, V>>,
 }
 
-pub type Iter<'a, BS, V, K, H, const N: usize = 32> = IterImpl<'a, BS, V, K, H, N>;
 impl<'a, K, V, BS, H, const N: usize> IterImpl<'a, BS, V, K, H, N>
 where
     K: DeserializeOwned,
@@ -44,15 +43,14 @@ where
         Q: PartialEq,
         H: AsHashedKey<Q, N>,
     {
-        println!("IterImpl::new_from");
         let hashed_key = H::as_hashed_key(key);
         let mut hash = HashBits::new(&hashed_key);
         let mut node = root;
-        let mut ext;
         let mut stack = Vec::new();
 
         loop {
             let idx = hash.next(conf.bit_width)?;
+            let ext;
             stack.push(node.pointers[node.index_for_bit_pos(idx)..].iter());
             (node, ext) = match stack.last_mut().unwrap().next() {
                 Some(p) => match p {

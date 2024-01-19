@@ -82,17 +82,6 @@ where
         }
     }
 
-    /// Construct kamt with a bit width
-    pub fn new_with_bit_width(store: BS, bit_width: u32) -> Self {
-        Self::new_with_config(
-            store,
-            Config {
-                bit_width,
-                ..Default::default()
-            },
-        )
-    }
-
     /// Lazily instantiate a Kamt from this root Cid.
     #[deprecated = "specify  config with an explicit bit-width"]
     pub fn load(cid: &Cid, store: BS) -> Result<Self, Error> {
@@ -407,7 +396,7 @@ where
     }
 
     /// Iterate over the KAMT starting at the given key.
-    /// iteration:
+    ///
     /// # Examples
     ///
     /// ```
@@ -440,10 +429,14 @@ where
     /// use fvm_ipld_kamt::Kamt;
     /// use fvm_ipld_blockstore::MemoryBlockstore;
     /// use fvm_ipld_kamt::id::Identity;
+    /// use fvm_ipld_kamt::Config;
     /// let store = MemoryBlockstore::default();
     ///
     /// // Create a Kamt with 5 keys, a-e.
-    /// let mut kamt: Kamt<_, u32, String, Identity> = Kamt::new_with_bit_width(store, 5);
+    /// let mut kamt: Kamt<_, u32, String, Identity> = Kamt::new_with_config(store,  Config {
+    ///        bit_width: 5,
+    ///        ..Default::default()
+    ///    });
     /// let kvs: Vec<(u32, String)> = ["a", "b", "c", "d", "e"]
     ///     .iter()
     ///     .enumerate()
