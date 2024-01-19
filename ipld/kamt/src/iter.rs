@@ -12,13 +12,13 @@ use crate::node::{match_extension, ExtensionMatch, Node};
 use crate::pointer::Pointer;
 use crate::{AsHashedKey, Config, Error, KeyValuePair};
 #[doc(hidden)]
-pub struct IterImpl<'a, BS, V, K, H, const N: usize = 32> {
+pub struct Iter<'a, BS, V, K, H, const N: usize = 32> {
     store: &'a BS,
     stack: Vec<std::slice::Iter<'a, Pointer<K, V, H, N>>>,
     current: std::slice::Iter<'a, KeyValuePair<K, V>>,
 }
 
-impl<'a, K, V, BS, H, const N: usize> IterImpl<'a, BS, V, K, H, N>
+impl<'a, K, V, BS, H, const N: usize> Iter<'a, BS, V, K, H, N>
 where
     K: DeserializeOwned,
     V: DeserializeOwned,
@@ -97,7 +97,7 @@ where
         }
     }
 }
-impl<'a, K, V, BS, H, const N: usize> Iterator for IterImpl<'a, BS, V, K, H, N>
+impl<'a, K, V, BS, H, const N: usize> Iterator for Iter<'a, BS, V, K, H, N>
 where
     BS: Blockstore,
     K: DeserializeOwned + PartialOrd,
@@ -145,7 +145,7 @@ where
     }
 }
 
-impl<'a, K, V, BS, H, const N: usize> FusedIterator for IterImpl<'a, BS, V, K, H, N>
+impl<'a, K, V, BS, H, const N: usize> FusedIterator for Iter<'a, BS, V, K, H, N>
 where
     K: DeserializeOwned + PartialOrd,
     V: DeserializeOwned,

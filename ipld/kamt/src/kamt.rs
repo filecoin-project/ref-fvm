@@ -11,7 +11,7 @@ use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
-use crate::iter::IterImpl;
+use crate::iter::Iter;
 use crate::node::Node;
 use crate::{AsHashedKey, Config, Error};
 
@@ -391,8 +391,8 @@ where
     /// }
     /// assert_eq!(x,2)
     /// ```
-    pub fn iter(&self) -> IterImpl<BS, V, K, H, N> {
-        IterImpl::new(&self.store, &self.root)
+    pub fn iter(&self) -> Iter<BS, V, K, H, N> {
+        Iter::new(&self.store, &self.root)
     }
 
     /// Iterate over the KAMT starting at the given key.
@@ -463,13 +463,13 @@ where
     /// # anyhow::Ok(())
     /// ```
 
-    pub fn iter_from<Q>(&self, key: &Q) -> Result<IterImpl<BS, V, K, H, N>, Error>
+    pub fn iter_from<Q>(&self, key: &Q) -> Result<Iter<BS, V, K, H, N>, Error>
     where
         K: Borrow<Q>,
         Q: PartialEq,
         H: AsHashedKey<Q, N>,
     {
-        IterImpl::new_from(&self.store, &self.root, key, &self.conf)
+        Iter::new_from(&self.store, &self.root, key, &self.conf)
     }
 }
 
@@ -481,7 +481,7 @@ where
     BS: Blockstore,
 {
     type Item = Result<(&'a K, &'a V), Error>;
-    type IntoIter = IterImpl<'a, BS, V, K, H, N>;
+    type IntoIter = Iter<'a, BS, V, K, H, N>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
