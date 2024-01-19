@@ -7,11 +7,11 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::CborStore;
 
+use crate::ext::Extension;
 use crate::hash_bits::HashBits;
 use crate::node::Node;
 use crate::pointer::Pointer;
 use crate::{AsHashedKey, Config, Error, KeyValuePair};
-
 #[doc(hidden)]
 pub struct IterImpl<'a, BS, V, K, H, const N: usize = 32> {
     store: &'a BS,
@@ -45,18 +45,23 @@ where
         Q: PartialEq,
         H: AsHashedKey<Q, N>,
     {
+        println!("IterImpl::new_from");
         let hashed_key = H::as_hashed_key(key);
         let mut hash = HashBits::new(&hashed_key);
         let mut node = root;
+        let mut ext;
         let mut stack = Vec::new();
+
         loop {
             let idx = hash.next(conf.bit_width)?;
             stack.push(node.pointers[node.index_for_bit_pos(idx)..].iter());
-            node = match stack.last_mut().unwrap().next() {
+            (node, ext) = match stack.last_mut().unwrap().next() {
                 Some(p) => match p {
-                    Pointer::Link { cid, cache, .. } => {
+                    Pointer::Link {
+                        cid, cache, ext, ..
+                    } => {
                         if let Some(cached_node) = cache.get() {
-                            cached_node
+                            (cached_node, ext)
                         } else {
                             let node =
                                 if let Some(node) = store.get_cbor::<Node<K, V, H, N>>(cid)? {
@@ -70,10 +75,10 @@ where
                                 };
 
                             // Ignore error intentionally, the cache value will always be the same
-                            cache.get_or_init(|| Box::new(node))
+                            (cache.get_or_init(|| Box::new(node)), ext)
                         }
                     }
-                    Pointer::Dirty { node, .. } => node,
+                    Pointer::Dirty { node, ext, .. } => (node, ext),
                     Pointer::Values(values) => {
                         return match values.iter().position(|kv| kv.key().borrow() == key) {
                             Some(offset) => Ok(Self {
@@ -87,6 +92,11 @@ where
                 },
                 None => continue,
             };
+
+            match match_extension(conf, &mut hash, ext)? {
+                ExtensionMatch::Full { .. } => {}
+                ExtensionMatch::Partial { .. } => return Err(Error::StartKeyNotFound),
+            }
         }
     }
 }
@@ -144,4 +154,41 @@ where
     V: DeserializeOwned,
     BS: Blockstore,
 {
+}
+
+/// Helper method to check if a key matches an extension (if there is one)
+/// and return the number of levels skipped. If the key doesn't match,
+/// this will be the number of levels where the extension has to be split.
+fn match_extension<'a>(
+    conf: &Config,
+    hashed_key: &mut HashBits,
+    ext: &'a Extension,
+) -> Result<ExtensionMatch<'a>, Error> {
+    if ext.is_empty() {
+        Ok(ExtensionMatch::Full { skipped: 0 })
+    } else {
+        let matched = ext.longest_match(hashed_key, conf.bit_width)?;
+        let skipped = matched / conf.bit_width;
+
+        if matched == ext.len() {
+            Ok(ExtensionMatch::Full { skipped })
+        } else {
+            Ok(ExtensionMatch::Partial(PartialMatch { ext, matched }))
+        }
+    }
+}
+
+/// Result of matching a `HashedKey` to an `Extension`.
+enum ExtensionMatch<'a> {
+    /// The hash fully matched the extension, which is also the case if there was no extension at all.
+    Full { skipped: u32 },
+    /// The hash matched some (potentially empty) prefix of the extension.
+    Partial(PartialMatch<'a>),
+}
+
+struct PartialMatch<'a> {
+    /// The original extension.
+    ext: &'a Extension,
+    /// Number of bits matched.
+    matched: u32,
 }
