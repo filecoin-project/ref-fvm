@@ -161,6 +161,7 @@ super::fvm_syscalls! {
     /// | [`IllegalArgument`]   | invalid code cid buffer.                                        |
     /// | [`Forbidden`]         | the actor is not allowed to upgrade (e.g., due to re-entrency). |
     /// | [`ReadOnly`]          | the actor is executing in read-only mode.                       |
+    #[cfg(feature = "upgrade-actor")]
     pub fn upgrade_actor(
         new_code_cid_off: *const u8,
         params: u32,
@@ -168,6 +169,7 @@ super::fvm_syscalls! {
 
     /// Installs and ensures actor code is valid and loaded.
     /// **Privileged:** May only be called by the init actor.
+    #[cfg(feature = "m2-native")]
     pub fn install_actor(cid_off: *const u8) -> Result<()>;
 
     /// Gets the balance of the specified actor.

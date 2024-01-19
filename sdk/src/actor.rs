@@ -3,14 +3,13 @@
 use std::ptr; // no_std
 
 use cid::Cid;
-use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_shared::address::{Address, Payload, MAX_ADDRESS_LEN};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::{ActorID, Response, MAX_CID_LEN};
+use fvm_shared::{ActorID, MAX_CID_LEN};
 use log::error;
 
-use crate::{build_response, sys, SyscallResult, NO_DATA_BLOCK_ID};
+use crate::{sys, SyscallResult};
 
 /// Resolves the ID address of an actor. Returns `None` if the address cannot be resolved.
 /// Successfully resolving an address doesn't necessarily mean the actor exists (e.g., if the
@@ -108,7 +107,12 @@ pub fn create_actor(
 }
 
 /// Upgrades an actor using the given block which includes the old code cid and the upgrade params
-pub fn upgrade_actor(new_code_cid: &Cid, params: Option<IpldBlock>) -> SyscallResult<Response> {
+#[cfg(feature = "upgrade-actor")]
+pub fn upgrade_actor(
+    new_code_cid: &Cid,
+    params: Option<fvm_ipld_encoding::ipld_block::IpldBlock>,
+) -> SyscallResult<fvm_shared::Response> {
+    use crate::{build_response, NO_DATA_BLOCK_ID};
     unsafe {
         let cid = new_code_cid.to_bytes();
 
@@ -124,6 +128,7 @@ pub fn upgrade_actor(new_code_cid: &Cid, params: Option<IpldBlock>) -> SyscallRe
 
 /// Installs or ensures an actor code CID is valid and loaded.
 /// Note: this is a privileged syscall, restricted to the init actor.
+#[cfg(feature = "m2-native")]
 pub fn install_actor(code_cid: &Cid) -> SyscallResult<()> {
     let cid = code_cid.to_bytes();
     unsafe { sys::actor::install_actor(cid.as_ptr()) }
