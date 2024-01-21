@@ -487,3 +487,79 @@ where
         self.iter()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::id::Identity;
+    use fvm_ipld_blockstore::MemoryBlockstore;
+
+    #[test]
+
+    fn test_iter_from() -> anyhow::Result<()> {
+        let store = MemoryBlockstore::default();
+
+        // Create a Kamt with 5 keys, a-e.
+        let mut kamt: Kamt<_, [u8; 32], String, Identity> =
+            Kamt::new_with_config(store, Config::default());
+
+        let keys: Vec<[u8; 32]> = vec![
+            hex::decode("0000000000000000000000000000000000000000000000000000000000000001")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0000000000000000000000000000000000000000000000000000000000000002")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0100000000000000000000000000000000000000000000000000000000000001")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0100000000000000000000000000000000000000000000000000000000000002")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0100000000000000000000000000000000000000000000000000000000000003")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0200000000000000000000000000000000000000000000000000000000000001")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0200000000000000000000000000000000000000000000000000000000000002")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+        ];
+
+        // let mut kvs: Vec<(&[u8; 32], &String)> = Vec::new();
+
+        for (i, key) in keys.iter().enumerate() {
+            let value = format!("value{}", i + 1);
+
+            // kvs.push((key, &values[i]));
+            kamt.set(*key, value)?;
+        }
+        let kvs: Vec<(&[u8; 32], &String)> = keys
+            .iter()
+            .map(|k| (k, kamt.get(k).unwrap().unwrap()))
+            .collect();
+
+        // Read 2 elements.
+        let mut results = kamt.iter().take(2).collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(results.len(), 2);
+
+        // Read the rest then sort.
+        for res in kamt.iter_from(results.last().unwrap().0)?.skip(1) {
+            results.push(res?);
+        }
+        results.sort_by_key(|kv| kv.1);
+
+        // Assert that we got out what we put in.
+        assert_eq!(kvs, results);
+
+        Ok(())
+    }
+}
