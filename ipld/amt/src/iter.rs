@@ -42,17 +42,13 @@ where
     /// # anyhow::Ok(())
     /// ```
     pub fn iter(&self) -> Iter<'_, V, &BS, Ver> {
-        Iter {
-            stack: vec![IterStack {
-                node: &self.root.node,
-                idx: 0,
-            }],
-            height: self.root.height,
-            blockstore: &self.block_store,
-            bit_width: self.bit_width(),
-            ver: PhantomData,
-            key: 0,
-        }
+        Iter::new(
+            &self.root.node,
+            &self.block_store,
+            self.height(),
+            self.bit_width(),
+            0,
+        )
     }
 
     /// Iterate over the AMT from the given starting point.
@@ -70,7 +66,7 @@ where
     ///     .map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string()))
     ///     .collect::<Vec<_>>();
     ///
-    /// for kv in amt.iter_from(3) {
+    /// for kv in amt.iter_from(3)? {
     ///     let (k, v) = kv?;
     ///     println!("{k:?}: {v:?}");
     /// }
@@ -97,7 +93,7 @@ where
             });
         }
 
-        let mut stack = vec![];
+        let mut stack = Vec::with_capacity(height as usize);
         let mut node = &self.root.node;
         let mut offset = 0;
         loop {
@@ -173,6 +169,27 @@ pub struct Iter<'a, V, BS, Ver> {
     bit_width: u32,
     ver: PhantomData<Ver>,
     key: u64,
+}
+
+impl<'a, V, BS, Ver> Iter<'a, V, &'a BS, Ver> {
+    pub(crate) fn new(
+        node: &'a Node<V>,
+        blockstore: &'a BS,
+        height: u32,
+        bit_width: u32,
+        offset: u64,
+    ) -> Self {
+        let mut stack = Vec::with_capacity(height as usize);
+        stack.push(IterStack { node, idx: 0 });
+        Iter {
+            stack,
+            height,
+            blockstore,
+            bit_width,
+            ver: PhantomData,
+            key: offset,
+        }
+    }
 }
 
 pub struct IterStack<'a, V> {

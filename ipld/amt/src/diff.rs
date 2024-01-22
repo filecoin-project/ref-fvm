@@ -9,7 +9,9 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use serde::{de::DeserializeOwned, Serialize};
 
+use crate::iter::Iter;
 use crate::node::{CollapsedNode, Link};
+use crate::root::version;
 
 use super::*;
 
@@ -108,14 +110,14 @@ where
         Node::Leaf { vals } => vals.len(),
         Node::Link { links } => links.len(),
     });
-    node.for_each_while(ctx.store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
+    for kv in Iter::<_, _, version::V3>::new(node, ctx.store, ctx.height, ctx.bit_width, offset) {
+        let (k, v) = kv?;
         changes.push(Change {
-            key: i,
+            key: k,
             before: None,
-            after: Some(x.clone()),
+            after: Some(v.clone()),
         });
-        Ok(true)
-    })?;
+    }
 
     Ok(changes)
 }
@@ -133,14 +135,14 @@ where
         Node::Leaf { vals } => vals.len(),
         Node::Link { links } => links.len(),
     });
-    node.for_each_while(ctx.store, ctx.height, ctx.bit_width, offset, &mut |i, x| {
+    for kv in Iter::<_, _, version::V3>::new(node, ctx.store, ctx.height, ctx.bit_width, offset) {
+        let (k, v) = kv?;
         changes.push(Change {
-            key: i,
-            before: Some(x.clone()),
+            key: k,
+            before: Some(v.clone()),
             after: None,
         });
-        Ok(true)
-    })?;
+    }
 
     Ok(changes)
 }

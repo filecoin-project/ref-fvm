@@ -420,61 +420,6 @@ where
         }
     }
 
-    pub(super) fn for_each_while<S, F>(
-        &self,
-        bs: &S,
-        height: u32,
-        bit_width: u32,
-        offset: u64,
-        f: &mut F,
-    ) -> Result<bool, Error>
-    where
-        F: FnMut(u64, &V) -> anyhow::Result<bool>,
-        S: Blockstore,
-    {
-        match self {
-            Node::Leaf { vals } => {
-                for (i, v) in (0..).zip(vals.iter()) {
-                    if let Some(v) = v {
-                        let keep_going = f(offset + i, v)?;
-
-                        if !keep_going {
-                            return Ok(false);
-                        }
-                    }
-                }
-            }
-            Node::Link { links } => {
-                for (i, l) in (0..).zip(links.iter()) {
-                    if let Some(l) = l {
-                        let offs = offset + (i * nodes_for_height(bit_width, height));
-                        let keep_going = match l {
-                            Link::Dirty(sub) => {
-                                sub.for_each_while(bs, height - 1, bit_width, offs, f)?
-                            }
-                            Link::Cid { cid, cache } => {
-                                let cached_node = cache.get_or_try_init(|| {
-                                    bs.get_cbor::<CollapsedNode<V>>(cid)?
-                                        .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
-                                        .expand(bit_width)
-                                        .map(Box::new)
-                                })?;
-
-                                cached_node.for_each_while(bs, height - 1, bit_width, offs, f)?
-                            }
-                        };
-
-                        if !keep_going {
-                            return Ok(false);
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(true)
-    }
-
     /// Returns a `(keep_going, did_mutate)` pair. `keep_going` will be `false` iff
     /// a closure call returned `Ok(false)`, indicating that a `break` has happened.
     /// `did_mutate` will be `true` iff any of the values in the node was actually
