@@ -11,7 +11,8 @@ use crate::hash_bits::HashBits;
 use crate::node::{match_extension, ExtensionMatch, Node};
 use crate::pointer::Pointer;
 use crate::{AsHashedKey, Config, Error, KeyValuePair};
-#[doc(hidden)]
+
+/// Iterator over a KAMT. Items are ordered by-key, ascending.
 pub struct Iter<'a, BS, V, K, H, const N: usize = 32> {
     store: &'a BS,
     stack: Vec<std::slice::Iter<'a, Pointer<K, V, H, N>>>,
