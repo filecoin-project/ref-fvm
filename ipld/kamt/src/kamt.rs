@@ -534,12 +534,9 @@ mod tests {
                 .unwrap(),
         ];
 
-        // let mut kvs: Vec<(&[u8; 32], &String)> = Vec::new();
-
         for (i, key) in keys.iter().enumerate() {
             let value = format!("value{}", i + 1);
 
-            // kvs.push((key, &values[i]));
             kamt.set(*key, value)?;
         }
         let kvs: Vec<(&[u8; 32], &String)> = keys
@@ -551,11 +548,10 @@ mod tests {
         let mut results = kamt.iter().take(2).collect::<Result<Vec<_>, _>>()?;
         assert_eq!(results.len(), 2);
 
-        // Read the rest then sort.
+        // Read the rest. Don't bother sorting because the KAMT stores keys in sorted order.
         for res in kamt.iter_from(results.last().unwrap().0)?.skip(1) {
             results.push(res?);
         }
-        results.sort_by_key(|kv| kv.1);
 
         // Assert that we got out what we put in.
         assert_eq!(kvs, results);
