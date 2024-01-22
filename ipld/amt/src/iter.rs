@@ -5,6 +5,7 @@ use crate::node::CollapsedNode;
 use crate::node::{Link, Node};
 use crate::MAX_INDEX;
 use crate::{nodes_for_height, Error};
+use anyhow::anyhow;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::CborStore;
@@ -52,6 +53,103 @@ where
             ver: PhantomData,
             key: 0,
         }
+    }
+
+    /// Iterate over the AMT from the given starting point.
+    ///
+    /// ```rust
+    /// use fvm_ipld_amt::Amt;
+    /// use fvm_ipld_blockstore::MemoryBlockstore;
+    ///
+    /// let store = MemoryBlockstore::default();
+    ///
+    /// let mut amt = Amt::new(store);
+    /// let kvs: Vec<u64> = (0..=5).collect();
+    /// kvs
+    ///     .iter()
+    ///     .map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string()))
+    ///     .collect::<Vec<_>>();
+    ///
+    /// for kv in amt.iter_from(3) {
+    ///     let (k, v) = kv?;
+    ///     println!("{k:?}: {v:?}");
+    /// }
+    ///
+    /// # anyhow::Ok(())
+    /// ```
+    pub fn iter_from(&self, start: u64) -> Result<Iter<'_, V, &BS, Ver>, Error> {
+        // Short-circuit when we're starting at 0.
+        if start == 0 {
+            return Ok(self.iter());
+        }
+
+        let height = self.height();
+        let bit_width = self.bit_width();
+
+        if start >= nodes_for_height(bit_width, height + 1) {
+            return Ok(Iter {
+                height,
+                bit_width,
+                stack: Vec::new(),
+                blockstore: &self.block_store,
+                ver: PhantomData,
+                key: start,
+            });
+        }
+
+        let mut stack = vec![];
+        let mut node = &self.root.node;
+        let mut offset = 0;
+        loop {
+            let start_idx = start.saturating_sub(offset);
+            match node {
+                Node::Leaf { vals } => {
+                    if start_idx >= vals.len() as u64 {
+                        // Not deep enough.
+                        return Err(anyhow!("incorrect height for tree depth: expected values at depth {}, found them at {}", height, stack.len()).into());
+                    }
+                    stack.push(IterStack {
+                        node,
+                        idx: start_idx as usize,
+                    });
+                    break;
+                }
+                Node::Link { links } => {
+                    let nfh =
+                        nodes_for_height(self.bit_width(), self.height() - stack.len() as u32);
+                    let idx: usize = (start_idx / nfh).try_into().expect("index overflow");
+                    assert!(idx < links.len(), "miscalculated nodes for height");
+                    let Some(l) = &links[idx] else {
+                        // If there's nothing here, mark this as the starting point. We'll start
+                        // scanning here when we iterate.
+                        stack.push(IterStack { node, idx });
+                        break;
+                    };
+                    let sub = match l {
+                        Link::Dirty(sub) => sub,
+                        Link::Cid { cid, cache } => cache.get_or_try_init(|| {
+                            self.block_store
+                                .get_cbor::<CollapsedNode<V>>(cid)?
+                                .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                .expand(self.bit_width())
+                                .map(Box::new)
+                        })?,
+                    };
+                    // Push idx+1 because we've already processed this node.
+                    stack.push(IterStack { node, idx: idx + 1 });
+                    node = sub;
+                    offset += idx as u64 * nfh;
+                }
+            }
+        }
+        Ok(Iter {
+            stack,
+            height,
+            bit_width,
+            blockstore: &self.block_store,
+            ver: PhantomData,
+            key: start,
+        })
     }
 }
 

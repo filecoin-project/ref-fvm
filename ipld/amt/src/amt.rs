@@ -508,6 +508,7 @@ where
     /// assert_eq!(num_traversed, 3);
     /// assert_eq!(next_idx, Some(10));
     /// ```
+    #[deprecated = "use `.iter_from()` and `.take(limit)` instead"]
     pub fn for_each_ranged<F>(
         &self,
         start_at: Option<u64>,
@@ -517,25 +518,16 @@ where
     where
         F: FnMut(u64, &V) -> anyhow::Result<()>,
     {
-        if let Some(start_at) = start_at {
-            if start_at >= nodes_for_height(self.bit_width(), self.height() + 1) {
-                return Ok((0, None));
+        let mut num_traversed = 0;
+        for kv in self.iter_from(start_at.unwrap_or(0))? {
+            let (k, v) = kv?;
+            if limit.map(|l| num_traversed >= l).unwrap_or(false) {
+                return Ok((num_traversed, Some(k)));
             }
+            num_traversed += 1;
+            f(k, v)?;
         }
-
-        let (_, num_traversed, next_index) = self.root.node.for_each_while_ranged(
-            &self.block_store,
-            start_at,
-            limit,
-            self.height(),
-            self.bit_width(),
-            0,
-            &mut |i, v| {
-                f(i, v)?;
-                Ok(true)
-            },
-        )?;
-        Ok((num_traversed, next_index))
+        Ok((num_traversed, None))
     }
 
     /// Iterates over values in the Amt and runs a function on the values, for as long as that
@@ -547,6 +539,7 @@ where
     /// `limit` elements have been traversed. Returns a tuple describing the number of elements
     /// iterated over and optionally the index of the next element in the AMT if more elements
     /// remain.
+    #[deprecated = "use `.iter_from()` and `.take(limit)` instead"]
     pub fn for_each_while_ranged<F>(
         &self,
         start_at: Option<u64>,
@@ -556,22 +549,17 @@ where
     where
         F: FnMut(u64, &V) -> anyhow::Result<bool>,
     {
-        if let Some(start_at) = start_at {
-            if start_at >= nodes_for_height(self.bit_width(), self.height() + 1) {
-                return Ok((0, None));
+        let mut num_traversed = 0;
+        let mut keep_going = true;
+        for kv in self.iter_from(start_at.unwrap_or(0))? {
+            let (k, v) = kv?;
+            if !keep_going || limit.map(|l| num_traversed >= l).unwrap_or(false) {
+                return Ok((num_traversed, Some(k)));
             }
+            num_traversed += 1;
+            keep_going = f(k, v)?;
         }
-
-        let (_, num_traversed, next_index) = self.root.node.for_each_while_ranged(
-            &self.block_store,
-            start_at,
-            limit,
-            self.height(),
-            self.bit_width(),
-            0,
-            &mut f,
-        )?;
-        Ok((num_traversed, next_index))
+        Ok((num_traversed, None))
     }
 
     /// Iterates over each value in the Amt and runs a function on the values that allows modifying

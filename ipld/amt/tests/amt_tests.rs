@@ -420,6 +420,7 @@ fn for_each_ranged() {
     // Iterate over amt with dirty cache from different starting values
     for start_val in 0..RANGE {
         let mut retrieved_values = Vec::new();
+        #[allow(deprecated)]
         let (count, next_key) = a
             .for_each_while_ranged(Some(start_val), None, |index, _: &BytesDe| {
                 retrieved_values.push(index);
@@ -435,6 +436,7 @@ fn for_each_ranged() {
 
     // Iterate out of bounds
     for i in [RANGE, RANGE + 1, 2 * RANGE, 8 * RANGE] {
+        #[allow(deprecated)]
         let (count, next_key) = a
             .for_each_while_ranged(Some(i), None, |_, _: &BytesDe| {
                 panic!("didn't expect to iterate")
@@ -447,6 +449,7 @@ fn for_each_ranged() {
     // Iterate over amt with dirty cache with different page sizes
     for page_size in 1..=RANGE {
         let mut retrieved_values = Vec::new();
+        #[allow(deprecated)]
         let (count, next_key) = a
             .for_each_while_ranged(None, Some(page_size), |index, _: &BytesDe| {
                 retrieved_values.push(index);
@@ -468,6 +471,7 @@ fn for_each_ranged() {
     let mut retrieved_values = Vec::new();
     let mut start_cursor = None;
     loop {
+        #[allow(deprecated)]
         let (num_traversed, next_cursor) = a
             .for_each_while_ranged(start_cursor, Some(page_size), |idx, _val| {
                 retrieved_values.push(idx);
@@ -493,6 +497,7 @@ fn for_each_ranged() {
     let mut retrieved_values = Vec::new();
     let mut start_cursor = None;
     loop {
+        #[allow(deprecated)]
         let (num_traversed, next_cursor) = a
             .for_each_ranged(start_cursor, Some(page_size), |idx, _val: &BytesDe| {
                 retrieved_values.push(idx);
@@ -518,6 +523,7 @@ fn for_each_ranged() {
 
     // Iterate over the amt with dirty cache ignoring gaps in the address space including at the
     // beginning of the amt, we should only see the values that were not deleted
+    #[allow(deprecated)]
     let (num_traversed, next_cursor) = a
         .for_each_while_ranged(Some(0), Some(501), |i, _v| {
             assert_eq!((i / 10) % 2, 1); // only "odd" batches of ten 10 - 19, 30 - 39, etc. should be present
@@ -530,6 +536,7 @@ fn for_each_ranged() {
     // flush the amt to the blockstore, reload and repeat the test with a clean cache
     let cid = a.flush().unwrap();
     let a = Amt::load(&cid, &db).unwrap();
+    #[allow(deprecated)]
     let (num_traversed, next_cursor) = a
         .for_each_while_ranged(Some(0), Some(501), |i, _v: &BytesDe| {
             assert_eq!((i / 10) % 2, 1); // only "odd" batches of ten 10 - 19, 30 - 39, etc. should be present
