@@ -168,43 +168,6 @@ where
         )
     }
 
-    pub(crate) fn for_each<S, F>(&self, store: &S, f: &mut F) -> Result<(), Error>
-    where
-        F: FnMut(&K, &V) -> anyhow::Result<()>,
-        S: Blockstore,
-    {
-        for p in &self.pointers {
-            match p {
-                Pointer::Link { cid, cache, .. } => {
-                    if let Some(cached_node) = cache.get() {
-                        cached_node.for_each(store, f)?
-                    } else {
-                        let node = if let Some(node) = store.get_cbor(cid)? {
-                            node
-                        } else {
-                            #[cfg(not(feature = "ignore-dead-links"))]
-                            return Err(Error::CidNotFound(cid.to_string()));
-
-                            #[cfg(feature = "ignore-dead-links")]
-                            continue;
-                        };
-
-                        // Ignore error intentionally, the cache value will always be the same
-                        let cache_node = cache.get_or_init(|| node);
-                        cache_node.for_each(store, f)?
-                    }
-                }
-                Pointer::Dirty { node, .. } => node.for_each(store, f)?,
-                Pointer::Values(kvs) => {
-                    for kv in kvs {
-                        f(kv.0.borrow(), kv.1.borrow())?;
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
     /// Search for a key.
     fn search<Q, S: Blockstore>(
         &self,
@@ -577,12 +540,6 @@ where
         self.pointers.insert(i, Pointer::Dirty { node, ext })
     }
 
-    fn index_for_bit_pos(&self, bp: u32) -> usize {
-        let mask = Bitfield::zero().set_bits_le(bp);
-        assert_eq!(mask.count_ones(), bp as usize);
-        mask.and(&self.bitfield).count_ones()
-    }
-
     fn get_child_mut(&mut self, i: usize) -> &mut Pointer<K, V, H, N> {
         &mut self.pointers[i]
     }
@@ -651,7 +608,7 @@ where
 /// Helper method to check if a key matches an extension (if there is one)
 /// and return the number of levels skipped. If the key doesn't match,
 /// this will be the number of levels where the extension has to be split.
-fn match_extension<'a>(
+pub(crate) fn match_extension<'a>(
     conf: &Config,
     hashed_key: &mut HashBits,
     ext: &'a Extension,
@@ -671,14 +628,14 @@ fn match_extension<'a>(
 }
 
 /// Result of matching a `HashedKey` to an `Extension`.
-enum ExtensionMatch<'a> {
+pub(crate) enum ExtensionMatch<'a> {
     /// The hash fully matched the extension, which is also the case if there was no extension at all.
     Full { skipped: u32 },
     /// The hash matched some (potentially empty) prefix of the extension.
     Partial(PartialMatch<'a>),
 }
 
-struct PartialMatch<'a> {
+pub(crate) struct PartialMatch<'a> {
     /// The original extension.
     ext: &'a Extension,
     /// Number of bits matched.
@@ -694,5 +651,13 @@ impl<'a> PartialMatch<'a> {
         let idx = idx.path_bits().next(bit_width)?;
 
         Ok((head, idx, tail))
+    }
+}
+
+impl<K, V, H, const N: usize> Node<K, V, H, N> {
+    pub(crate) fn index_for_bit_pos(&self, bp: u32) -> usize {
+        let mask = Bitfield::zero().set_bits_le(bp);
+        assert_eq!(mask.count_ones(), bp as usize);
+        mask.and(&self.bitfield).count_ones()
     }
 }

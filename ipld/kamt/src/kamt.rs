@@ -11,6 +11,7 @@ use multihash::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
+use crate::iter::Iter;
 use crate::node::Node;
 use crate::{AsHashedKey, Config, Error};
 
@@ -352,6 +353,209 @@ where
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
-        self.root.for_each(self.store.borrow(), &mut f)
+        for res in self {
+            let (k, v) = res?;
+            (f)(k, v)?;
+        }
+        Ok(())
+    }
+}
+
+impl<BS, V, K, H, const N: usize> Kamt<BS, K, V, H, N>
+where
+    K: DeserializeOwned + PartialOrd,
+    V: DeserializeOwned,
+    BS: Blockstore,
+{
+    /// Returns an iterator over the entries of the map.
+    ///
+    /// The iterator element type is `Result<(&'a K, &'a V), Error>`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fvm_ipld_kamt::Kamt;
+    /// use fvm_ipld_kamt::id::Identity;
+    ///
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
+    ///
+    /// let mut map: Kamt<_, u32, _, Identity> = Kamt::new(store);
+    /// map.set(1, 1).unwrap();
+    /// map.set(4, 2).unwrap();
+    ///
+    /// let mut x: u32 = 0;
+    /// for res in map.iter() {
+    ///     let (key, value) = res.unwrap();
+    ///     println!("key: {}, value: {}", key, value);
+    ///     x = x+1;
+    /// }
+    /// assert_eq!(x,2)
+    /// ```
+    pub fn iter(&self) -> Iter<BS, V, K, H, N> {
+        Iter::new(&self.store, &self.root)
+    }
+
+    /// Iterate over the KAMT starting at the given key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fvm_ipld_kamt::Kamt;
+    /// use fvm_ipld_kamt::id::Identity;
+    ///
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
+    ///
+    /// let mut map: Kamt<_, u32, _, Identity> = Kamt::new(store);
+    /// map.set(1, 1).unwrap();
+    /// map.set(2, 4).unwrap();
+    /// map.set(3, 3).unwrap();
+    /// map.set(4, 2).unwrap();
+    ///
+    /// let mut results = map.iter().take(2).collect::<Result<Vec<_>, _>>().unwrap();
+    ///
+    /// let last_key = results.last().unwrap().0;
+    ///
+    /// for res in map.iter_from(last_key).unwrap().skip(1) {
+    ///     results.push(res.unwrap());
+    /// }
+    ///
+    /// println!("{:?}", results);
+    /// assert_eq!(results.len(), 4);
+    /// ```
+
+    /// Iterate over the KAMT starting at the given key. This can be used to implement "ranged" iteration:
+    ///
+    /// ```rust
+    /// use fvm_ipld_kamt::Kamt;
+    /// use fvm_ipld_blockstore::MemoryBlockstore;
+    /// use fvm_ipld_kamt::id::Identity;
+    /// use fvm_ipld_kamt::Config;
+    /// let store = MemoryBlockstore::default();
+    ///
+    /// // Create a Kamt with 5 keys, a-e.
+    /// let mut kamt: Kamt<_, u32, String, Identity> = Kamt::new_with_config(store,  Config {
+    ///        bit_width: 5,
+    ///        ..Default::default()
+    ///    });
+    /// let kvs: Vec<(u32, String)> = ["a", "b", "c", "d", "e"]
+    ///     .iter()
+    ///     .enumerate()
+    ///    .map(|(index, &k)| (index as u32, k.to_owned()))
+    ///    .collect();
+    /// kvs.iter()
+    ///     .map(|(k, v)|kamt.set(k.clone(), v.clone())
+    ///     .map(|_|()))
+    ///     .collect::<Result<(), _>>()?;
+    ///
+    /// // Read 2 elements.
+    /// let mut results = kamt.iter().take(2).collect::<Result<Vec<(_,_)>, _>>()?;
+    /// assert_eq!(results.len(), 2);
+    /// // Read the rest then sort.
+    /// for res in kamt.iter_from(results.last().unwrap().0)?.skip(1) {
+    ///     results.push((res?));
+    /// }
+    /// results.sort_by_key(|kv| kv.1);
+    ///
+    /// // Assert that we got out what we put in.
+    /// let results: Vec<_> = results.into_iter().map(|(k, v)|(k.clone(), v.clone())).collect();
+    /// assert_eq!(kvs, results);
+    ///
+    /// # anyhow::Ok(())
+    /// ```
+
+    pub fn iter_from<Q>(&self, key: &Q) -> Result<Iter<BS, V, K, H, N>, Error>
+    where
+        K: Borrow<Q>,
+        Q: PartialEq,
+        H: AsHashedKey<Q, N>,
+    {
+        Iter::new_from(&self.store, &self.root, key, &self.conf)
+    }
+}
+
+impl<'a, BS, V, K, H, const N: usize> IntoIterator for &'a Kamt<BS, K, V, H, N>
+where
+    K: DeserializeOwned + PartialOrd,
+    V: DeserializeOwned,
+
+    BS: Blockstore,
+{
+    type Item = Result<(&'a K, &'a V), Error>;
+    type IntoIter = Iter<'a, BS, V, K, H, N>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::id::Identity;
+    use fvm_ipld_blockstore::MemoryBlockstore;
+
+    #[test]
+
+    fn test_iter_from() -> anyhow::Result<()> {
+        let store = MemoryBlockstore::default();
+
+        // Create a Kamt with 5 keys, a-e.
+        let mut kamt: Kamt<_, [u8; 32], String, Identity> =
+            Kamt::new_with_config(store, Config::default());
+
+        let keys: Vec<[u8; 32]> = vec![
+            hex::decode("0000000000000000000000000000000000000000000000000000000000000001")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0000000000000000000000000000000000000000000000000000000000000002")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0100000000000000000000000000000000000000000000000000000000000001")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0100000000000000000000000000000000000000000000000000000000000002")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0100000000000000000000000000000000000000000000000000000000000003")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0200000000000000000000000000000000000000000000000000000000000001")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            hex::decode("0200000000000000000000000000000000000000000000000000000000000002")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+        ];
+
+        for (i, key) in keys.iter().enumerate() {
+            let value = format!("value{}", i + 1);
+
+            kamt.set(*key, value)?;
+        }
+        let kvs: Vec<(&[u8; 32], &String)> = keys
+            .iter()
+            .map(|k| (k, kamt.get(k).unwrap().unwrap()))
+            .collect();
+
+        // Read 2 elements.
+        let mut results = kamt.iter().take(2).collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(results.len(), 2);
+
+        // Read the rest. Don't bother sorting because the KAMT stores keys in sorted order.
+        for res in kamt.iter_from(results.last().unwrap().0)?.skip(1) {
+            results.push(res?);
+        }
+
+        // Assert that we got out what we put in.
+        assert_eq!(kvs, results);
+
+        Ok(())
     }
 }
