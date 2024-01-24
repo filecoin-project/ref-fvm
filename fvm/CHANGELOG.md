@@ -4,32 +4,40 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-Default the concurrency of the `ThreadedExecutor` to the available parallelism instead of 8.
+## 4.1.0 [2023-01-24]
 
-## 4.0.0 (2023-10-31)
+- Default the concurrency of the `ThreadedExecutor` to the available parallelism instead of 8.
+- Support custom syscalls (only needed for non-Filecoin users).
+    - Filecoin now uses the `FilecoinKernel`, not the `DefaultKernel`. The `DefaultKernel` no longer implements Filecoin specific features.
+    - The `Kernel` trait now inherits from the `SyscallHandler` trait, allowing kernel's to decide how they want to expose themselves to actors via syscalls.
+- Many internal architecture cleanups with respect to the Kernel and syscall bindings.
+- Added the current actor state to the execution trace (in the `Invoke` event).
+- Add a syscall (enabled with the "upgrade-actor" feature flag) that lets actors "swap-out" their code-CID.
+
+## 4.0.0 [2023-10-31]
 
 Final release, no changes.
 
-## 4.0.0-alpha.4 (2023-09-28)
+## 4.0.0-alpha.4 [2023-09-28]
 
 - Add back some proof types that were mistakenly removed, and fix some of the constants.
 
-## 4.0.0-alpha.3 (2023-09-27)
+## 4.0.0-alpha.3 [2023-09-27]
 
 - Remove support for v1 proofs.
 - Make it possible to construct a GasDuration (and make it possible to refer to the GasDuration type).
 
-## 4.0.0-alpha.2 (2023-09-21)
+## 4.0.0-alpha.2 [2023-09-21]
 
 - Update to wasmtime 12.0.2 (bug fix release)
 - Drop support for versions prior to nv21.
 - Implement FIP-0071, FIP-0072, FIP-0073, FIP-0075
 
-## 4.0.0-alpha.1 (2023-09-20)
+## 4.0.0-alpha.1 [2023-09-20]
 
 Unreleased. This release simply marks the change-over to v4.
 
-## 3.8.0 (2023-09-06)
+## 3.8.0 [2023-09-06]
 
 - Upgrade wasmtime to v12. Unlike prior wasmtime upgrades, this shouldn't be a breaking change as it now mangles its symbols.
 - BREAKING: Upgrade the proofs API to v16.
