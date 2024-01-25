@@ -118,6 +118,7 @@ fn for_each(c: &mut Criterion) {
     c.bench_function("KAMT for_each function", |b| {
         b.iter(|| {
             let a = BKamt::load_with_config(&cid, &db, TEST_CONFIG).unwrap();
+            #[allow(deprecated)]
             black_box(a).for_each(|_k, _v: &BenchData| Ok(())).unwrap();
         })
     });
