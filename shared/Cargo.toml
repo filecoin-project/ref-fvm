@@ -41,7 +41,7 @@ rand = { workspace = true }
 serde_json = { workspace = true }
 multihash = { workspace = true, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
 quickcheck_macros = { workspace = true }
-fvm_shared = { workspace = true, features = ["arb"] }
+fvm_shared = { path = ".", features = ["arb"] }
 rand_chacha = { workspace = true }
 rusty-fork = { version = "0.3.0", default-features = false }
 
