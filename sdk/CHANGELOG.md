@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 4.1.1 [2023-01-25]
+
+Enable nv22 support by default.
+
 ## 4.1.0 [2023-01-24]
 
 - Add a syscall to upgrade the running actor's code-CID (behind the "actor-upgrade" feature flag).
