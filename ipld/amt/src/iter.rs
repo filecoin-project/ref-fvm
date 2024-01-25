@@ -82,6 +82,7 @@ where
         let height = self.height();
         let bit_width = self.bit_width();
 
+        // Fast-path for case where start is beyond what we know this amt could currently contain.
         if start >= nodes_for_height(bit_width, height + 1) {
             return Ok(Iter {
                 height,
