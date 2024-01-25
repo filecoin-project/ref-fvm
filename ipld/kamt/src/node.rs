@@ -217,11 +217,7 @@ where
                     let node: Box<Node<K, V, H, N>> = if let Some(node) = store.get_cbor(cid)? {
                         node
                     } else {
-                        #[cfg(not(feature = "ignore-dead-links"))]
                         return Err(Error::CidNotFound(cid.to_string()));
-
-                        #[cfg(feature = "ignore-dead-links")]
-                        return Ok(None);
                     };
                     // Intentionally ignoring error, cache will always be the same.
                     cache.get_or_init(|| node)

@@ -65,11 +65,7 @@ where
                                 if let Some(node) = store.get_cbor::<Node<K, V, H, N>>(cid)? {
                                     node
                                 } else {
-                                    #[cfg(not(feature = "ignore-dead-links"))]
                                     return Err(Error::CidNotFound(cid.to_string()));
-
-                                    #[cfg(feature = "ignore-dead-links")]
-                                    continue;
                                 };
 
                             // Ignore error intentionally, the cache value will always be the same
@@ -122,10 +118,7 @@ where
                     } else {
                         let node = match self.store.get_cbor::<Node<K, V, H, N>>(cid) {
                             Ok(Some(node)) => node,
-                            #[cfg(not(feature = "ignore-dead-links"))]
                             Ok(None) => return Some(Err(Error::CidNotFound(cid.to_string()))),
-                            #[cfg(feature = "ignore-dead-links")]
-                            Ok(None) => continue,
                             Err(err) => return Some(Err(err.into())),
                         };
 
