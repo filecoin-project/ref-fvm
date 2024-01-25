@@ -48,7 +48,7 @@ static_assertions = "1.1.0"
 
 [dev-dependencies]
 pretty_assertions = "1.3.0"
-fvm = { workspace = true, features = ["testing"], default-features = false }
+fvm = { path = ".", features = ["testing"], default-features = false }
 
 [features]
 default = ["opencl"]
