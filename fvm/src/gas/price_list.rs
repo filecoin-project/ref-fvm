@@ -968,7 +968,6 @@ impl PriceList {
 pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'static PriceList {
     match network_version {
         NetworkVersion::V21 => &WATERMELON_PRICES,
-        #[cfg(feature = "nv22-dev")]
         _ if network_version == NetworkVersion::V22 => &WATERMELON_PRICES,
         _ => panic!("network version {nv} not supported", nv = network_version),
     }
