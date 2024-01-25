@@ -2,23 +2,28 @@
 
 ## [Unreleased]
 
-## 4.0.0 (2023-10-31)
+## 4.1.0 [2023-01-24]
+
+- Add a syscall to upgrade the running actor's code-CID (behind the "actor-upgrade" feature flag).
+- Export the `fvm_syscalls` macro for defining syscall bindings (needed for custom syscall implementers).
+
+## 4.0.0 [2023-10-31]
 
 Final release, no changes.
 
-## 4.0.0-alpha.4 (2023-09-28)
+## 4.0.0-alpha.4 [2023-09-28]
 
 - Add back some proof types that were mistakenly removed, and fix some of the constants.
 
-## 4.0.0-alpha.3 (2023-09-27)
+## 4.0.0-alpha.3 [2023-09-27]
 
 - Remove support for v1 proofs.
 
-## 4.0.0-alpha.2 (2023-09-21)
+## 4.0.0-alpha.2 [2023-09-21]
 
 - Implement FIP-0071, FIP-0072, FIP-0073, FIP-0075
 
-## 4.0.0-alpha.1 (2023-09-20)
+## 4.0.0-alpha.1 [2023-09-20]
 
 Unreleased. This release simply marks the change-over to v4.
 
