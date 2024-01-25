@@ -31,7 +31,7 @@ where
     /// let kvs: Vec<u64> = (0..=5).collect();
     /// kvs
     ///     .iter()
-    ///     .map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string()))
+    ///     .map(|k| amt.set(*k, k.to_string()))
     ///     .collect::<Vec<_>>();
     ///
     /// for kv in &amt {
@@ -63,7 +63,7 @@ where
     /// let kvs: Vec<u64> = (0..=5).collect();
     /// kvs
     ///     .iter()
-    ///     .map(|k| amt.set(u64::try_from(*k).unwrap(), k.to_string()))
+    ///     .map(|k| amt.set(*k, k.to_string()))
     ///     .collect::<Vec<_>>();
     ///
     /// for kv in amt.iter_from(3)? {
