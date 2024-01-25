@@ -2,6 +2,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 #[macro_use]
 extern crate lazy_static;
 

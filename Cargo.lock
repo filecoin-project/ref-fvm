@@ -809,6 +809,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "coverage-helper"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3036399e8abfc9d696c1ee94f7677f9704e903d96299b0026e339eed6055dcaf"
+
+[[package]]
 name = "cpp_demangle"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2331,6 +2337,7 @@ dependencies = [
  "blake2b_simd",
  "byteorder",
  "cid 0.10.1",
+ "coverage-helper",
  "derive_more",
  "filecoin-proofs-api",
  "fvm",
@@ -2781,6 +2788,7 @@ dependencies = [
  "blake2b_simd",
  "bls-signatures",
  "cid 0.10.1",
+ "coverage-helper",
  "data-encoding",
  "data-encoding-macro",
  "filecoin-proofs-api",
