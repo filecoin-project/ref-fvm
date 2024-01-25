@@ -348,6 +348,7 @@ where
     /// assert_eq!(total, 3);
     /// ```
     #[inline]
+    #[deprecated = "use `.iter()` instead"]
     pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
     where
         V: DeserializeOwned,

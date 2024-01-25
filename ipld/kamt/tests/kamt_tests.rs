@@ -140,6 +140,7 @@ fn for_each(factory: KamtFactory) {
     // Iterating through kamt with dirty caches.
     let mut sum = 0;
     let expected_sum = 199 * 200 / 2;
+    #[allow(deprecated)]
     kamt.for_each(|k, v| {
         assert_eq!(*k as i32, *v);
         sum += v;
@@ -154,6 +155,7 @@ fn for_each(factory: KamtFactory) {
 
     // Iterating through kamt with no cache.
     let mut sum = 0;
+    #[allow(deprecated)]
     kamt.for_each(|_, v| {
         sum += v;
         Ok(())
@@ -163,6 +165,7 @@ fn for_each(factory: KamtFactory) {
 
     // Iterating through kamt with cached nodes.
     let mut sum = 0;
+    #[allow(deprecated)]
     kamt.for_each(|_, v| {
         sum += v;
         Ok(())
