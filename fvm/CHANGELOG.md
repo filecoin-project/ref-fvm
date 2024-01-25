@@ -9,7 +9,7 @@ Changes to the reference FVM implementation.
 - Default the concurrency of the `ThreadedExecutor` to the available parallelism instead of 8.
 - Support custom syscalls (only needed for non-Filecoin users).
     - Filecoin now uses the `FilecoinKernel`, not the `DefaultKernel`. The `DefaultKernel` no longer implements Filecoin specific features.
-    - The `Kernel` trait now inherits from the `SyscallHandler` trait, allowing kernel's to decide how they want to expose themselves to actors via syscalls.
+    - The `Kernel` trait now inherits from the `SyscallHandler` trait, allowing kernels to decide how they want to expose themselves to actors via syscalls.
 - Many internal architecture cleanups with respect to the Kernel and syscall bindings.
 - Added the current actor state to the execution trace (in the `Invoke` event).
 - Add a syscall (enabled with the "upgrade-actor" feature flag) that lets actors "swap-out" their code-CID.
