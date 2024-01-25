@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.1.1 [2023-01-25]
+
+Enable nv22 support by default.
+
 ## 4.1.0 [2023-01-24]
 
 - Default the concurrency of the `ThreadedExecutor` to the available parallelism instead of 8.

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 4.1.1 [2023-01-25]
+
+Enable nv22 support by default.
+
 ## 4.1.0 [2023-01-24]
 
 - Pretty-print addresses when debug-formatting, instead of printing the raw bytes as a vector.
