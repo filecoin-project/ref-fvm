@@ -64,7 +64,7 @@ impl<V: PartialEq, K: PartialEq, H, BS: Blockstore, const N: usize> PartialEq
 
 impl<BS, K, V, H, const N: usize> Kamt<BS, K, V, H, N>
 where
-    K: Serialize + DeserializeOwned,
+    K: Serialize + DeserializeOwned + PartialOrd,
     V: Serialize + DeserializeOwned,
     BS: Blockstore,
 {
@@ -90,26 +90,17 @@ where
 
     /// Lazily instantiate a Kamt from this root Cid with a specified parameters.
     pub fn load_with_config(cid: &Cid, store: BS, conf: Config) -> Result<Self, Error> {
-        match store.get_cbor(cid)? {
-            Some(root) => Ok(Self {
-                root,
-                store,
-                conf,
-                flushed_cid: Some(*cid),
-            }),
-            None => Err(Error::CidNotFound(cid.to_string())),
-        }
+        Ok(Self {
+            root: Node::load(&conf, &store, cid, 0)?,
+            store,
+            conf,
+            flushed_cid: Some(*cid),
+        })
     }
 
     /// Sets the root based on the Cid of the root node using the Kamt store
     pub fn set_root(&mut self, cid: &Cid) -> Result<(), Error> {
-        match self.store.get_cbor(cid)? {
-            Some(root) => {
-                self.root = root;
-                self.flushed_cid = Some(*cid);
-            }
-            None => return Err(Error::CidNotFound(cid.to_string())),
-        }
+        self.root = Node::load(&self.conf, &self.store, cid, 0)?;
 
         Ok(())
     }
@@ -393,7 +384,7 @@ where
     /// assert_eq!(x,2)
     /// ```
     pub fn iter(&self) -> Iter<BS, V, K, H, N> {
-        Iter::new(&self.store, &self.root)
+        Iter::new(&self.store, &self.root, &self.conf)
     }
 
     /// Iterate over the KAMT starting at the given key.

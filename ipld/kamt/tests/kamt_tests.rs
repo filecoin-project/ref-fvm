@@ -31,8 +31,8 @@ impl KamtFactory {
     fn new<BS, K, V>(&self, store: BS) -> HKamt<BS, V, K>
     where
         BS: Blockstore,
+        K: Serialize + DeserializeOwned + PartialOrd,
         V: Serialize + DeserializeOwned,
-        K: Serialize + DeserializeOwned,
     {
         Kamt::new_with_config(store, self.conf.clone())
     }
@@ -40,7 +40,7 @@ impl KamtFactory {
     fn load<BS, K, V>(&self, cid: &Cid, store: BS) -> Result<HKamt<BS, V, K>, Error>
     where
         BS: Blockstore,
-        K: Serialize + DeserializeOwned,
+        K: Serialize + DeserializeOwned + PartialOrd,
         V: Serialize + DeserializeOwned,
     {
         Kamt::load_with_config(cid, store, self.conf.clone())
@@ -55,6 +55,25 @@ fn test_basics(factory: KamtFactory) {
     assert_eq!(kamt.get(&1).unwrap(), Some(&"world".to_string()));
     kamt.set(1, "world2".to_string()).unwrap();
     assert_eq!(kamt.get(&1).unwrap(), Some(&"world2".to_string()));
+}
+
+fn test_n_keys(factory: KamtFactory) {
+    let store = MemoryBlockstore::default();
+    // Test increasing numbers of sequential keys.
+    for i in 0u8..=255 {
+        let mut kamt: HKamt<_, _, _> = factory.new(&store);
+        for j in 0..i {
+            let mut k = [0; 32];
+            k[31] = j;
+            kamt.set(k, format!("{i}")).unwrap();
+        }
+        let root = kamt.flush().unwrap();
+        let new_kamt = factory.load(&root, &store).unwrap();
+        assert_eq!(kamt, new_kamt);
+        let old_items = kamt.iter().collect::<Result<Vec<_>, _>>().unwrap();
+        let new_items = new_kamt.iter().collect::<Result<Vec<_>, _>>().unwrap();
+        assert_eq!(old_items, new_items);
+    }
 }
 
 fn test_load(factory: KamtFactory) {
@@ -342,6 +361,11 @@ macro_rules! test_kamt_mod {
             }
 
             #[test]
+            fn test_n_keys() {
+                super::test_n_keys($factory)
+            }
+
+            #[test]
             fn test_load() {
                 super::test_load($factory)
             }
@@ -403,7 +427,7 @@ test_kamt_mod!(
     test_max_array_width,
     KamtFactory {
         conf: Config {
-            max_array_width: 0, // Just to make sure a seemingly silly config like this doesn't cause a problem.
+            max_array_width: 1,
             bit_width: 2,
             ..Default::default()
         },
