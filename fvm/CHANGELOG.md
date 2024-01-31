@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.1.2 [2023-01-31]
+
+feat: allow CBOR events
+
 ## 4.1.1 [2023-01-25]
 
 Enable nv22 support by default.
