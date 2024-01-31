@@ -8,7 +8,7 @@ use fvm_shared::{ActorID, MethodNum};
 
 use crate::gas::GasCharge;
 use crate::kernel::SyscallError;
-use crate::Cid;
+use crate::state_tree::ActorState;
 
 /// Execution Trace, only for informational and debugging purposes.
 pub type ExecutionTrace = Vec<ExecutionEvent>;
@@ -33,6 +33,9 @@ pub enum ExecutionEvent {
     },
     CallReturn(ExitCode, Option<IpldBlock>),
     CallError(SyscallError),
-    /// Emitted every time we successfully invoke an actor
-    InvokeActor(Cid),
+    /// Emitted every time an actor is successfully invoked.
+    InvokeActor {
+        id: ActorID,
+        state: ActorState,
+    },
 }
