@@ -660,7 +660,10 @@ where
             .ok_or_else(|| syscall_error!(NotFound; "actor does not exist: {}", to))?;
 
         if self.machine.context().tracing {
-            self.trace(ExecutionEvent::InvokeActor(state.code));
+            self.trace(ExecutionEvent::InvokeActor {
+                id: to,
+                state: state.clone(),
+            });
         }
 
         // Transfer, if necessary.
