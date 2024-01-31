@@ -28,7 +28,7 @@ serde_tuple = "0.5"
 thiserror = "1.0.40"
 
 [dependencies.wasmtime]
-version = "12.0.1"
+version = "12.0.2"
 default-features = false
 features = ["cranelift", "parallel-compilation"]
 
