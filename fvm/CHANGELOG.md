@@ -4,7 +4,11 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-## 3.8.0 (2023-09-06)
+## 3.9.0 [2024-01-31]
+
+- BREAKING: Change `ExecutionEvent::InvokeActor` from only including the actor's code CID to including the actor's ID and state-object (including the code CID, current balance, current state root, delegated address, and nonce). The new API matches the API in FVMv4.
+
+## 3.8.0 [2023-09-06]
 
 - Upgrade wasmtime to v12. Unlike prior wasmtime upgrades, this shouldn't be a breaking change as it now mangles its symbols.
 - BREAKING: Upgrade the proofs API to v16.
