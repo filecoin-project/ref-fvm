@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::IPLD_RAW;
+use fvm_ipld_encoding::{CBOR, IPLD_RAW};
 use fvm_shared::address::Payload;
 use fvm_shared::crypto::signature;
 use fvm_shared::error::ErrorNumber;
@@ -1024,11 +1024,11 @@ where
                 .context("event entry value out of range")
                 .or_illegal_argument()?;
 
-            // Check the codec. We currently only allow IPLD_RAW.
-            if header.codec != IPLD_RAW {
+            // Check the codec. We currently only allow IPLD_RAW or CBOR.
+            if header.codec != IPLD_RAW && header.codec != CBOR {
                 let tmp = header.codec;
                 return Err(
-                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW, was: {}", tmp)
+                    syscall_error!(IllegalCodec; "event codec must be IPLD_RAW or CBOR, was: {}", tmp)
                         .into(),
                 );
             }
