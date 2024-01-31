@@ -2236,7 +2236,7 @@ dependencies = [
 
 [[package]]
 name = "fvm"
-version = "3.8.0"
+version = "3.9.0"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -2367,7 +2367,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_integration_tests"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "anyhow",
  "blake2b_simd",
