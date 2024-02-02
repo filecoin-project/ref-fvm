@@ -22,11 +22,19 @@ To make a change to the FVM.
 
 ## Releasing
 
-The primary crates, `fvm`, `fvm_shared`, `fvm_sdk`, and `fvm_integration_tests`, are versioned and
-released together. Other crates in the workspace are versioned and released independently.
+The FVM is a workspace of crates which have different release schedules:
 
-Currently version numbering is not strictly semver compatible. Breaking changes may be included in
-minor releases while major releases are reserved for dropping old network versions.
+* The primary crates (`fvm`, `fvm_shared`, and `fvm_sdk`) and the integration testing framework (`fvm_integration_tests`) are released together.
+* The `fvm_ipld_*` crates (living in ipld/) are released independently and only live in this repo for convenience.
+* The rest of the crates are for local testing and are not released.
+
+Versioning of the primary crates is not strictly semver compatible:
+
+* Major releases are used to signal when the FVM drops support for old network versions.
+* Minor releases are used to signal breaking changes.
+* Patch releases are used for bug fixes, new features and other non-breaking changes.
+
+Versioning of the `fvm_ipld_*` crates follows standard semver rules.
 
 All changes should be well tested. See [builtin actors testing][builtin actors testing].
 
@@ -41,7 +49,7 @@ To propose a new release, open a pull request with the following changes:
    2. `wokspace.package→fvm_shared→version`
    3. `wokspace.package→fvm_sdk→version`
    4. `wokspace.package→fvm_integration_tests→version`
-3. Update the lockfile with a rebuild: `cargo build`.
+3. Update the lockfile with a rebuild: `cargo check --all`.
 4. Make sure the `CHANGELOG.md` files in each of `fvm`, `sdk`, and `shared` are all up-to-date (look
    through `git log -- path/to/crate`), set the release date & version, and add a new "Unreleased"
    section. It may be appropriate to duplicate some entries across these crates if the changes are
