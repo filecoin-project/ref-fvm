@@ -2,6 +2,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use std::collections::HashMap;
+
 use arbitrary::Arbitrary;
 use fvm_ipld_hamt::{Config, Hamt};
 
@@ -21,7 +23,7 @@ pub enum Method {
 pub fn run(flush_rate: u8, operations: Vec<Operation>, conf: Config) {
     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
     let mut hamt = Hamt::<_, _, _>::new_with_config(&db, conf);
-    let mut elements = ahash::AHashMap::new();
+    let mut elements = HashMap::new();
 
     let flush_rate = (flush_rate as usize).saturating_add(5);
     for (i, Operation { key, method }) in operations.into_iter().enumerate() {

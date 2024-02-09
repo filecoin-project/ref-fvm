@@ -61,7 +61,6 @@ wasmtime-runtime = { version = "12.0.2", default-features = false }
 # misc
 libfuzzer-sys = "0.4"
 arbitrary = "1.3.0"
-ahash = "0.8.7"
 itertools = "0.11.0"
 once_cell = "1.18.0"
 unsigned-varint = "0.7.2"
