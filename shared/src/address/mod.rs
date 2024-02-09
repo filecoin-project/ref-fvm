@@ -243,7 +243,7 @@ impl quickcheck::Arbitrary for Address {
     }
 }
 
-pub(self) fn parse_address(addr: &str) -> Result<(Address, Network), Error> {
+fn parse_address(addr: &str) -> Result<(Address, Network), Error> {
     if addr.len() > MAX_ADDRRESS_TEXT_LEN || addr.len() < 3 {
         return Err(Error::InvalidLength);
     }
@@ -385,6 +385,19 @@ pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, Error> {
     Ok(id)
 }
 
+/// Returns an address hash for given data
+fn address_hash(ingest: &[u8]) -> [u8; 20] {
+    let digest = blake2b_simd::Params::new()
+        .hash_length(PAYLOAD_HASH_LEN)
+        .to_state()
+        .update(ingest)
+        .finalize();
+
+    let mut hash = [0u8; 20];
+    hash.copy_from_slice(digest.as_bytes());
+    hash
+}
+
 #[cfg(test)]
 mod tests {
     // Test cases for FOR-02: https://github.com/ChainSafe/forest/issues/1134
@@ -442,17 +455,4 @@ mod tests {
             }
         }
     }
-}
-
-/// Returns an address hash for given data
-fn address_hash(ingest: &[u8]) -> [u8; 20] {
-    let digest = blake2b_simd::Params::new()
-        .hash_length(PAYLOAD_HASH_LEN)
-        .to_state()
-        .update(ingest)
-        .finalize();
-
-    let mut hash = [0u8; 20];
-    hash.copy_from_slice(digest.as_bytes());
-    hash
 }

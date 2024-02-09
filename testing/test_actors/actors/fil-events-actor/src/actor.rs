@@ -95,7 +95,7 @@ pub fn invoke(params: u32) -> u32 {
                 "expected failed syscall"
             );
 
-            let buf = vec![0; 100];
+            let buf = [0; 100];
 
             // Value buffer not consumed.
             let entry = fvm_shared::sys::EventEntry {
