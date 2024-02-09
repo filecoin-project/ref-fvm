@@ -17,7 +17,6 @@ num-traits = { workspace = true, default-features = false }
 lazy_static = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
-byteorder = { workspace = true }
 fvm_shared = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 

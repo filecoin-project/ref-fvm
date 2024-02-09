@@ -33,8 +33,6 @@ arbitrary = { workspace = true, optional = true, features = ["derive"] }
 rand = { workspace = true }
 quickcheck = { workspace = true, optional = true }
 minstant = { workspace = true }
-blake2b_simd = { workspace = true }
-byteorder = { workspace = true }
 ambassador = { workspace = true }
 derive_more = "0.99.17"
 replace_with = "0.1.7"
