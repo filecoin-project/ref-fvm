@@ -1,14 +1,13 @@
 use std::fmt;
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use minstant::Instant;
-use once_cell::sync::OnceCell;
 
 /// Shared reference between the duration and the timer.
-type DurationCell = Arc<OnceCell<Duration>>;
+type DurationCell = Arc<OnceLock<Duration>>;
 
 /// Data structure to encapsulate the optional duration which is set by the `GasTimer`.
 ///
@@ -115,7 +114,7 @@ impl GasTimer {
         }
     }
 
-    fn set_elapsed(elapsed: Arc<OnceCell<Duration>>, start: GasInstant) {
+    fn set_elapsed(elapsed: Arc<OnceLock<Duration>>, start: GasInstant) {
         elapsed
             .set(start.elapsed())
             .expect("GasCharge::elapsed already set!")
