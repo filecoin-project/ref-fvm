@@ -44,16 +44,12 @@ pub const MAX_SUBADDRESS_LEN: usize = 54;
 /// Defines first available ID address after builtin actors
 pub const FIRST_NON_SINGLETON_ADDR: ActorID = 100;
 
-lazy_static::lazy_static! {
-    static ref BLS_ZERO_ADDR_BYTES: [u8; BLS_PUB_LEN] = {
-        let bz_addr = Network::Mainnet.parse_address("f3yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaby2smx7a");
-        if let Ok(Address {payload: Payload::BLS(pubkey), ..}) = bz_addr {
-            pubkey
-        } else {
-            panic!("failed to parse BLS address from provided BLS_ZERO_ADDR string")
-        }
-    };
-}
+/// The payload bytes of a "zero" BLS key.
+const BLS_ZERO_ADDRESS_BYTES: [u8; BLS_PUB_LEN] = {
+    let mut buf = [0u8; BLS_PUB_LEN];
+    buf[0] = 192;
+    buf
+};
 
 /// Length of the checksum hash for string encodings.
 pub const CHECKSUM_HASH_LEN: usize = 4;
@@ -137,7 +133,7 @@ impl Address {
 
     pub fn is_bls_zero_address(&self) -> bool {
         match self.payload {
-            Payload::BLS(payload_bytes) => payload_bytes == *BLS_ZERO_ADDR_BYTES,
+            Payload::BLS(payload_bytes) => payload_bytes == BLS_ZERO_ADDRESS_BYTES,
             _ => false,
         }
     }
