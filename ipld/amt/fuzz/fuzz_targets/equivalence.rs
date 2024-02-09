@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 #![no_main]
+use std::collections::HashMap;
+
 use arbitrary::Arbitrary;
 use cid::Cid;
 use fvm_ipld_amt::Amt;
@@ -22,10 +24,10 @@ enum Method {
     Remove,
     Get,
 }
-fn execute(ops: Vec<Operation>) -> (Cid, ahash::AHashMap<u64, u64>) {
+fn execute(ops: Vec<Operation>) -> (Cid, HashMap<u64, u64>) {
     let db = fvm_ipld_blockstore::MemoryBlockstore::default();
     let mut amt = Amt::new(&db);
-    let mut elements = ahash::AHashMap::new();
+    let mut elements = HashMap::new();
 
     for (i, Operation { idx, method, flush }) in ops.into_iter().enumerate() {
         let idx = idx as u64;

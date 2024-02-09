@@ -44,7 +44,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77c3a9648d43b9cd48db467b3f87fdd6e146bcc88ab0180006cef2179fe11d01"
 dependencies = [
  "cfg-if",
- "getrandom",
  "once_cell",
  "version_check",
  "zerocopy",
@@ -3111,7 +3110,6 @@ dependencies = [
 name = "ipld_amt_fuzz"
 version = "0.0.0"
 dependencies = [
- "ahash",
  "arbitrary",
  "cid 0.10.1",
  "fvm_ipld_amt 0.6.2",
@@ -3124,7 +3122,6 @@ dependencies = [
 name = "ipld_hamt-fuzz"
 version = "0.0.0"
 dependencies = [
- "ahash",
  "arbitrary",
  "fvm_ipld_blockstore 0.2.0",
  "fvm_ipld_hamt 0.9.0",
@@ -3135,7 +3132,6 @@ dependencies = [
 name = "ipld_kamt-fuzz"
 version = "0.0.0"
 dependencies = [
- "ahash",
  "arbitrary",
  "fvm_ipld_blockstore 0.2.0",
  "fvm_ipld_kamt 0.3.0",
