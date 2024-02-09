@@ -192,7 +192,9 @@ impl NetworkConfig {
             epoch,
             timestamp,
             initial_state_root: initial_state,
-            circ_supply: fvm_shared::TOTAL_FILECOIN.clone(),
+            // This is just the default. The previous default of "total FIL supply" was incorrect as
+            // well, so we might as well be more neutral.
+            circ_supply: TokenAmount::zero(),
             tracing: false,
             flush_all_blocks: false,
         }

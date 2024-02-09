@@ -2852,7 +2852,6 @@ dependencies = [
  "filecoin-proofs-api",
  "fvm_ipld_encoding 0.5.2",
  "fvm_shared 4.6.0",
- "lazy_static",
  "libsecp256k1",
  "multihash-codetable",
  "num-bigint",
