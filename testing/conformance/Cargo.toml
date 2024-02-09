@@ -39,7 +39,7 @@ tar = { version = "0.4.38", default-features = false }
 zstd = { version = "0.12.3", default-features = false }
 
 [features]
-vtune = ["wasmtime/vtune", "ittapi-rs"]
+vtune = ["wasmtime/profiling", "ittapi-rs"]
 m2-native = []
 
 [dev-dependencies]

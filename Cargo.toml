@@ -54,9 +54,9 @@ libsecp256k1 = { version = "0.7.1" }
 bls-signatures = { version = "0.15", default-features = false }
 
 # wasmtime
-wasmtime = {version = "12.0.2", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation"] }
-wasmtime-environ = "12.0.2"
-wasmtime-runtime = { version = "12.0.2", default-features = false }
+wasmtime = {version = "17.0.1", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation"] }
+wasmtime-environ = "17.0.1"
+wasmtime-runtime = { version = "17.0.1", default-features = false }
 
 # misc
 libfuzzer-sys = "0.4"
