@@ -32,7 +32,6 @@ base64 = "0.21.2"
 flate2 = { version = "1.0" }
 colored = "2"
 either = "1.8.1"
-num_cpus = "1.15.0"
 walkdir = "2.3"
 regex = { version = "1.8" }
 ittapi-rs = { version = "0.3.0", optional = true }

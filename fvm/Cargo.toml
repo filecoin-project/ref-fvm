@@ -41,7 +41,6 @@ derive_more = "0.99.17"
 replace_with = "0.1.7"
 filecoin-proofs-api = { version = "16", default-features = false }
 rayon = "1"
-num_cpus = "1.15.0"
 fvm-wasm-instrument = "0.4.0"
 yastl = "0.1.2"
 static_assertions = "1.1.0"
