@@ -30,8 +30,9 @@ use crate::{syscall_error, DefaultKernel, Kernel};
 use super::prelude::*;
 
 lazy_static! {
-    static ref NUM_CPUS: usize = num_cpus::get();
-    static ref INITIAL_RESERVE_BALANCE: TokenAmount = TokenAmount::from_whole(300_000_000);
+    static ref AVAILABLE_PARALLELISM: usize = std::thread::available_parallelism()
+        .map(Into::into)
+        .unwrap_or(8);
 }
 
 pub trait FilecoinKernel: Kernel {
@@ -176,7 +177,7 @@ where
         }
         log::debug!("batch verify seals start");
         let out = items.par_drain(..)
-            .with_min_len(vis.len() / *NUM_CPUS)
+            .with_min_len(vis.len() / *AVAILABLE_PARALLELISM)
             .map(|(seal, timer)| {
                 let start = GasTimer::start();
                 let verify_seal_result = std::panic::catch_unwind(|| verify_seal(seal));

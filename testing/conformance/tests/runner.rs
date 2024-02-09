@@ -8,6 +8,7 @@ use std::io::BufReader;
 use std::iter;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::thread::available_parallelism;
 
 use anyhow::{anyhow, Context as _};
 use async_std::{stream, sync, task};
@@ -47,7 +48,7 @@ lazy_static! {
         .map(|s| {
             let s = s.to_str().unwrap();
             s.parse().expect("parallelism must be an integer")
-        }).unwrap_or_else(num_cpus::get).min(48);
+        }).or_else(|| available_parallelism().map(Into::into).ok()).unwrap_or(8).min(48);
 
     /// By default a post-condition error is fatal and stops all testing. We can use this env var to relax that
     /// and let the test carry on (optionally with a warning); there's a correctness check against the post condition anyway.
