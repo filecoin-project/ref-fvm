@@ -160,6 +160,7 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     // wasmtime default: 4GB
     c.static_memory_maximum_size(instance_memory_maximum_size);
+    c.static_memory_forced(true);
 
     // wasmtime default: true
     // We don't want threads, there is no way to ensure determinism
