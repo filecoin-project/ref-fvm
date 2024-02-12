@@ -181,6 +181,7 @@ pub(crate) fn ranges_from_bits(bits: impl IntoIterator<Item = u64>) -> impl Rang
 }
 
 #[cfg(test)]
+#[allow(clippy::single_range_in_vec_init)]
 mod tests {
     use super::*;
 

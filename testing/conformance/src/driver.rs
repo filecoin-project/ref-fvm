@@ -42,8 +42,7 @@ lazy_static! {
     /// Override prices with a different network version.
     static ref PRICE_NETWORK_VERSION: Option<NetworkVersion> = std::env::var("PRICE_NETWORK_VERSION").ok()
         .map(|nv| {
-            let nv = nv.parse::<u32>().expect("PRICE_NETWORK_VERSION should be a number");
-            NetworkVersion::try_from(nv).expect("unknown price network version")
+            nv.parse::<u32>().expect("PRICE_NETWORK_VERSION should be a number").into()
         });
 }
 

@@ -550,7 +550,9 @@ fn on_scan_cbor_links() {
         let mut iter_obs: HashMap<String, Vec<Obs>> = Default::default();
 
         for event in ret.exec_trace {
-            let ExecutionEvent::GasCharge(charge) = event else { continue };
+            let ExecutionEvent::GasCharge(charge) = event else {
+                continue;
+            };
             for (key, name) in [
                 ("OnScanIpldLinks", "OnScanIpldLinks"),
                 ("OnTrackLinks", "OnBlockOpen"),
@@ -559,7 +561,9 @@ fn on_scan_cbor_links() {
                 if charge.name != name {
                     continue;
                 }
-                let Some(t) = charge.elapsed.get() else { continue };
+                let Some(t) = charge.elapsed.get() else {
+                    continue;
+                };
 
                 let ob = Obs {
                     charge: charge.name.into(),

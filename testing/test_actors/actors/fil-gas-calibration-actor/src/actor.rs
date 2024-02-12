@@ -244,7 +244,7 @@ fn random_bytes(size: usize, seed: u64) -> Vec<u8> {
     lcg8(seed).take(size).collect()
 }
 
-fn random_mutations(data: &mut Vec<u8>, seed: u64, n: usize) {
+fn random_mutations(data: &mut [u8], seed: u64, n: usize) {
     let size = data.len();
     if size > 0 {
         for (i, b) in lcg64(seed).zip(lcg8(seed + 1)).take(n) {

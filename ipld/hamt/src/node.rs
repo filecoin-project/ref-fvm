@@ -117,7 +117,9 @@ where
                         )));
                     }
                     if !kvs.windows(2).all(|window| {
-                        let [a, b] = window else { panic!("invalid window length") };
+                        let [a, b] = window else {
+                            panic!("invalid window length")
+                        };
                         a.key() < b.key()
                     }) {
                         return Err(Error::Dynamic(anyhow::anyhow!(

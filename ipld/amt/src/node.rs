@@ -211,7 +211,7 @@ where
         match self {
             Node::Link { links } => {
                 // Check if first index is a link and all other values are empty.
-                links.get(0).and_then(|l| l.as_ref()).is_some()
+                links.first().and_then(|l| l.as_ref()).is_some()
                     && links
                         .get(1..)
                         .map(|l| l.iter().all(|l| l.is_none()))

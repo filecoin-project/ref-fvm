@@ -1,7 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::convert::TryInto;
-
 use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::sys::out::vm::MessageContext;
@@ -51,18 +49,12 @@ pub fn method_number() -> MethodNum {
 /// Returns the value received from the caller in AttoFIL.
 #[inline(always)]
 pub fn value_received() -> TokenAmount {
-    MESSAGE_CONTEXT
-        .value_received
-        .try_into()
-        .expect("invalid bigint")
+    MESSAGE_CONTEXT.value_received.into()
 }
 
 /// Returns the execution gas premium
 pub fn gas_premium() -> TokenAmount {
-    MESSAGE_CONTEXT
-        .gas_premium
-        .try_into()
-        .expect("invalid bigint")
+    MESSAGE_CONTEXT.gas_premium.into()
 }
 
 /// Returns the message parameters as an Option<IpldBlock>.
