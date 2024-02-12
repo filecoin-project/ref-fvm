@@ -1163,7 +1163,7 @@ impl Rules for WasmGasPrices {
                 self.instruction_default + self.memory_fill_base_cost,
                 self.memory_fill_per_byte_cost,
                 // This is the odd-one out because it operates on entire pages.
-                wasmtime_environ::WASM_PAGE_SIZE,
+                wasmtime_environ::Memory::DEFAULT_PAGE_SIZE,
             ),
             MemoryFill => linear(
                 self.instruction_default + self.memory_fill_base_cost,

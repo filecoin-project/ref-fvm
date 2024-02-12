@@ -41,7 +41,6 @@ minstant = "0.1.2"
 blake2b_simd = "1.0.0"
 byteorder = "1.4.3"
 wasmtime = { workspace = true }
-wasmtime-runtime = { workspace = true }
 wasmtime-environ = { workspace = true }
 
 [dev-dependencies]

@@ -45,7 +45,7 @@ default-features = false
 features = ["testing"]
 
 [features]
-vtune = ["wasmtime/vtune", "ittapi-rs"]
+vtune = ["wasmtime/profiling", "ittapi-rs"]
 m2-native = []
 
 [dev-dependencies]
