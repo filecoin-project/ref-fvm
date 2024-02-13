@@ -200,7 +200,7 @@ pub struct TestData {
     pub charge_gas_calls: usize,
 }
 
-const BLOCK_GAS_LIMIT: Gas = Gas::new(fvm_shared::BLOCK_GAS_LIMIT);
+const BLOCK_GAS_LIMIT: Gas = Gas::new(10_000_000_000);
 
 impl DummyCallManager {
     pub fn new_stub() -> (Self, Rc<RefCell<TestData>>) {

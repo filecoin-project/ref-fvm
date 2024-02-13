@@ -372,7 +372,7 @@ mod test {
     use num_bigint::BigInt;
     use num_traits::Zero;
 
-    use crate::TokenAmount;
+    use super::TokenAmount;
 
     fn whole(x: impl Into<BigInt>) -> TokenAmount {
         TokenAmount::from_whole(x)
