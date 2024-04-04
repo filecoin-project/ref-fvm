@@ -142,17 +142,22 @@ where
             });
 
             let result = cm.with_transaction(|cm| {
-                // Invoke the message. We charge for the return value internally if the call-stack depth
-                // is 1.
-                cm.call_actor::<K>(
-                    sender_id,
-                    msg.to,
-                    Entrypoint::Invoke(msg.method_num),
-                    params,
-                    &msg.value,
-                    None,
-                    false,
-                )
+                // Ensure we have 64MiB of stack space. This'll hopefully let us get rid of the
+                // threaded executor (and the limit on the number of threads...) at a bit of a
+                // runtime cost (allocations).
+                stacker::maybe_grow(64 << 20, 64 << 20, || {
+                    // Invoke the message. We charge for the return value internally if the
+                    // call-stack depth is 1.
+                    cm.call_actor::<K>(
+                        sender_id,
+                        msg.to,
+                        Entrypoint::Invoke(msg.method_num),
+                        params,
+                        &msg.value,
+                        None,
+                        false,
+                    )
+                })
             });
 
             let (res, machine) = match cm.finish() {
