@@ -196,7 +196,13 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     // wasmtime default: false
     // Cool proposal to allow function references, but we don't support it yet.
+    #[cfg(feature = "wasmtime/gc")]
     c.wasm_function_references(false);
+
+    // wasmtime default: false
+    // Wasmtime function reference proposal.
+    #[cfg(feature = "wasmtime/gc")]
+    c.wasm_gc(false);
 
     // wasmtime default: false
     //
@@ -225,7 +231,6 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.native_unwind_info(false);
     c.wasm_backtrace(false);
     c.wasm_backtrace_details(WasmBacktraceDetails::Disable);
-    c.wasm_reference_types(false);
 
     // Reiterate some defaults
     c.guard_before_linear_memory(true);
