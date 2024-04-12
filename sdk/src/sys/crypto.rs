@@ -207,4 +207,6 @@ super::fvm_syscalls! {
     /// |---------------------|--------------------------|
     /// | [`IllegalArgument`] | an argument is malformed |
     pub fn batch_verify_seals(batch_off: *const u8, batch_len: u32, result_off: *const u8) -> Result<()>;
+
+    pub fn batch_verify_ni_seals(batch_off: *const u8, batch_len: u32, result_off: *const u8) -> Result<()>;
 }
