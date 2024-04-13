@@ -51,8 +51,13 @@ where
     /// * `blockstore`: The underlying [blockstore][`Blockstore`] for reading/writing state.
     /// * `externs`: Client-provided ["external"][`Externs`] methods for accessing chain state.
     pub fn new(context: &MachineContext, blockstore: B, externs: E) -> anyhow::Result<Self> {
+        #[cfg(not(feature = "nv23-dev"))]
         const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
             NetworkVersion::V21..=NetworkVersion::V22;
+
+        #[cfg(feature = "nv23-dev")]
+        const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
+            NetworkVersion::V21..=NetworkVersion::V23;
 
         debug!(
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",

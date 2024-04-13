@@ -967,8 +967,9 @@ impl PriceList {
 /// Returns gas price list by NetworkVersion for gas consumption.
 pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'static PriceList {
     match network_version {
-        NetworkVersion::V21 => &WATERMELON_PRICES,
-        _ if network_version == NetworkVersion::V22 => &WATERMELON_PRICES,
+        NetworkVersion::V21 | NetworkVersion::V22 => &WATERMELON_PRICES,
+        #[cfg(feature = "nv23-dev")]
+        _ if network_version == NetworkVersion::V23 => &WATERMELON_PRICES,
         _ => panic!("network version {nv} not supported", nv = network_version),
     }
 }
