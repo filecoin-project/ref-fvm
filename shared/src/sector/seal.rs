@@ -33,18 +33,6 @@ pub struct SealVerifyInfo {
     pub unsealed_cid: Cid, // Commd
 }
 
-/// Information needed to verify a non-interactive seal proof.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
-pub struct NISealVerifyInfo {
-    pub registered_proof: RegisteredSealProof,
-    pub sector_id: SectorID,
-    pub randomness: SealRandomness,
-    #[serde(with = "strict_bytes")]
-    pub proof: Vec<u8>,
-    pub sealed_cid: Cid,   // Commr
-    pub unsealed_cid: Cid, // Commd
-}
-
 /// SealVerifyParams is the structure of information that must be sent with
 /// a message to commit a sector. Most of this information is not needed in the
 /// state tree but will be verified in sm.CommitSector. See SealCommitment for

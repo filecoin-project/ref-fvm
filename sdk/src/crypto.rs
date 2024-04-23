@@ -10,8 +10,8 @@ use fvm_shared::crypto::signature::{
 };
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
-    AggregateSealVerifyProofAndInfos, NISealVerifyInfo, RegisteredSealProof, ReplicaUpdateInfo,
-    SealVerifyInfo, WindowPoStVerifyInfo,
+    AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
+    WindowPoStVerifyInfo,
 };
 use fvm_shared::MAX_CID_LEN;
 use num_traits::FromPrimitive;
@@ -201,21 +201,6 @@ pub fn batch_verify_seals(batch: &[SealVerifyInfo]) -> SyscallResult<Vec<bool>> 
     Ok(unsafe {
         let mut result: Vec<bool> = Vec::with_capacity(batch.len());
         sys::crypto::batch_verify_seals(
-            encoded.as_ptr(),
-            encoded.len() as u32,
-            result.as_mut_ptr() as *mut u8,
-        )?;
-        result.set_len(batch.len());
-        result
-    })
-}
-
-pub fn batch_verify_ni_seals(batch: &[NISealVerifyInfo]) -> SyscallResult<Vec<bool>> {
-    let encoded = to_vec(batch).expect("failed to marshal batch seal verification input");
-
-    Ok(unsafe {
-        let mut result: Vec<bool> = Vec::with_capacity(batch.len());
-        sys::crypto::batch_verify_ni_seals(
             encoded.as_ptr(),
             encoded.len() as u32,
             result.as_mut_ptr() as *mut u8,
