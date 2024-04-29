@@ -605,6 +605,56 @@ where
         }))
     }
 
+    fn verify_bls_aggregate(
+        &self,
+        aggregate_sig: &[u8; signature::BLS_SIG_LEN],
+        pub_keys: &[[u8; signature::BLS_PUB_LEN]],
+        plaintexts_concat: &[u8],
+        plaintext_lens: &[u32],
+    ) -> Result<bool> {
+        let num_signers = pub_keys.len();
+
+        if num_signers != plaintext_lens.len() {
+            return Err(syscall_error!(
+                IllegalArgument;
+                "unequal numbers of bls public keys and plaintexts"
+            )
+            .into());
+        }
+
+        let t = self.call_manager.charge_gas(
+            self.call_manager
+                .price_list()
+                .on_verify_aggregate_signature(num_signers, plaintexts_concat.len()),
+        )?;
+
+        let mut offset: usize = 0;
+        let plaintexts = plaintext_lens
+            .iter()
+            .map(|&len| {
+                let start = offset;
+                offset = start
+                    .checked_add(len as usize)
+                    .context("invalid bls plaintext length")
+                    .or_illegal_argument()?;
+                plaintexts_concat
+                    .get(start..offset)
+                    .context("bls signature plaintext out of bounds")
+                    .or_illegal_argument()
+            })
+            .collect::<Result<Vec<_>>>()?;
+        if offset != plaintexts_concat.len() {
+            return Err(
+                syscall_error!(IllegalArgument; "plaintexts buffer length doesn't match").into(),
+            );
+        }
+
+        t.record(
+            signature::ops::verify_bls_aggregate(aggregate_sig, pub_keys, &plaintexts)
+                .or(Ok(false)),
+        )
+    }
+
     fn recover_secp_public_key(
         &self,
         hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],

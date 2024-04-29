@@ -115,6 +115,11 @@ lazy_static! {
             }
         },
         secp256k1_recover_cost: Gas::new(1637292),
+        bls_pairing_cost: Gas::new(8299302),
+        bls_hashing_cost: ScalingCost {
+            flat: Gas::zero(),
+            scale: Gas::new(7),
+        },
         hashing_cost: total_enum_map! {
             SupportedHashes {
                 Sha2_256 => ScalingCost {
@@ -404,6 +409,9 @@ pub struct PriceList {
     /// Gas cost for recovering secp256k1 signer public key
     pub(crate) secp256k1_recover_cost: Gas,
 
+    pub(crate) bls_pairing_cost: Gas,
+    pub(crate) bls_hashing_cost: ScalingCost,
+
     pub(crate) hashing_cost: HashMap<SupportedHashes, ScalingCost>,
 
     /// Gas cost for walking up the chain.
@@ -596,6 +604,28 @@ impl PriceList {
         let cost = self.sig_cost[&sig_type];
         let gas = cost.apply(data_len);
         GasCharge::new("OnVerifySignature", gas, Zero::zero())
+    }
+
+    /// Returns gas required for BLS aggregate signature verification.
+    #[inline]
+    pub fn on_verify_aggregate_signature(&self, num_sigs: usize, data_len: usize) -> GasCharge {
+        // When `num_sigs` BLS signatures are aggregated into a single signature, the aggregate
+        // signature verifier must perform `num_sigs + 1` expensive pairing operations (one
+        // pairing on the aggregate signature, and one pairing for each signed plaintext's digest).
+        //
+        // Note that `bls_signatures` rearranges the textbook verifier equation (containing
+        // `num_sigs + 1` full pairings) into a more efficient equation containing `num_sigs + 1`
+        // Miller loops and one final exponentiation.
+        let num_pairings = num_sigs as u64 + 1;
+
+        let gas_pairings = self.bls_pairing_cost * num_pairings;
+        let gas_hashing = self.bls_hashing_cost.apply(data_len);
+
+        GasCharge::new(
+            "OnVerifyBlsAggregateSignature",
+            gas_pairings + gas_hashing,
+            Zero::zero(),
+        )
     }
 
     /// Returns gas required for recovering signer pubkey from signature

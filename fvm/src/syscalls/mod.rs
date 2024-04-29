@@ -319,6 +319,11 @@ where
         linker.link_syscall("crypto", "verify_signature", crypto::verify_signature)?;
         linker.link_syscall(
             "crypto",
+            "verify_bls_aggregate",
+            crypto::verify_bls_aggregate,
+        )?;
+        linker.link_syscall(
+            "crypto",
             "recover_secp_public_key",
             crypto::recover_secp_public_key,
         )?;

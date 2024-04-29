@@ -232,6 +232,22 @@ pub trait CryptoOps {
         plaintext: &[u8],
     ) -> Result<bool>;
 
+    /// Verifies a BLS aggregate signature. In the case where there is one signer/signed plaintext,
+    /// this is equivalent to verifying a non-aggregated BLS signature.
+    ///
+    /// Returns:
+    /// - `Ok(true)` on a valid signature.
+    /// - `Ok(false)` on an invalid signature or if the signature or public keys' bytes represent an
+    ///    invalid curve point.
+    /// - `Err(IllegalArgument)` if `pub_keys.len() != plaintexts.len()`.
+    fn verify_bls_aggregate(
+        &self,
+        aggregate_sig: &[u8; fvm_shared::crypto::signature::BLS_SIG_LEN],
+        pub_keys: &[[u8; fvm_shared::crypto::signature::BLS_PUB_LEN]],
+        plaintexts_concat: &[u8],
+        plaintext_lens: &[u32],
+    ) -> Result<bool>;
+
     /// Given a message hash and its signature, recovers the public key of the signer.
     fn recover_secp_public_key(
         &self,

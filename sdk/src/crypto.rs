@@ -4,10 +4,13 @@ use cid::Cid;
 use fvm_ipld_encoding::to_vec;
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::hash::SupportedHashes;
-use fvm_shared::crypto::signature::{
-    Signature, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+use fvm_shared::crypto::{
+    hash::SupportedHashes,
+    signature::{
+        Signature, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    },
 };
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
@@ -38,6 +41,44 @@ pub fn verify_signature(
             signer.len() as u32,
             plaintext.as_ptr(),
             plaintext.len() as u32,
+        )
+        .map(status_code_to_bool)
+    }
+}
+
+pub fn verify_bls_aggregate(
+    sig: &[u8; BLS_SIG_LEN],
+    pub_keys: &[[u8; BLS_PUB_LEN]],
+    plaintexts: &[&[u8]],
+) -> SyscallResult<bool> {
+    let num_signers = {
+        let (num_signers, num_plaintexts) = (pub_keys.len(), plaintexts.len());
+        if num_signers != num_plaintexts {
+            return Err(ErrorNumber::IllegalArgument);
+        };
+        num_signers
+            .try_into()
+            .map_err(|_| ErrorNumber::IllegalArgument)?
+    };
+
+    let plaintext_lens = plaintexts
+        .iter()
+        .map(|msg| {
+            msg.len()
+                .try_into()
+                .map_err(|_| ErrorNumber::IllegalArgument)
+        })
+        .collect::<SyscallResult<Vec<u32>>>()?;
+
+    let plaintexts_concat: Vec<u8> = plaintexts.concat();
+
+    unsafe {
+        sys::crypto::verify_bls_aggregate(
+            num_signers,
+            sig.as_ptr(),
+            pub_keys.as_ptr(),
+            plaintexts_concat.as_ptr(),
+            plaintext_lens.as_ptr(),
         )
         .map(status_code_to_bool)
     }

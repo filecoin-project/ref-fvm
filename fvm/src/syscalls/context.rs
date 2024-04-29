@@ -87,6 +87,29 @@ impl Memory {
             .or_error(ErrorNumber::IllegalArgument)
     }
 
+    /// Return a slice of byte arrays into the actor's memory.
+    ///
+    /// This slice of byte arrays is valid for the lifetime of the syscall, borrowing the actors memory without
+    /// copying.
+    pub fn try_chunks<const S: usize>(&self, offset: u32, len: u32) -> Result<&[[u8; S]]> {
+        let num_chunks = {
+            let len = len as usize;
+            if len % S != 0 {
+                return Err(syscall_error!(
+                    IllegalArgument;
+                    "buffer length {len} is not divisible by chunk len {S}"
+                )
+                .into());
+            }
+            len / S
+        };
+
+        self.try_slice(offset, len).map(|bytes| {
+            let arr_ptr = bytes.as_ptr() as *const [u8; S];
+            unsafe { std::slice::from_raw_parts(arr_ptr, num_chunks) }
+        })
+    }
+
     /// Read a CID from actor memory starting at the given offset.
     ///
     /// On failure, this method returns an [`ErrorNumber::IllegalArgument`] error.

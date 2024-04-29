@@ -442,6 +442,59 @@ fn on_verify_signature() {
     export(CHARGE_NAME, &obs, &regression).unwrap();
 }
 
+#[test]
+#[cfg(feature = "calibration")]
+fn on_verify_bls_aggregate() {
+    use bls_signatures::Serialize;
+    use rand::{thread_rng, RngCore};
+
+    const CHARGE_NAME: &str = "OnVerifyBlsAggregateSignature";
+    const METHOD: Method = Method::OnVerifyBlsAggregate;
+
+    let iterations = 100;
+
+    let mut te = instantiate_tester();
+    let mut obs = Vec::new();
+    let mut rng = thread_rng();
+
+    for &n in &[1, 4, 8, 20, 50, 200, 1000] {
+        let mut keys = Vec::new();
+        let mut sks = Vec::new();
+        let mut sigs = Vec::new();
+        let mut messages = Vec::new();
+        for _ in 0..n {
+            let mut data = vec![0u8; 100];
+            rng.fill_bytes(&mut data);
+            let sk = bls_signatures::PrivateKey::generate(&mut rng);
+            let pk = sk.public_key();
+            let sig = sk.sign(&data);
+
+            keys.push(pk.as_bytes());
+            sks.push(sk);
+            messages.push(data);
+            sigs.push(sig);
+        }
+        let signature = bls_signatures::aggregate(&sigs).unwrap().as_bytes();
+        let params = OnVerifyBlsAggregateParams {
+            iterations,
+            signature,
+            keys,
+            messages,
+        };
+
+        let ret = te.execute_or_die(METHOD as u64, &params);
+
+        let iter_obs = collect_obs(&ret, CHARGE_NAME, "signers", n);
+        let iter_obs = eliminate_outliers(iter_obs, 0.02, Eliminate::Top);
+
+        obs.extend(iter_obs);
+    }
+
+    let regression = run_linear_regression(&obs);
+
+    export(CHARGE_NAME, &obs, &regression).unwrap();
+}
+
 // Scan CBOR Fields with no links.
 #[test]
 #[cfg(feature = "calibration")]
