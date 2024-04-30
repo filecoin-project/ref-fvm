@@ -4,7 +4,13 @@ Changes to the FVM's Blockstore abstraction
 
 ## [Unreleased]
 
-## 0.2.0 [2023-06-28)
+## 0.2.1 [2024-04-30]
+
+- Constify `Block::new`.
+- Implement `PartialEq` between blocks with different underlying buffer types.
+- Improve `Block` `Debug` implementation.
+
+## 0.2.0 [2023-06-28]
 
 Breaking Changes:
 
