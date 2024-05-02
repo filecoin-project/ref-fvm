@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 4.2.0 [2023-04-29]
+
+- chore: update to wasmtime 19.0.1 [#1993](https://github.com/filecoin-project/ref-fvm/pull/1993)
+- Enable nv23 support behind the `nv23-dev` feature flag [#2000](https://github.com/filecoin-project/ref-fvm/pull/2000)
+- feat: fvm: remove once_cell [#1989](https://github.com/filecoin-project/ref-fvm/pull/1989)
+- feat: shared: check bls zero address without lazy_static [#1984](https://github.com/filecoin-project/ref-fvm/pull/1984)
+
 ## 4.1.2 [2023-01-31]
 
 feat: allow CBOR events
