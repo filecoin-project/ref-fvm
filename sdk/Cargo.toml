@@ -24,3 +24,7 @@ fvm_ipld_encoding = { workspace = true }
 default = []
 m2-native = []
 upgrade-actor = []
+# Use this feature to remove `verify_signature` syscall that is supposed to be removed by FIP-0079,
+# The current implementation keeps it by default for backward compatibility reason.
+# See <https://github.com/filecoin-project/ref-fvm/issues/2001>
+no-verify-signature = []

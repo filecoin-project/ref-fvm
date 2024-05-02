@@ -17,3 +17,4 @@ crate-type = ["cdylib"] ## cdylib is necessary for Wasm build
 
 [features]
 coverage = ["minicov"]
+no-verify-signature = ["fvm_sdk/no-verify-signature"]

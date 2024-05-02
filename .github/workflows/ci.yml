@@ -47,6 +47,11 @@ jobs:
             command: clippy
             # we disable default features because rust will otherwise unify them and turn on opencl in CI.
             args: --all --all-targets --no-default-features
+          - name: check-clippy(no-verify-signature)
+            key: v3
+            command: clippy
+            # we disable default features because rust will otherwise unify them and turn on opencl in CI.
+            args: --all --all-targets --no-default-features --features no-verify-signature
           - name: test-fvm
             key: v3-cov
             push: true

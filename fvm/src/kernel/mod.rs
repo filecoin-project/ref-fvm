@@ -220,6 +220,7 @@ pub trait ActorOps {
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount>;
 }
 
+#[cfg(not(feature = "no-verify-signature"))]
 /// Cryptographic primitives provided by the kernel.
 #[delegatable_trait]
 pub trait CryptoOps {
@@ -232,6 +233,40 @@ pub trait CryptoOps {
         plaintext: &[u8],
     ) -> Result<bool>;
 
+    /// Verifies a BLS aggregate signature. In the case where there is one signer/signed plaintext,
+    /// this is equivalent to verifying a non-aggregated BLS signature.
+    ///
+    /// Returns:
+    /// - `Ok(true)` on a valid signature.
+    /// - `Ok(false)` on an invalid signature or if the signature or public keys' bytes represent an
+    ///    invalid curve point.
+    /// - `Err(IllegalArgument)` if `pub_keys.len() != plaintexts.len()`.
+    fn verify_bls_aggregate(
+        &self,
+        aggregate_sig: &[u8; fvm_shared::crypto::signature::BLS_SIG_LEN],
+        pub_keys: &[[u8; fvm_shared::crypto::signature::BLS_PUB_LEN]],
+        plaintexts_concat: &[u8],
+        plaintext_lens: &[u32],
+    ) -> Result<bool>;
+
+    /// Given a message hash and its signature, recovers the public key of the signer.
+    fn recover_secp_public_key(
+        &self,
+        hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
+        signature: &[u8; SECP_SIG_LEN],
+    ) -> Result<[u8; SECP_PUB_LEN]>;
+
+    /// Hashes input `data_in` using with the specified hash function, writing the output to
+    /// `digest_out`, returning the size of the digest written to `digest_out`. If `digest_out` is
+    /// to small to fit the entire digest, it will be truncated. If too large, the leftover space
+    /// will not be overwritten.
+    fn hash(&self, code: u64, data: &[u8]) -> Result<Multihash>;
+}
+
+#[cfg(feature = "no-verify-signature")]
+/// Cryptographic primitives provided by the kernel.
+#[delegatable_trait]
+pub trait CryptoOps {
     /// Verifies a BLS aggregate signature. In the case where there is one signer/signed plaintext,
     /// this is equivalent to verifying a non-aggregated BLS signature.
     ///

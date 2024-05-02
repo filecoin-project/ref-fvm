@@ -22,8 +22,8 @@ use fvm_shared::version::NetworkVersion;
 use fvm_test_actors::wasm_bin::{
     ADDRESS_ACTOR_BINARY, CREATE_ACTOR_BINARY, CUSTOM_SYSCALL_ACTOR_BINARY, EXIT_DATA_ACTOR_BINARY,
     HELLO_WORLD_ACTOR_BINARY, IPLD_ACTOR_BINARY, OOM_ACTOR_BINARY, READONLY_ACTOR_BINARY,
-    SSELF_ACTOR_BINARY, STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY, UPGRADE_ACTOR_BINARY,
-    UPGRADE_RECEIVE_ACTOR_BINARY,
+    SSELF_ACTOR_BINARY, STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY,
+    SYSCALL_ACTOR_BINARY_FIP0079, UPGRADE_ACTOR_BINARY, UPGRADE_RECEIVE_ACTOR_BINARY,
 };
 use num_traits::Zero;
 
@@ -140,6 +140,20 @@ fn ipld() {
 
 #[test]
 fn syscalls() {
+    syscalls_inner(SYSCALL_ACTOR_BINARY)
+}
+
+#[test]
+fn syscalls_fip_0079() {
+    syscalls_inner(SYSCALL_ACTOR_BINARY_FIP0079)
+}
+
+#[test]
+fn syscalls_wasm_properly_imported() {
+    assert_ne!(SYSCALL_ACTOR_BINARY, SYSCALL_ACTOR_BINARY_FIP0079)
+}
+
+fn syscalls_inner(wasm_bin: &[u8]) {
     // Instantiate tester
     let mut tester = new_tester(
         NV_FOR_TEST,
@@ -150,8 +164,6 @@ fn syscalls() {
 
     let sender: [Account; 1] = tester.create_accounts().unwrap();
     tester.set_account_sequence(sender[0].0, 100).unwrap();
-
-    let wasm_bin = SYSCALL_ACTOR_BINARY;
 
     // Set actor state
     let actor_state = State::default();

@@ -1,14 +1,12 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::convert::{TryFrom, TryInto};
-use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{CBOR, IPLD_RAW};
-use fvm_shared::address::Payload;
 use fvm_shared::crypto::signature;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
@@ -575,6 +573,7 @@ impl<C> CryptoOps for DefaultKernel<C>
 where
     C: CallManager,
 {
+    #[cfg(not(feature = "no-verify-signature"))]
     fn verify_signature(
         &self,
         sig_type: SignatureType,
@@ -582,6 +581,25 @@ where
         signer: &Address,
         plaintext: &[u8],
     ) -> Result<bool> {
+        use fvm_shared::address::Payload;
+        use std::panic::{self, UnwindSafe};
+
+        fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(
+            context: &str,
+            f: F,
+        ) -> Result<R> {
+            match panic::catch_unwind(f) {
+                Ok(v) => v,
+                Err(e) => {
+                    log::error!("caught panic when {}: {:?}", context, e);
+                    Err(
+                        syscall_error!(IllegalArgument; "caught panic when {}: {:?}", context, e)
+                            .into(),
+                    )
+                }
+            }
+        }
+
         let t = self.call_manager.charge_gas(
             self.call_manager
                 .price_list()
@@ -1128,15 +1146,5 @@ where
         t.stop();
 
         Ok(())
-    }
-}
-
-fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, f: F) -> Result<R> {
-    match panic::catch_unwind(f) {
-        Ok(v) => v,
-        Err(e) => {
-            log::error!("caught panic when {}: {:?}", context, e);
-            Err(syscall_error!(IllegalArgument; "caught panic when {}: {:?}", context, e).into())
-        }
     }
 }

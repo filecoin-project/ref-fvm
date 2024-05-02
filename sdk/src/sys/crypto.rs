@@ -28,6 +28,7 @@ super::fvm_syscalls! {
     /// | Error               | Reason                                               |
     /// |---------------------|------------------------------------------------------|
     /// | [`IllegalArgument`] | signature, address, or plaintext buffers are invalid |
+    #[cfg(not(feature = "no-verify-signature"))]
     pub fn verify_signature(
         sig_type: u32,
         sig_off: *const u8,

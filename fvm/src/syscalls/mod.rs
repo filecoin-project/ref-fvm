@@ -315,7 +315,7 @@ where
         if cfg!(feature = "m2-native") {
             linker.link_syscall("actor", "install_actor", actor::install_actor)?;
         }
-
+        #[cfg(not(feature = "no-verify-signature"))]
         linker.link_syscall("crypto", "verify_signature", crypto::verify_signature)?;
         linker.link_syscall(
             "crypto",

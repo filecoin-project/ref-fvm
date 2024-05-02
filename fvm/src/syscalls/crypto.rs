@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::cmp;
 
-use anyhow::Context as _;
 use fvm_shared::crypto::signature::{
-    SignatureType, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
-use num_traits::FromPrimitive;
 
 use super::Context;
 use crate::{
@@ -14,6 +12,7 @@ use crate::{
     syscall_error,
 };
 
+#[cfg(not(feature = "no-verify-signature"))]
 /// Verifies that a signature is valid for an address and plaintext.
 ///
 /// The return i32 indicates the status code of the verification:
@@ -30,6 +29,10 @@ pub fn verify_signature(
     plaintext_off: u32,
     plaintext_len: u32,
 ) -> Result<i32> {
+    use anyhow::Context as _;
+    use fvm_shared::crypto::signature::SignatureType;
+    use num_traits::FromPrimitive;
+
     let sig_type = SignatureType::from_u32(sig_type)
         .with_context(|| format!("unknown signature type {}", sig_type))
         .or_illegal_argument()?;
