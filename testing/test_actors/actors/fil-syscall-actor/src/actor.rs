@@ -98,7 +98,7 @@ fn test_secp_signature() {
     // test that calling sdk::sys::crypto::verify_signature with invalid parameters result
     // in correct error value
     //
-    #[cfg(not(feature = "no-verify-signature"))]
+    #[cfg(feature = "verify-signature")]
     unsafe {
         let sig_type = signature.signature_type();
         let sig_bytes = signature.bytes();

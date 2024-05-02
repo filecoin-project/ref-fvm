@@ -99,13 +99,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         .expect("failed to write to manifest");
     }
 
-    // Generate syscall actor with no-verify-signature feature.
+    // Generate syscall actor with verify-signature feature.
     {
         let (var, pkg) = ("SYSCALL_ACTOR_BINARY_FIP0079", "fil_syscall_actor");
         let mut cmd = Command::new(cargo);
         cmd.arg("build")
             .arg(format!("-p={pkg}"))
-            // .arg(format!("--features=no-verify-signature"))
+            .arg("--features=verify-signature")
             .arg(format!("--target={WASM_TARGET}"))
             .arg("--profile=wasm")
             .arg("--locked")

@@ -12,7 +12,7 @@ use crate::{
     syscall_error,
 };
 
-#[cfg(not(feature = "no-verify-signature"))]
+#[cfg(feature = "verify-signature")]
 /// Verifies that a signature is valid for an address and plaintext.
 ///
 /// The return i32 indicates the status code of the verification:

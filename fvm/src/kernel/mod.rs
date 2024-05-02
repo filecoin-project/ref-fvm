@@ -220,7 +220,7 @@ pub trait ActorOps {
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount>;
 }
 
-#[cfg(not(feature = "no-verify-signature"))]
+#[cfg(feature = "verify-signature")]
 /// Cryptographic primitives provided by the kernel.
 #[delegatable_trait]
 pub trait CryptoOps {
@@ -263,7 +263,7 @@ pub trait CryptoOps {
     fn hash(&self, code: u64, data: &[u8]) -> Result<Multihash>;
 }
 
-#[cfg(feature = "no-verify-signature")]
+#[cfg(not(feature = "verify-signature"))]
 /// Cryptographic primitives provided by the kernel.
 #[delegatable_trait]
 pub trait CryptoOps {

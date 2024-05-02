@@ -21,7 +21,7 @@ use num_traits::FromPrimitive;
 
 use crate::{status_code_to_bool, sys, SyscallResult};
 
-#[cfg(not(feature = "no-verify-signature"))]
+#[cfg(feature = "verify-signature")]
 /// Verifies that a signature is valid for an address and plaintext.
 ///
 /// NOTE: This only supports f1 and f3 addresses.
@@ -47,7 +47,7 @@ pub fn verify_signature(
     }
 }
 
-#[cfg(feature = "no-verify-signature")]
+#[cfg(not(feature = "verify-signature"))]
 /// Verifies that a signature is valid for an address and plaintext.
 ///
 /// NOTE: This only supports f1 and f3 addresses.

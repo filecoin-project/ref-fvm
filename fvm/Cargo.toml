@@ -48,7 +48,7 @@ fvm = { path = ".", features = ["testing"], default-features = false }
 coverage-helper = { workspace = true }
 
 [features]
-default = ["opencl"]
+default = ["opencl", "verify-signature"]
 opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
 cuda-supraseal = ["filecoin-proofs-api/cuda-supraseal"]
@@ -58,7 +58,7 @@ m2-native = []
 upgrade-actor = []
 gas_calibration = []
 nv23-dev = []
-# Use this feature to remove `verify_signature` syscall that is supposed to be removed by FIP-0079,
+# Use this feature to keep `verify_signature` syscall that is supposed to be removed by FIP-0079,
 # The current implementation keeps it by default for backward compatibility reason.
 # See <https://github.com/filecoin-project/ref-fvm/issues/2001>
-no-verify-signature = []
+verify-signature = []

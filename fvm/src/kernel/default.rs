@@ -573,7 +573,7 @@ impl<C> CryptoOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    #[cfg(not(feature = "no-verify-signature"))]
+    #[cfg(feature = "verify-signature")]
     fn verify_signature(
         &self,
         sig_type: SignatureType,
