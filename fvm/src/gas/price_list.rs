@@ -7,6 +7,7 @@ use std::ops::Mul;
 
 use anyhow::Context;
 use fvm_shared::clock::ChainEpoch;
+#[cfg(feature = "verify-signature")]
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
@@ -102,6 +103,7 @@ lazy_static! {
         address_lookup: Gas::new(1_050_000),
         address_assignment: Gas::new(1_000_000),
 
+        #[cfg(feature = "verify-signature")]
         sig_cost: total_enum_map!{
             SignatureType {
                 Secp256k1 => ScalingCost {
@@ -404,6 +406,7 @@ pub struct PriceList {
     pub(crate) actor_create_storage: Gas,
 
     /// Gas cost for verifying a cryptographic signature.
+    #[cfg(feature = "verify-signature")]
     pub(crate) sig_cost: HashMap<SignatureType, ScalingCost>,
 
     /// Gas cost for recovering secp256k1 signer public key
@@ -599,6 +602,7 @@ impl PriceList {
     }
 
     /// Returns gas required for signature verification.
+    #[cfg(feature = "verify-signature")]
     #[inline]
     pub fn on_verify_signature(&self, sig_type: SignatureType, data_len: usize) -> GasCharge {
         let cost = self.sig_cost[&sig_type];
