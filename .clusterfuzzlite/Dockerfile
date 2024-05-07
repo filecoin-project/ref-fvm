@@ -16,5 +16,6 @@
 
 FROM gcr.io/oss-fuzz-base/base-builder-rust
 COPY . $SRC/ref-fvm
-copy ./.clusterfuzzlite/build.sh $SRC
+COPY ./.clusterfuzzlite/build.sh $SRC
+RUN rustup toolchain install nightly
 WORKDIR $SRC
