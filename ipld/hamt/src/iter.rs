@@ -43,7 +43,7 @@ where
         }
     }
 
-    pub(crate) fn new_from<Q: ?Sized>(
+    pub(crate) fn new_from<Q>(
         store: &'a BS,
         root: &'a Node<K, V, H, Ver>,
         key: &Q,
@@ -52,7 +52,7 @@ where
     where
         H: HashAlgorithm,
         K: Borrow<Q> + PartialOrd,
-        Q: Hash + Eq,
+        Q: Hash + Eq + ?Sized,
     {
         let hashed_key = H::hash(key);
         let mut hash = HashBits::new(&hashed_key);

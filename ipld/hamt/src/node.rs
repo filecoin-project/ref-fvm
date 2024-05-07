@@ -178,7 +178,7 @@ where
     }
 
     #[inline]
-    pub fn get<Q: ?Sized, S: Blockstore>(
+    pub fn get<Q, S: Blockstore>(
         &self,
         k: &Q,
         store: &S,
@@ -186,13 +186,13 @@ where
     ) -> Result<Option<&V>, Error>
     where
         K: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: Eq + Hash + ?Sized,
     {
         Ok(self.search(k, store, conf)?.map(|kv| kv.value()))
     }
 
     #[inline]
-    pub fn remove_entry<Q: ?Sized, S>(
+    pub fn remove_entry<Q, S>(
         &mut self,
         k: &Q,
         store: &S,
@@ -200,7 +200,7 @@ where
     ) -> Result<Option<(K, V)>, Error>
     where
         K: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: Eq + Hash + ?Sized,
         S: Blockstore,
     {
         let hash = H::hash(k);
@@ -212,7 +212,7 @@ where
     }
 
     /// Search for a key.
-    fn search<Q: ?Sized, S: Blockstore>(
+    fn search<Q, S: Blockstore>(
         &self,
         q: &Q,
         store: &S,
@@ -220,13 +220,13 @@ where
     ) -> Result<Option<&KeyValuePair<K, V>>, Error>
     where
         K: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: Eq + Hash + ?Sized,
     {
         let hash = H::hash(q);
         self.get_value(&mut HashBits::new(&hash), conf, 0, q, store)
     }
 
-    fn get_value<Q: ?Sized, S: Blockstore>(
+    fn get_value<Q, S: Blockstore>(
         &self,
         hashed_key: &mut HashBits,
         conf: &Config,
@@ -236,7 +236,7 @@ where
     ) -> Result<Option<&KeyValuePair<K, V>>, Error>
     where
         K: Borrow<Q>,
-        Q: Eq + Hash,
+        Q: Eq + Hash + ?Sized,
     {
         let idx = hashed_key.next(conf.bit_width)?;
 
@@ -390,7 +390,7 @@ where
     }
 
     /// Internal method to delete entries.
-    fn rm_value<Q: ?Sized, S: Blockstore>(
+    fn rm_value<Q, S: Blockstore>(
         &mut self,
         hashed_key: &mut HashBits,
         conf: &Config,
@@ -400,7 +400,7 @@ where
     ) -> Result<Option<(K, V)>, Error>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: Hash + Eq + ?Sized,
     {
         let idx = hashed_key.next(conf.bit_width)?;
 
