@@ -34,7 +34,7 @@ where
         }
     }
 
-    pub(crate) fn new_from<Q: Sized>(
+    pub(crate) fn new_from<Q>(
         store: &'a BS,
         root: &'a Node<K, V, H, N>,
         key: &Q,
@@ -42,7 +42,7 @@ where
     ) -> Result<Self, Error>
     where
         K: Borrow<Q> + PartialOrd,
-        Q: PartialEq,
+        Q: PartialEq + Sized,
         H: AsHashedKey<Q, N>,
     {
         let hashed_key = H::as_hashed_key(key);

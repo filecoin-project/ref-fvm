@@ -28,9 +28,9 @@ pub mod strict_bytes {
             S: Serializer;
     }
 
-    impl<T: ?Sized> Serialize for T
+    impl<T> Serialize for T
     where
-        T: AsRef<[u8]>,
+        T: AsRef<[u8]> + ?Sized,
     {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where

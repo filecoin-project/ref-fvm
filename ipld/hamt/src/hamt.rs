@@ -246,10 +246,10 @@ where
     /// assert_eq!(map.get(&2).unwrap(), None);
     /// ```
     #[inline]
-    pub fn get<Q: ?Sized>(&self, k: &Q) -> Result<Option<&V>, Error>
+    pub fn get<Q>(&self, k: &Q) -> Result<Option<&V>, Error>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: Hash + Eq + ?Sized,
         V: DeserializeOwned,
     {
         match self.root.get(k, self.store.borrow(), &self.conf)? {
@@ -278,10 +278,10 @@ where
     /// assert_eq!(map.contains_key(&2).unwrap(), false);
     /// ```
     #[inline]
-    pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> Result<bool, Error>
+    pub fn contains_key<Q>(&self, k: &Q) -> Result<bool, Error>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: Hash + Eq + ?Sized,
     {
         Ok(self.root.get(k, self.store.borrow(), &self.conf)?.is_some())
     }
@@ -306,10 +306,10 @@ where
     /// assert_eq!(map.delete(&1).unwrap(), Some((1, "a".to_string())));
     /// assert_eq!(map.delete(&1).unwrap(), None);
     /// ```
-    pub fn delete<Q: ?Sized>(&mut self, k: &Q) -> Result<Option<(K, V)>, Error>
+    pub fn delete<Q>(&mut self, k: &Q) -> Result<Option<(K, V)>, Error>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: Hash + Eq + ?Sized,
     {
         let deleted = self.root.remove_entry(k, self.store.borrow(), &self.conf)?;
 
@@ -410,7 +410,7 @@ where
     /// assert_eq!(next_key.unwrap(), numbers[2]);
     /// ```
     #[inline]
-    pub fn for_each_ranged<Q: ?Sized, F>(
+    pub fn for_each_ranged<Q, F>(
         &self,
         starting_key: Option<&Q>,
         max: Option<usize>,
@@ -418,7 +418,7 @@ where
     ) -> Result<(usize, Option<K>), Error>
     where
         K: Borrow<Q> + Clone,
-        Q: Eq + Hash,
+        Q: Eq + Hash + ?Sized,
         V: DeserializeOwned,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
@@ -510,11 +510,11 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-    pub fn iter_from<Q: ?Sized>(&self, key: &Q) -> Result<IterImpl<BS, V, K, H, Ver>, Error>
+    pub fn iter_from<Q>(&self, key: &Q) -> Result<IterImpl<BS, V, K, H, Ver>, Error>
     where
         H: HashAlgorithm,
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: Hash + Eq + ?Sized,
     {
         IterImpl::new_from(&self.store, &self.root, key, &self.conf)
     }

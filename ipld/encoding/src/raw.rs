@@ -75,9 +75,9 @@ impl serde::ser::Serializer for Serializer {
         Err(Error::KindNotSupported)
     }
 
-    fn serialize_some<T: ?Sized>(self, _: &T) -> Result<Self::Ok, Self::Error>
+    fn serialize_some<T>(self, _: &T) -> Result<Self::Ok, Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         Err(Error::KindNotSupported)
     }
@@ -95,18 +95,14 @@ impl serde::ser::Serializer for Serializer {
         Err(Error::KindNotSupported)
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(
-        self,
-        _: &'static str,
-        _: &T,
-    ) -> Result<Self::Ok, Self::Error>
+    fn serialize_newtype_struct<T>(self, _: &'static str, _: &T) -> Result<Self::Ok, Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         Err(Error::KindNotSupported)
     }
 
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _: &'static str,
         _: u32,
@@ -114,7 +110,7 @@ impl serde::ser::Serializer for Serializer {
         _: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         Err(Error::KindNotSupported)
     }
