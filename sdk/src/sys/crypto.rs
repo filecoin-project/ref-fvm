@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 //! Syscalls for cryptographic operations.
 
-use fvm_shared::crypto::signature::SECP_PUB_LEN;
+use fvm_shared::crypto::signature::{BLS_PUB_LEN, SECP_PUB_LEN};
 #[doc(inline)]
 pub use fvm_shared::sys::out::crypto::*;
 
@@ -28,6 +28,7 @@ super::fvm_syscalls! {
     /// | Error               | Reason                                               |
     /// |---------------------|------------------------------------------------------|
     /// | [`IllegalArgument`] | signature, address, or plaintext buffers are invalid |
+    #[cfg(feature = "verify-signature")]
     pub fn verify_signature(
         sig_type: u32,
         sig_off: *const u8,
@@ -36,6 +37,45 @@ super::fvm_syscalls! {
         addr_len: u32,
         plaintext_off: *const u8,
         plaintext_len: u32,
+    ) -> Result<i32>;
+
+    /// Verifies that a BLS aggregate signature is valid for a list of signers' BLS public keys and
+    /// and the digest of each signer's plaintext.
+    ///
+    /// # Arguments
+    ///
+    /// - `num_signers` - the number of signatures aggregated; for non-aggregate signatures `num_signers = 1`.
+    /// - `sig_off` - a pointer to the first byte of the signature being verified.
+    /// - `pub_keys_off` - a pointer to the first public key in an array containing each signer's public
+    /// key.
+    /// - `plaintexts_off` - a pointer to the first byte in an array containing each plaintext's bytes,
+    /// i.e. plaintexts must be allocated contiguously in memory (equivalent to the memory layout of an
+    /// array containing the concatenated plaintexts' bytes).
+    /// - `plaintext_lens_off` - a pointer to the first element of an array containing each plaintext's
+    /// byte length (each plaintexrt's byte length is represented as a `u32`).
+    ///
+    /// # Returns
+    ///
+    /// - `Err(IllegalArgument)`:
+    ///     - any pointer and byte length pair are an invalid location in their Wasm module's memory.
+    ///
+    /// - `Ok(-1)`:
+    ///     - the signature is an invalid G2 compressed curve point.
+    ///     - any public key is an invalid G1 compressed curve point.
+    ///     - there are duplicate plaintexts.
+    ///     - any public key in is the G1 identity/zero point.
+    ///     - the signature is invalid for the provided public keys and plaintexts.
+    ///
+    /// - `Ok(0)`:
+    ///    - the provided signature is valid for the provided signers' public keys and plaintexts.
+    ///    - the number of signers is zero
+    ///
+    pub fn verify_bls_aggregate(
+        num_signers: u32,
+        sig_off: *const u8,
+        pub_keys_off: *const [u8; BLS_PUB_LEN],
+        plaintexts_off: *const u8,
+        plaintext_lens_off: *const u32,
     ) -> Result<i32>;
 
     /// Recovers the signer public key from a signed message hash and its signature.

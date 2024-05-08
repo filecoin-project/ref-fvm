@@ -8,7 +8,7 @@ repository.workspace = true
 authors = ["Protocol Labs", "Filecoin Core Devs", "Polyphene"]
 
 [dependencies]
-fvm = { workspace = true, default-features = false, features = ["testing", "upgrade-actor"] }
+fvm = { workspace = true, default-features = false, features = ["testing", "upgrade-actor", "verify-signature"] }
 fvm_shared = { workspace = true, features = ["testing"] }
 fvm_ipld_car = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }

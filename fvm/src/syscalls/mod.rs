@@ -315,8 +315,13 @@ where
         if cfg!(feature = "m2-native") {
             linker.link_syscall("actor", "install_actor", actor::install_actor)?;
         }
-
+        #[cfg(feature = "verify-signature")]
         linker.link_syscall("crypto", "verify_signature", crypto::verify_signature)?;
+        linker.link_syscall(
+            "crypto",
+            "verify_bls_aggregate",
+            crypto::verify_bls_aggregate,
+        )?;
         linker.link_syscall(
             "crypto",
             "recover_secp_public_key",

@@ -28,7 +28,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        name: [build, check-m2-native, check-clippy, test-fvm, test, integration, conformance, calibration]
+        name: [build, check-m2-native, check-clippy, check-clippy-verify-signature, test-fvm, test, integration, conformance, calibration]
         include:
           - name: build
             key: v3
@@ -47,6 +47,11 @@ jobs:
             command: clippy
             # we disable default features because rust will otherwise unify them and turn on opencl in CI.
             args: --all --all-targets --no-default-features
+          - name: check-clippy-verify-signature
+            key: v3
+            command: clippy
+            # we disable default features because rust will otherwise unify them and turn on opencl in CI.
+            args: --all --all-targets --no-default-features --features verify-signature
           - name: test-fvm
             key: v3-cov
             push: true

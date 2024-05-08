@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::cmp;
 
-use anyhow::Context as _;
 use fvm_shared::crypto::signature::{
-    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
-use num_traits::FromPrimitive;
 
 use super::Context;
-use crate::kernel::{ClassifyResult, CryptoOps, Result};
+use crate::{
+    kernel::{ClassifyResult, CryptoOps, Result},
+    syscall_error,
+};
 
+#[cfg(feature = "verify-signature")]
 /// Verifies that a signature is valid for an address and plaintext.
 ///
 /// The return i32 indicates the status code of the verification:
@@ -27,6 +29,10 @@ pub fn verify_signature(
     plaintext_off: u32,
     plaintext_len: u32,
 ) -> Result<i32> {
+    use anyhow::Context as _;
+    use fvm_shared::crypto::signature::SignatureType;
+    use num_traits::FromPrimitive;
+
     let sig_type = SignatureType::from_u32(sig_type)
         .with_context(|| format!("unknown signature type {}", sig_type))
         .or_illegal_argument()?;
@@ -37,6 +43,54 @@ pub fn verify_signature(
     context
         .kernel
         .verify_signature(sig_type, sig_bytes, &addr, plaintext)
+        .map(|v| if v { 0 } else { -1 })
+}
+
+/// Verifies that a bls aggregate signature is valid for a list of public keys and plaintexts.
+///
+/// The return i32 indicates the status code of the verification:
+///  - 0: verification ok.
+///  - -1: verification failed.
+#[allow(clippy::too_many_arguments)]
+pub fn verify_bls_aggregate(
+    context: Context<'_, impl CryptoOps>,
+    num_signers: u32,
+    sig_off: u32,
+    pub_keys_off: u32,
+    plaintexts_off: u32,
+    plaintext_lens_off: u32,
+) -> Result<i32> {
+    // Check that the provided number of signatures aggregated does not cause `u32` overflow.
+    let pub_keys_len = num_signers
+        .checked_mul(BLS_PUB_LEN as u32)
+        .ok_or(syscall_error!(
+            IllegalArgument;
+            "number of signatures aggregated ({num_signers}) exceeds limit"
+        ))?;
+
+    let sig: &[u8; BLS_SIG_LEN] = context
+        .memory
+        .try_slice(sig_off, BLS_SIG_LEN as u32)?
+        .try_into()
+        .expect("bls signature bytes slice-to-array conversion should not fail");
+
+    let pub_keys: &[[u8; BLS_PUB_LEN]] = context.memory.try_chunks(pub_keys_off, pub_keys_len)?;
+
+    let plaintext_lens: &[u32] = context
+        .memory
+        .try_slice(plaintext_lens_off, num_signers * 4)
+        .map(|bytes| {
+            let ptr = bytes.as_ptr() as *const u32;
+            unsafe { std::slice::from_raw_parts(ptr, num_signers as usize) }
+        })?;
+
+    let plaintexts_concat = context
+        .memory
+        .try_slice(plaintexts_off, plaintext_lens.iter().sum())?;
+
+    context
+        .kernel
+        .verify_bls_aggregate(sig, pub_keys, plaintexts_concat, plaintext_lens)
         .map(|v| if v { 0 } else { -1 })
 }
 

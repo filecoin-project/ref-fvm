@@ -15,6 +15,8 @@ pub enum Method {
     OnBlock,
     /// Try (and fail) to verify random data with a public key and signature.
     OnVerifySignature,
+    /// Try to validate BLS aggregates (correctly).
+    OnVerifyBlsAggregate,
     /// Try (and fail) to recovery a public key from a signature, using random data.
     OnRecoverSecpPublicKey,
     /// Measure sends
@@ -51,6 +53,14 @@ pub struct OnVerifySignatureParams {
     /// valid signatures inside the contract because the libs we use don't compile to Wasm.
     pub signature: Vec<u8>,
     pub seed: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OnVerifyBlsAggregateParams {
+    pub iterations: usize,
+    pub signature: Vec<u8>,
+    pub keys: Vec<Vec<u8>>,
+    pub messages: Vec<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize)]

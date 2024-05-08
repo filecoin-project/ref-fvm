@@ -4,10 +4,13 @@ use cid::Cid;
 use fvm_ipld_encoding::to_vec;
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::crypto::hash::SupportedHashes;
-use fvm_shared::crypto::signature::{
-    Signature, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+use fvm_shared::crypto::{
+    hash::SupportedHashes,
+    signature::{
+        Signature, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    },
 };
+use fvm_shared::error::ErrorNumber;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
@@ -18,6 +21,7 @@ use num_traits::FromPrimitive;
 
 use crate::{status_code_to_bool, sys, SyscallResult};
 
+#[cfg(feature = "verify-signature")]
 /// Verifies that a signature is valid for an address and plaintext.
 ///
 /// NOTE: This only supports f1 and f3 addresses.
@@ -38,6 +42,96 @@ pub fn verify_signature(
             signer.len() as u32,
             plaintext.as_ptr(),
             plaintext.len() as u32,
+        )
+        .map(status_code_to_bool)
+    }
+}
+
+#[cfg(not(feature = "verify-signature"))]
+/// Verifies that a signature is valid for an address and plaintext.
+///
+/// NOTE: This only supports f1 and f3 addresses.
+pub fn verify_signature(
+    signature: &Signature,
+    addr: &Address,
+    plaintext: &[u8],
+) -> SyscallResult<bool> {
+    use fvm_shared::{
+        address::{Payload, Protocol},
+        crypto::signature::SignatureType,
+    };
+
+    let sig_type = signature.signature_type();
+    let sig_bytes = signature.bytes();
+    match sig_type {
+        SignatureType::BLS => {
+            let sig: &[u8; BLS_SIG_LEN] = sig_bytes
+                .try_into()
+                .map_err(|_| ErrorNumber::IllegalArgument)?;
+
+            let pub_key = match addr.payload() {
+                Payload::BLS(pub_key) => *pub_key,
+                _ => return Err(ErrorNumber::IllegalArgument),
+            };
+
+            verify_bls_aggregate(sig, &[pub_key], &[plaintext])
+        }
+        SignatureType::Secp256k1 => {
+            if addr.protocol() != Protocol::Secp256k1 {
+                return Err(ErrorNumber::IllegalArgument);
+            }
+
+            let sig: &[u8; SECP_SIG_LEN] = sig_bytes
+                .try_into()
+                .map_err(|_| ErrorNumber::IllegalArgument)?;
+
+            let digest = hash_blake2b(plaintext);
+
+            let addr_recovered = {
+                let pub_key = recover_secp_public_key(&digest, sig)?;
+                Address::new_secp256k1(&pub_key).expect(
+                    "recovered secp256k1 public key should always be a valid secp256k1 address",
+                )
+            };
+
+            Ok(addr == &addr_recovered)
+        }
+    }
+}
+
+pub fn verify_bls_aggregate(
+    sig: &[u8; BLS_SIG_LEN],
+    pub_keys: &[[u8; BLS_PUB_LEN]],
+    plaintexts: &[&[u8]],
+) -> SyscallResult<bool> {
+    let num_signers = {
+        let (num_signers, num_plaintexts) = (pub_keys.len(), plaintexts.len());
+        if num_signers != num_plaintexts {
+            return Err(ErrorNumber::IllegalArgument);
+        };
+        num_signers
+            .try_into()
+            .map_err(|_| ErrorNumber::IllegalArgument)?
+    };
+
+    let plaintext_lens = plaintexts
+        .iter()
+        .map(|msg| {
+            msg.len()
+                .try_into()
+                .map_err(|_| ErrorNumber::IllegalArgument)
+        })
+        .collect::<SyscallResult<Vec<u32>>>()?;
+
+    let plaintexts_concat: Vec<u8> = plaintexts.concat();
+
+    unsafe {
+        sys::crypto::verify_bls_aggregate(
+            num_signers,
+            sig.as_ptr(),
+            pub_keys.as_ptr(),
+            plaintexts_concat.as_ptr(),
+            plaintext_lens.as_ptr(),
         )
         .map(status_code_to_bool)
     }

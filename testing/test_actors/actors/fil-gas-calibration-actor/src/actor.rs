@@ -49,6 +49,7 @@ fn dispatch(method: Method, params_ptr: u32) -> Result<()> {
         Method::OnHashing => dispatch_to(on_hashing, params_ptr),
         Method::OnBlock => dispatch_to(on_block, params_ptr),
         Method::OnVerifySignature => dispatch_to(on_verify_signature, params_ptr),
+        Method::OnVerifyBlsAggregate => dispatch_to(on_verify_bls_aggregate, params_ptr),
         Method::OnRecoverSecpPublicKey => dispatch_to(on_recover_secp_public_key, params_ptr),
         Method::OnSend => dispatch_to(on_send, params_ptr),
         Method::OnEvent => dispatch_to(on_event, params_ptr),
@@ -118,6 +119,16 @@ fn on_verify_signature(p: OnVerifySignatureParams) -> Result<()> {
         fvm_sdk::crypto::verify_signature(&sig, &p.signer, &data)?;
     }
 
+    Ok(())
+}
+
+fn on_verify_bls_aggregate(p: OnVerifyBlsAggregateParams) -> Result<()> {
+    let sig = p.signature.try_into().unwrap();
+    let keys: Vec<_> = p.keys.iter().map(|k| (&**k).try_into().unwrap()).collect();
+    let messages: Vec<_> = p.messages.iter().map(|m| &**m).collect();
+    for _ in 0..p.iterations {
+        fvm_sdk::crypto::verify_bls_aggregate(&sig, &keys, &messages)?;
+    }
     Ok(())
 }
 
