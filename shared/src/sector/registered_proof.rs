@@ -451,6 +451,21 @@ impl TryFrom<RegisteredSealProof> for filecoin_proofs_api::RegisteredSealProof {
                 Ok(Self::StackedDrg512MiBV1_1_Feat_SyntheticPoRep)
             }
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
+            StackedDRG2KiBV1P1_Feat_NiPoRep => {
+                Ok(Self::StackedDrg2KiBV1_2_Feat_NonInteractivePoRep)
+            }
+            StackedDRG512MiBV1P1_Feat_NiPoRep => {
+                Ok(Self::StackedDrg512MiBV1_2_Feat_NonInteractivecPoRep)
+            }
+            StackedDRG8MiBV1P1_Feat_NiPoRep => {
+                Ok(Self::StackedDrg8MiBV1_2_Feat_NonInteractivePoRep)
+            }
+            StackedDRG32GiBV1P1_Feat_NiPoRep => {
+                Ok(Self::StackedDrg32GiBV1_2_Feat_NonInteractivePoRep)
+            }
+            StackedDRG64GiBV1P1_Feat_NiPoRep => {
+                Ok(Self::StackedDrg64GiBV1_2_Feat_NonInteractivePoRep)
+            }
         }
     }
 }
