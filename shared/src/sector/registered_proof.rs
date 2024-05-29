@@ -455,7 +455,7 @@ impl TryFrom<RegisteredSealProof> for filecoin_proofs_api::RegisteredSealProof {
                 Ok(Self::StackedDrg2KiBV1_2_Feat_NonInteractivePoRep)
             }
             StackedDRG512MiBV1P1_Feat_NiPoRep => {
-                Ok(Self::StackedDrg512MiBV1_2_Feat_NonInteractivecPoRep)
+                Ok(Self::StackedDrg512MiBV1_2_Feat_NonInteractivePoRep)
             }
             StackedDRG8MiBV1P1_Feat_NiPoRep => {
                 Ok(Self::StackedDrg8MiBV1_2_Feat_NonInteractivePoRep)
