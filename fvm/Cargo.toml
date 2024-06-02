@@ -36,7 +36,7 @@ minstant = { workspace = true }
 ambassador = { workspace = true }
 derive_more = "0.99.17"
 replace_with = "0.1.7"
-filecoin-proofs-api = { version = "18", default-features = false }
+filecoin-proofs-api = { version = "18.1", default-features = false }
 rayon = "1"
 fvm-wasm-instrument = "0.4.0"
 yastl = "0.1.2"
