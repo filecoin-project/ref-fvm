@@ -32,7 +32,7 @@ FUZZ_TARGET_OUTPUT_DIR="$CARGO_TARGET_DIR/x86_64-unknown-linux-gnu/release"
 for project in "${PROJECTS[@]}"; do
 	pushd "${PROJECT_PATHS[$project]}"
 
-	cargo +nightly fuzz build -O --debug-assertions
+	cargo fuzz build -O --debug-assertions
 
 	for f in fuzz_targets/*.rs; do
 		FUZZ_TARGET_NAME=$(basename "${f%.*}")
