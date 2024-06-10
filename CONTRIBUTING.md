@@ -36,7 +36,7 @@ Versioning of the primary crates is not strictly semver compatible:
 
 Versioning of the `fvm_ipld_*` crates follows standard semver rules.
 
-All changes should be well tested. See [builtin actors testing][builtin actors testing].
+All changes should be well tested. See [builtin actors testing](#builtin-actors-testing).
 
 ### Primary FVM crates
 
