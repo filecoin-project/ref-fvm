@@ -36,7 +36,7 @@ Versioning of the primary crates is not strictly semver compatible:
 
 Versioning of the `fvm_ipld_*` crates follows standard semver rules.
 
-All changes should be well tested. See [builtin actors testing][builtin actors testing].
+All changes should be well tested. See [builtin actors testing](#builtin-actors-testing).
 
 ### Primary FVM crates
 
@@ -54,6 +54,8 @@ To propose a new release, open a pull request with the following changes:
    through `git log -- path/to/crate`), set the release date & version, and add a new "Unreleased"
    section. It may be appropriate to duplicate some entries across these crates if the changes are
    relevant to multiple crates.
+
+See [PR #2002](https://github.com/filecoin-project/ref-fvm/pull/2002) for an example.
 
 ### Other crates
 
@@ -77,7 +79,7 @@ Once the release is prepared, it'll go through a review:
 Finally, an [FVM "owner"](https://github.com/orgs/filecoin-project/teams/fvm-crate-owners/members) will:
 
 1. Merge the release PR to master.
-2. For each released crate, create a git: `crate_name@crate_version`.
+2. For each released crate, create a git tag: `crate_name@crate_version`.
 3. Run `cargo publish` for each released crate (in dependency order).
 
 ### Crate Dependency Graph
@@ -96,7 +98,7 @@ If you're releasing any non-trivial changes to crates used by the builtin actors
 
 To test:
 
-1. Checkout this repo as `ref-fvm/` and and the builtin-actors repo as `builtin-actors/` in the same directory.
+1. Checkout this repo as `ref-fvm/` and the builtin-actors repo as `builtin-actors/` in the same directory.
 2. Uncomment the "patch" section in `builtin-actors/Cargo.toml` that starts with:
     ```toml
     [patch.crates-io]
