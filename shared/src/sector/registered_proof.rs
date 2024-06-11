@@ -33,11 +33,11 @@ pub enum RegisteredSealProof {
     StackedDRG32GiBV1P1_Feat_SyntheticPoRep,
     StackedDRG64GiBV1P1_Feat_SyntheticPoRep,
 
-    StackedDRG2KiBV1P1_Feat_NiPoRep,
-    StackedDRG512MiBV1P1_Feat_NiPoRep,
-    StackedDRG8MiBV1P1_Feat_NiPoRep,
-    StackedDRG32GiBV1P1_Feat_NiPoRep,
-    StackedDRG64GiBV1P1_Feat_NiPoRep,
+    StackedDRG2KiBV1P2_Feat_NiPoRep,
+    StackedDRG512MiBV1P2_Feat_NiPoRep,
+    StackedDRG8MiBV1P2_Feat_NiPoRep,
+    StackedDRG32GiBV1P2_Feat_NiPoRep,
+    StackedDRG64GiBV1P2_Feat_NiPoRep,
     // TODO: get rid of this option once we no longer need go compat.
     // We use it to ensure that we can deserialize bad values here because go checks this value
     // later.
@@ -100,9 +100,9 @@ impl RegisteredSealProof {
             | StackedDRG512MiBV1P1_Feat_SyntheticPoRep
             | StackedDRG8MiBV1P1_Feat_SyntheticPoRep => Ok(192),
 
-            StackedDRG2KiBV1P1_Feat_NiPoRep
-            | StackedDRG512MiBV1P1_Feat_NiPoRep
-            | StackedDRG8MiBV1P1_Feat_NiPoRep => Ok(14_164),
+            StackedDRG2KiBV1P2_Feat_NiPoRep
+            | StackedDRG512MiBV1P2_Feat_NiPoRep
+            | StackedDRG8MiBV1P2_Feat_NiPoRep => Ok(14_164),
 
             StackedDRG32GiBV1
             | StackedDRG64GiBV1
@@ -111,7 +111,7 @@ impl RegisteredSealProof {
             | StackedDRG32GiBV1P1_Feat_SyntheticPoRep
             | StackedDRG64GiBV1P1_Feat_SyntheticPoRep => Ok(1_920),
 
-            StackedDRG32GiBV1P1_Feat_NiPoRep | StackedDRG64GiBV1P1_Feat_NiPoRep => Ok(23_092),
+            StackedDRG32GiBV1P2_Feat_NiPoRep | StackedDRG64GiBV1P2_Feat_NiPoRep => Ok(23_092),
 
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
@@ -196,23 +196,23 @@ impl RegisteredSealProof {
             StackedDRG2KiBV1
             | StackedDRG2KiBV1P1
             | StackedDRG2KiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG2KiBV1P1_Feat_NiPoRep => Ok(SectorSize::_2KiB),
+            | StackedDRG2KiBV1P2_Feat_NiPoRep => Ok(SectorSize::_2KiB),
             StackedDRG8MiBV1
             | StackedDRG8MiBV1P1
             | StackedDRG8MiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG8MiBV1P1_Feat_NiPoRep => Ok(SectorSize::_8MiB),
+            | StackedDRG8MiBV1P2_Feat_NiPoRep => Ok(SectorSize::_8MiB),
             StackedDRG512MiBV1
             | StackedDRG512MiBV1P1
             | StackedDRG512MiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG512MiBV1P1_Feat_NiPoRep => Ok(SectorSize::_512MiB),
+            | StackedDRG512MiBV1P2_Feat_NiPoRep => Ok(SectorSize::_512MiB),
             StackedDRG32GiBV1
             | StackedDRG32GiBV1P1
             | StackedDRG32GiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG32GiBV1P1_Feat_NiPoRep => Ok(SectorSize::_32GiB),
+            | StackedDRG32GiBV1P2_Feat_NiPoRep => Ok(SectorSize::_32GiB),
             StackedDRG64GiBV1
             | StackedDRG64GiBV1P1
             | StackedDRG64GiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG64GiBV1P1_Feat_NiPoRep => Ok(SectorSize::_64GiB),
+            | StackedDRG64GiBV1P2_Feat_NiPoRep => Ok(SectorSize::_64GiB),
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
     }
@@ -226,23 +226,23 @@ impl RegisteredSealProof {
             StackedDRG64GiBV1
             | StackedDRG64GiBV1P1
             | StackedDRG64GiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG64GiBV1P1_Feat_NiPoRep => Ok(2300),
+            | StackedDRG64GiBV1P2_Feat_NiPoRep => Ok(2300),
             StackedDRG32GiBV1
             | StackedDRG32GiBV1P1
             | StackedDRG32GiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG32GiBV1P1_Feat_NiPoRep => Ok(2349),
+            | StackedDRG32GiBV1P2_Feat_NiPoRep => Ok(2349),
             StackedDRG2KiBV1
             | StackedDRG2KiBV1P1
             | StackedDRG2KiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG2KiBV1P1_Feat_NiPoRep => Ok(2),
+            | StackedDRG2KiBV1P2_Feat_NiPoRep => Ok(2),
             StackedDRG8MiBV1
             | StackedDRG8MiBV1P1
             | StackedDRG8MiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG8MiBV1P1_Feat_NiPoRep => Ok(2),
+            | StackedDRG8MiBV1P2_Feat_NiPoRep => Ok(2),
             StackedDRG512MiBV1
             | StackedDRG512MiBV1P1
             | StackedDRG512MiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG512MiBV1P1_Feat_NiPoRep => Ok(2),
+            | StackedDRG512MiBV1P2_Feat_NiPoRep => Ok(2),
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
     }
@@ -255,23 +255,23 @@ impl RegisteredSealProof {
             Self::StackedDRG64GiBV1
             | Self::StackedDRG64GiBV1P1
             | Self::StackedDRG64GiBV1P1_Feat_SyntheticPoRep
-            | Self::StackedDRG64GiBV1P1_Feat_NiPoRep => Ok(StackedDRGWindow64GiBV1P1),
+            | Self::StackedDRG64GiBV1P2_Feat_NiPoRep => Ok(StackedDRGWindow64GiBV1P1),
             Self::StackedDRG32GiBV1
             | Self::StackedDRG32GiBV1P1
             | Self::StackedDRG32GiBV1P1_Feat_SyntheticPoRep
-            | Self::StackedDRG32GiBV1P1_Feat_NiPoRep => Ok(StackedDRGWindow32GiBV1P1),
+            | Self::StackedDRG32GiBV1P2_Feat_NiPoRep => Ok(StackedDRGWindow32GiBV1P1),
             Self::StackedDRG2KiBV1
             | Self::StackedDRG2KiBV1P1
             | Self::StackedDRG2KiBV1P1_Feat_SyntheticPoRep
-            | Self::StackedDRG2KiBV1P1_Feat_NiPoRep => Ok(StackedDRGWindow2KiBV1P1),
+            | Self::StackedDRG2KiBV1P2_Feat_NiPoRep => Ok(StackedDRGWindow2KiBV1P1),
             Self::StackedDRG8MiBV1
             | Self::StackedDRG8MiBV1P1
             | Self::StackedDRG8MiBV1P1_Feat_SyntheticPoRep
-            | Self::StackedDRG8MiBV1P1_Feat_NiPoRep => Ok(StackedDRGWindow8MiBV1P1),
+            | Self::StackedDRG8MiBV1P2_Feat_NiPoRep => Ok(StackedDRGWindow8MiBV1P1),
             Self::StackedDRG512MiBV1
             | Self::StackedDRG512MiBV1P1
             | Self::StackedDRG512MiBV1P1_Feat_SyntheticPoRep
-            | Self::StackedDRG512MiBV1P1_Feat_NiPoRep => Ok(StackedDRGWindow512MiBV1P1),
+            | Self::StackedDRG512MiBV1P2_Feat_NiPoRep => Ok(StackedDRGWindow512MiBV1P1),
             Self::Invalid(_) => Err(format!(
                 "Unsupported mapping from {:?} to PoSt-window RegisteredProof",
                 self
@@ -286,23 +286,23 @@ impl RegisteredSealProof {
             Self::StackedDRG64GiBV1
             | Self::StackedDRG64GiBV1P1
             | Self::StackedDRG64GiBV1P1_Feat_SyntheticPoRep
-            | Self::StackedDRG64GiBV1P1_Feat_NiPoRep => Ok(StackedDRG64GiBV1),
+            | Self::StackedDRG64GiBV1P2_Feat_NiPoRep => Ok(StackedDRG64GiBV1),
             Self::StackedDRG32GiBV1
             | Self::StackedDRG32GiBV1P1
             | Self::StackedDRG32GiBV1P1_Feat_SyntheticPoRep
-            | Self::StackedDRG32GiBV1P1_Feat_NiPoRep => Ok(StackedDRG32GiBV1),
+            | Self::StackedDRG32GiBV1P2_Feat_NiPoRep => Ok(StackedDRG32GiBV1),
             Self::StackedDRG2KiBV1
             | Self::StackedDRG2KiBV1P1
             | Self::StackedDRG2KiBV1P1_Feat_SyntheticPoRep
-            | Self::StackedDRG2KiBV1P1_Feat_NiPoRep => Ok(StackedDRG2KiBV1),
+            | Self::StackedDRG2KiBV1P2_Feat_NiPoRep => Ok(StackedDRG2KiBV1),
             Self::StackedDRG8MiBV1
             | Self::StackedDRG8MiBV1P1
             | Self::StackedDRG8MiBV1P1_Feat_SyntheticPoRep
-            | Self::StackedDRG8MiBV1P1_Feat_NiPoRep => Ok(StackedDRG8MiBV1),
+            | Self::StackedDRG8MiBV1P2_Feat_NiPoRep => Ok(StackedDRG8MiBV1),
             Self::StackedDRG512MiBV1
             | Self::StackedDRG512MiBV1P1
             | Self::StackedDRG512MiBV1P1_Feat_SyntheticPoRep
-            | Self::StackedDRG512MiBV1P1_Feat_NiPoRep => Ok(StackedDRG512MiBV1),
+            | Self::StackedDRG512MiBV1P2_Feat_NiPoRep => Ok(StackedDRG512MiBV1),
             Self::Invalid(_) => Err(format!(
                 "Unsupported mapping from {:?} to Update RegisteredProof",
                 self
@@ -387,11 +387,11 @@ i64_conversion! {
     StackedDRG32GiBV1P1_Feat_SyntheticPoRep => 13,
     StackedDRG64GiBV1P1_Feat_SyntheticPoRep => 14,
 
-    StackedDRG2KiBV1P1_Feat_NiPoRep => 15,
-    StackedDRG8MiBV1P1_Feat_NiPoRep => 16,
-    StackedDRG512MiBV1P1_Feat_NiPoRep => 17,
-    StackedDRG32GiBV1P1_Feat_NiPoRep => 18,
-    StackedDRG64GiBV1P1_Feat_NiPoRep => 19,
+    StackedDRG2KiBV1P2_Feat_NiPoRep => 15,
+    StackedDRG8MiBV1P2_Feat_NiPoRep => 16,
+    StackedDRG512MiBV1P2_Feat_NiPoRep => 17,
+    StackedDRG32GiBV1P2_Feat_NiPoRep => 18,
+    StackedDRG64GiBV1P2_Feat_NiPoRep => 19,
 }
 
 i64_conversion! {
@@ -452,19 +452,19 @@ impl TryFrom<RegisteredSealProof> for filecoin_proofs_api::RegisteredSealProof {
             StackedDRG512MiBV1P1_Feat_SyntheticPoRep => {
                 Ok(Self::StackedDrg512MiBV1_1_Feat_SyntheticPoRep)
             }
-            StackedDRG2KiBV1P1_Feat_NiPoRep => {
+            StackedDRG2KiBV1P2_Feat_NiPoRep => {
                 Ok(Self::StackedDrg2KiBV1_2_Feat_NonInteractivePoRep)
             }
-            StackedDRG512MiBV1P1_Feat_NiPoRep => {
+            StackedDRG512MiBV1P2_Feat_NiPoRep => {
                 Ok(Self::StackedDrg512MiBV1_2_Feat_NonInteractivePoRep)
             }
-            StackedDRG8MiBV1P1_Feat_NiPoRep => {
+            StackedDRG8MiBV1P2_Feat_NiPoRep => {
                 Ok(Self::StackedDrg8MiBV1_2_Feat_NonInteractivePoRep)
             }
-            StackedDRG32GiBV1P1_Feat_NiPoRep => {
+            StackedDRG32GiBV1P2_Feat_NiPoRep => {
                 Ok(Self::StackedDrg32GiBV1_2_Feat_NonInteractivePoRep)
             }
-            StackedDRG64GiBV1P1_Feat_NiPoRep => {
+            StackedDRG64GiBV1P2_Feat_NiPoRep => {
                 Ok(Self::StackedDrg64GiBV1_2_Feat_NonInteractivePoRep)
             }
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
