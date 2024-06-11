@@ -98,19 +98,21 @@ impl RegisteredSealProof {
             | StackedDRG8MiBV1P1
             | StackedDRG2KiBV1P1_Feat_SyntheticPoRep
             | StackedDRG512MiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG8MiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG2KiBV1P1_Feat_NiPoRep
+            | StackedDRG8MiBV1P1_Feat_SyntheticPoRep => Ok(192),
+
+            StackedDRG2KiBV1P1_Feat_NiPoRep
             | StackedDRG512MiBV1P1_Feat_NiPoRep
-            | StackedDRG8MiBV1P1_Feat_NiPoRep => Ok(192),
+            | StackedDRG8MiBV1P1_Feat_NiPoRep => Ok(14_164),
 
             StackedDRG32GiBV1
             | StackedDRG64GiBV1
             | StackedDRG32GiBV1P1
             | StackedDRG64GiBV1P1
             | StackedDRG32GiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG64GiBV1P1_Feat_SyntheticPoRep
-            | StackedDRG32GiBV1P1_Feat_NiPoRep
-            | StackedDRG64GiBV1P1_Feat_NiPoRep => Ok(1920),
+            | StackedDRG64GiBV1P1_Feat_SyntheticPoRep => Ok(1_920),
+
+            StackedDRG32GiBV1P1_Feat_NiPoRep | StackedDRG64GiBV1P1_Feat_NiPoRep => Ok(23_092),
+
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
     }
@@ -450,7 +452,6 @@ impl TryFrom<RegisteredSealProof> for filecoin_proofs_api::RegisteredSealProof {
             StackedDRG512MiBV1P1_Feat_SyntheticPoRep => {
                 Ok(Self::StackedDrg512MiBV1_1_Feat_SyntheticPoRep)
             }
-            Invalid(i) => Err(format!("unsupported proof type: {}", i)),
             StackedDRG2KiBV1P1_Feat_NiPoRep => {
                 Ok(Self::StackedDrg2KiBV1_2_Feat_NonInteractivePoRep)
             }
@@ -466,6 +467,7 @@ impl TryFrom<RegisteredSealProof> for filecoin_proofs_api::RegisteredSealProof {
             StackedDRG64GiBV1P1_Feat_NiPoRep => {
                 Ok(Self::StackedDrg64GiBV1_2_Feat_NonInteractivePoRep)
             }
+            Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
     }
 }
