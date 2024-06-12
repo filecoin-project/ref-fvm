@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## 4.2.1 [2023-06-12]
+## 4.3.0 [2023-06-12]
 
 - feat: FIP-0079: syscall for aggregated bls verification [#2003](https://github.com/filecoin-project/ref-fvm/pull/2003)
 - fix: install rust nightly toolchain for clusterfuzzlite [#2007](https://github.com/filecoin-project/ref-fvm/pull/2007)
