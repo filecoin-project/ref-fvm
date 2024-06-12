@@ -11,6 +11,7 @@ Changes to the reference FVM implementation.
 - chore: upgrade rust toolchain to 1.78.0 [#2006](https://github.com/filecoin-project/ref-fvm/pull/2006)
 - fix: remove the pairing feature from fvm_shared [#2009](https://github.com/filecoin-project/ref-fvm/pull/2009)
 - Small tidy-ups in CONTRIBUTING.md [#2012](https://github.com/filecoin-project/ref-fvm/pull/2012)
+- NI-PoRep support [#2010](https://github.com/filecoin-project/ref-fvm/pull/2010)
 
 ## 4.2.0 [2023-04-29]
 
