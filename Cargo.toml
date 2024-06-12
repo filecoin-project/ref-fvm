@@ -19,7 +19,7 @@ members = [
 ]
 
 [workspace.package]
-version = "4.2.0"
+version = "4.3.0"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/filecoin-project/ref-fvm"
@@ -74,9 +74,9 @@ minstant = "0.1.3"
 coverage-helper = "0.2.0"
 
 # workspace
-fvm = { path = "fvm", version = "~4.2.0", default-features = false }
-fvm_shared = { path = "shared", version = "~4.2.0", default-features = false }
-fvm_sdk = { path = "sdk", version = "~4.2.0" }
+fvm = { path = "fvm", version = "~4.3.0", default-features = false }
+fvm_shared = { path = "shared", version = "~4.3.0", default-features = false }
+fvm_sdk = { path = "sdk", version = "~4.3.0" }
 fvm_ipld_amt = { path = "ipld/amt", version = "0.6.2" }
 fvm_ipld_hamt = { path = "ipld/hamt", version = "0.9.0" }
 fvm_ipld_kamt = { path = "ipld/kamt", version = "0.3.0" }
@@ -84,7 +84,7 @@ fvm_ipld_car = { path = "ipld/car", version = "0.7.1" }
 fvm_ipld_blockstore = { path = "ipld/blockstore", version = "0.2.1" }
 fvm_ipld_bitfield = { path = "ipld/bitfield", version = "0.6.0" }
 fvm_ipld_encoding = { path = "ipld/encoding", version = "0.4.0" }
-fvm_integration_tests = { path = "testing/integration", version = "~4.2.0" }
+fvm_integration_tests = { path = "testing/integration", version = "~4.3.0" }
 fvm_gas_calibration_shared = { path = "testing/calibration/shared" }
 fvm_test_actors = { path = "testing/test_actors" }
 

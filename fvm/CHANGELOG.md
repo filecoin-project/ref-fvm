@@ -4,6 +4,15 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.3.0 [2023-06-12]
+
+- feat: FIP-0079: syscall for aggregated bls verification [#2003](https://github.com/filecoin-project/ref-fvm/pull/2003)
+- fix: install rust nightly toolchain for clusterfuzzlite [#2007](https://github.com/filecoin-project/ref-fvm/pull/2007)
+- chore: upgrade rust toolchain to 1.78.0 [#2006](https://github.com/filecoin-project/ref-fvm/pull/2006)
+- fix: remove the pairing feature from fvm_shared [#2009](https://github.com/filecoin-project/ref-fvm/pull/2009)
+- Small tidy-ups in CONTRIBUTING.md [#2012](https://github.com/filecoin-project/ref-fvm/pull/2012)
+- NI-PoRep support [#2010](https://github.com/filecoin-project/ref-fvm/pull/2010)
+
 ## 4.2.0 [2023-04-29]
 
 - chore: update to wasmtime 19.0.1 [#1993](https://github.com/filecoin-project/ref-fvm/pull/1993)
