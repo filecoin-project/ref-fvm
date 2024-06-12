@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.10.0 [2024-06-12]
+
+- Update `filecoin-proofs-api` to v18
+
 ## 3.9.0 [2024-01-31]
 
 - BREAKING: Change `ExecutionEvent::InvokeActor` from only including the actor's code CID to including the actor's ID and state-object (including the code CID, current balance, current state root, delegated address, and nonce). The new API matches the API in FVMv4.
