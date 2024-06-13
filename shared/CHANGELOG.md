@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 3.10.0 [2024-06-12]
+
+- Update `filecoin-proofs-api` to v18
+- fix: remove the pairing feature from fvm_shared [#2009](https://github.com/filecoin-project/ref-fvm/pull/2009)
+
 ## 3.6.0 (2023-09-06)
 
 - BREAKING: Upgrade the proofs API to v16.
