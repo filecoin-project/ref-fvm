@@ -17,7 +17,7 @@ thiserror = "1.0.40"
 num-traits = "0.2"
 cid = { workspace = true, features = ["serde-codec"] }
 multihash = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
-fvm_shared = { version = "3.6.0", path = "../shared", features = ["crypto"] }
+fvm_shared = { version = "3.10.0", path = "../shared", features = ["crypto"] }
 fvm_ipld_hamt = { version = "0.8.0" }
 fvm_ipld_amt = { version = "0.6.1" }
 fvm_ipld_blockstore = { version = "0.2.0" }
