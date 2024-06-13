@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.8.0 (2024-06-12)
+
+- Update `filecoin-proofs-api` to v18 
+
 ## 2.7.0 (2023-09-06)
 
 - Upgrade wasmtime to v12. Unlike prior wasmtime upgrades, this shouldn't be a breaking change as it now mangles its symbols.

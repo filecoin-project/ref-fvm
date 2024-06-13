@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.0 (2024-06-12)
+
+- Update `filecoin-proofs-api` to v18 
+
 ## 2.6.0 (2023-09-06)
 
 - BREAKING: Upgrade the proofs API to v16.
