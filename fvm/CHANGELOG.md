@@ -4,6 +4,8 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+- **BREAKING**: Simplify the verify-signtures feature and update ambassador. This is a minor-breaking change because the ambassador macros are now only exported from the prelude/kernel module, not the crate root as they previously were.
+
 ## 4.3.0 [2023-06-12]
 
 - feat: FIP-0079: syscall for aggregated bls verification [#2003](https://github.com/filecoin-project/ref-fvm/pull/2003)
