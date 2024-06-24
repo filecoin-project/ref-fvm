@@ -6,7 +6,7 @@ publish = false
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 fvm_ipld_encoding = { workspace = true }
-fvm_sdk = { workspace = true, default-features = false }
+fvm_sdk = { workspace = true }
 fvm_shared = { workspace = true }
 multihash = { workspace = true, features = ["sha3", "sha2", "ripemd"] }
 minicov = {version = "0.3", optional = true}
