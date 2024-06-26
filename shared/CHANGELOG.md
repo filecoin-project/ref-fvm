@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- chore: remove the `nv23-dev` feature flag [#2022](https://github.com/filecoin-project/ref-fvm/pull/2022)
+
 ## 4.3.0 [2023-06-12]
 
 - feat: FIP-0079: syscall for aggregated bls verification [#2003](https://github.com/filecoin-project/ref-fvm/pull/2003)
