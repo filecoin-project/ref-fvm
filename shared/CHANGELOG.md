@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 4.3.1 [2023-06-26]
+
 - chore: remove the `nv23-dev` feature flag [#2022](https://github.com/filecoin-project/ref-fvm/pull/2022)
 
 ## 4.3.0 [2023-06-12]
