@@ -78,7 +78,7 @@ Once the release is prepared, it'll go through a review:
 
 Finally, an [FVM "owner"](https://github.com/orgs/filecoin-project/teams/fvm-crate-owners/members) will:
 
-1. Merge the release PR to master.
+1. Merge the release PR to master (this will trigger GitHub release/tag creation if the workspace version in the root `Cargo.toml` was modified).
 2. For each released crate, create a git tag: `crate_name@crate_version`.
 3. Run `cargo publish` for each released crate (in dependency order).
 
