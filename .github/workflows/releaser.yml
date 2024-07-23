@@ -1,0 +1,21 @@
+name: Releaser
+
+on:
+  push:
+    paths: ["Cargo.toml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  releaser:
+    uses: ipdxco/unified-github-workflows/.github/workflows/releaser.yml@v1.0
+    with:
+      sources: '["Cargo.toml"]'
+    secrets:
+      UCI_GITHUB_TOKEN: ${{ secrets.UCI_GITHUB_TOKEN }}
