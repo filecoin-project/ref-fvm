@@ -2,7 +2,18 @@ name: Release Checker
 
 on:
   pull_request_target:
-    paths: ["Cargo.toml"]
+    paths:
+      - "fvm/Cargo.toml"
+      - "testing/integration/Cargo.toml"
+      - "ipld/amt/Cargo.toml"
+      - "ipld/bitfield/Cargo.toml"
+      - "ipld/blockstore/Cargo.toml"
+      - "ipld/car/Cargo.toml"
+      - "ipld/encoding/Cargo.toml"
+      - "ipld/hamt/Cargo.toml"
+      - "ipld/kamt/Cargo.toml"
+      - "sdk/Cargo.toml"
+      - "shared/Cargo.toml"
     types: [ opened, synchronize, reopened, labeled, unlabeled ]
   workflow_dispatch:
 
@@ -18,4 +29,34 @@ jobs:
   release-check:
     uses: ipdxco/unified-github-workflows/.github/workflows/release-check.yml@v1.0
     with:
-      sources: '["Cargo.toml"]'
+      sources: |
+        [
+          "fvm/Cargo.toml",
+          "testing/integration/Cargo.toml",
+          "ipld/amt/Cargo.toml",
+          "ipld/bitfield/Cargo.toml",
+          "ipld/blockstore/Cargo.toml",
+          "ipld/car/Cargo.toml",
+          "ipld/encoding/Cargo.toml",
+          "ipld/hamt/Cargo.toml",
+          "ipld/kamt/Cargo.toml",
+          "sdk/Cargo.toml",
+          "shared/Cargo.toml"
+        ]
+      separator: "@"
+  cargo-publish-dry-run:
+    needs: [release-check]
+    if: toJSON(fromJSON(needs.release-check.outputs.json)) != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        source: ${{ fromJSON(needs.release-check.outputs.json).*.source }}
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          source: ${{ matrix.source }}
+        run: |
+          pushd "$(dirname $source)"
+          cargo publish --dry-run
+          popd
