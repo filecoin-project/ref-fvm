@@ -3,6 +3,7 @@ name: Releaser
 on:
   push:
     paths:
+      - "Cargo.toml"
       - "fvm/Cargo.toml"
       - "testing/integration/Cargo.toml"
       - "ipld/amt/Cargo.toml"

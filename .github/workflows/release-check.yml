@@ -3,6 +3,7 @@ name: Release Checker
 on:
   pull_request_target:
     paths:
+      - "Cargo.toml"
       - "fvm/Cargo.toml"
       - "testing/integration/Cargo.toml"
       - "ipld/amt/Cargo.toml"
