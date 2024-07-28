@@ -45,9 +45,9 @@ jobs:
           "shared/Cargo.toml"
         ]
       separator: "@"
-  cargo-publish-dry-run:
+  cargo-publish:
     needs: [release-check]
-    if: toJSON(fromJSON(needs.release-check.outputs.json)) != '[]'
+    if: needs.release-check.outputs.json != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
