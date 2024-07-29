@@ -54,7 +54,7 @@ where
         #[cfg(not(feature = "nv24-dev"))]
         const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
             NetworkVersion::V21..=NetworkVersion::V23;
-        
+
         #[cfg(feature = "nv24-dev")]
         const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
             NetworkVersion::V21..=NetworkVersion::V24;
