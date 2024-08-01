@@ -2,11 +2,15 @@
 
 ## [Unreleased]
 
-## 4.3.1 [2023-06-26]
+## 4.3.2 [2024-07-01]
+
+- feat: add `nv24-dev` feature flag [#2029](https://github.com/filecoin-project/ref-fvm/pull/2029)
+
+## 4.3.1 [2024-06-26]
 
 - chore: remove the `nv23-dev` feature flag [#2022](https://github.com/filecoin-project/ref-fvm/pull/2022)
 
-## 4.3.0 [2023-06-12]
+## 4.3.0 [2024-06-12]
 
 - feat: FIP-0079: syscall for aggregated bls verification [#2003](https://github.com/filecoin-project/ref-fvm/pull/2003)
 - fix: install rust nightly toolchain for clusterfuzzlite [#2007](https://github.com/filecoin-project/ref-fvm/pull/2007)
@@ -15,22 +19,22 @@
 - Small tidy-ups in CONTRIBUTING.md [#2012](https://github.com/filecoin-project/ref-fvm/pull/2012)
 - NI-PoRep support [#2010](https://github.com/filecoin-project/ref-fvm/pull/2010)
 
-## 4.2.0 [2023-04-29]
+## 4.2.0 [2024-04-29]
 
 - chore: update to wasmtime 19.0.1 [#1993](https://github.com/filecoin-project/ref-fvm/pull/1993)
 - Enable nv23 support behind the `nv23-dev` feature flag [#2000](https://github.com/filecoin-project/ref-fvm/pull/2000)
 - feat: fvm: remove once_cell [#1989](https://github.com/filecoin-project/ref-fvm/pull/1989)
 - feat: shared: check bls zero address without lazy_static [#1984](https://github.com/filecoin-project/ref-fvm/pull/1984)
 
-## 4.1.2 [2023-01-31]
+## 4.1.2 [2024-01-31]
 
 feat: allow CBOR events
 
-## 4.1.1 [2023-01-25]
+## 4.1.1 [2024-01-25]
 
 Enable nv22 support by default.
 
-## 4.1.0 [2023-01-24]
+## 4.1.0 [2024-01-24]
 
 - Add a syscall to upgrade the running actor's code-CID (behind the "actor-upgrade" feature flag).
 - Export the `fvm_syscalls` macro for defining syscall bindings (needed for custom syscall implementers).
