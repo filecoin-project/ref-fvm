@@ -3,18 +3,7 @@ name: Releaser
 on:
   push:
     paths:
-      - "Cargo.toml"
-      - "fvm/Cargo.toml"
-      - "testing/integration/Cargo.toml"
-      - "ipld/amt/Cargo.toml"
-      - "ipld/bitfield/Cargo.toml"
-      - "ipld/blockstore/Cargo.toml"
-      - "ipld/car/Cargo.toml"
-      - "ipld/encoding/Cargo.toml"
-      - "ipld/hamt/Cargo.toml"
-      - "ipld/kamt/Cargo.toml"
-      - "sdk/Cargo.toml"
-      - "shared/Cargo.toml"
+      - "**/Cargo.toml"
   workflow_dispatch:
 
 permissions:
