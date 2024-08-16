@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## 4.3.2 [2024-07-01]
+## 4.3.2 [2024-08-16]
 
 - feat: add `nv24-dev` feature flag [#2029](https://github.com/filecoin-project/ref-fvm/pull/2029)
 
