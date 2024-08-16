@@ -4,13 +4,17 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-## 4.3.1 [2023-06-26]
+## 4.3.2 [2024-08-16]
+
+- feat: add `nv24-dev` feature flag [#2029](https://github.com/filecoin-project/ref-fvm/pull/2029)
+
+## 4.3.1 [2024-06-26]
 
 - **BREAKING**: Simplify the verify-signtures feature and update ambassador. This is a minor-breaking change because the ambassador macros are now only exported from the prelude/kernel module, not the crate root as they previously were.
 - chore: remove the `nv23-dev` feature flag [#2022](https://github.com/filecoin-project/ref-fvm/pull/2022)
 - chore: update wasmtime to 19.0.2
 
-## 4.3.0 [2023-06-12]
+## 4.3.0 [2024-06-12]
 
 - feat: FIP-0079: syscall for aggregated bls verification [#2003](https://github.com/filecoin-project/ref-fvm/pull/2003)
 - fix: install rust nightly toolchain for clusterfuzzlite [#2007](https://github.com/filecoin-project/ref-fvm/pull/2007)
@@ -19,22 +23,22 @@ Changes to the reference FVM implementation.
 - Small tidy-ups in CONTRIBUTING.md [#2012](https://github.com/filecoin-project/ref-fvm/pull/2012)
 - NI-PoRep support [#2010](https://github.com/filecoin-project/ref-fvm/pull/2010)
 
-## 4.2.0 [2023-04-29]
+## 4.2.0 [2024-04-29]
 
 - chore: update to wasmtime 19.0.1 [#1993](https://github.com/filecoin-project/ref-fvm/pull/1993)
 - Enable nv23 support behind the `nv23-dev` feature flag [#2000](https://github.com/filecoin-project/ref-fvm/pull/2000)
 - feat: fvm: remove once_cell [#1989](https://github.com/filecoin-project/ref-fvm/pull/1989)
 - feat: shared: check bls zero address without lazy_static [#1984](https://github.com/filecoin-project/ref-fvm/pull/1984)
 
-## 4.1.2 [2023-01-31]
+## 4.1.2 [2024-01-31]
 
 feat: allow CBOR events
 
-## 4.1.1 [2023-01-25]
+## 4.1.1 [2024-01-25]
 
 Enable nv22 support by default.
 
-## 4.1.0 [2023-01-24]
+## 4.1.0 [2024-01-24]
 
 - Default the concurrency of the `ThreadedExecutor` to the available parallelism instead of 8.
 - Support custom syscalls (only needed for non-Filecoin users).
