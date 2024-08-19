@@ -82,6 +82,33 @@ Finally, an [FVM "owner"](https://github.com/orgs/filecoin-project/teams/fvm-cra
 2. For each released crate, create a git tag: `crate_name@crate_version`.
 3. Run `cargo publish` for each released crate (in dependency order).
 
+Example steps for an FVM "owner" to release `MINOR` and `PATCH` crates:
+
+1. Merge the `PATCH` release PR to master (e.g., [PR #2030](https://github.com/filecoin-project/ref-fvm/pull/2030)).
+2. Publish all [Primary FVM crates](https://github.com/filecoin-project/ref-fvm/blob/master/CONTRIBUTING.md#primary-fvm-crates). For each crate (fvm, fvm_shared, fvm_sdk, fvm_integration_tests):
+
+```shell
+cd crate_directory
+cargo publish
+git tag crate_name@vX.Y.Z
+```
+
+Example for fvm_shared:
+
+```shell
+cd shared
+cargo publish
+git tag fvm_shared@vX.Y.Z
+```
+
+3. After creating all tags, push them:
+
+```shell
+git push --tags
+```
+
+4. Verify the release on [crates.io](https://crates.io/crates/fvm/versions).
+
 ### Crate Dependency Graph
 
 The crates in this workspace have the following structure:
