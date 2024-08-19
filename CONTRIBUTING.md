@@ -20,15 +20,51 @@ To make a change to the FVM.
    "BREAKING:".
 5. Finally, open a PR.
 
+## Terminology
+### Primary Crates
+The primary crates are `fvm`, `fvm_shared`, `fvm_sdk`, and the integration testing framework `fvm_integration_tests`.  These are the crates that have [`version.workspace = true`](https://github.com/search?q=repo%3Afilecoin-project%2Fref-fvm%20version.workspace%20%3D%20true&type=code).
+
+### Crate Dependency Graph
+
+The crates in this workspace have the following structure:
+
+![Workspace Graph](./doc/workspace.png)
+
+## Testing
+All changes should be well tested. 
+
+### Builtin-Actors Testing
+
+If you're releasing any non-trivial changes to crates used by the builtin actors, please test them. This includes:
+
+- Any crates in `ipld/` except `car`.
+- `shared/` (`fvm_shared`).
+- `sdk/` (`fvm_sdk`).
+
+To test:
+
+1. Checkout this repo as `ref-fvm/` and the builtin-actors repo as `builtin-actors/` in the same directory.
+2. Uncomment the "patch" section in `builtin-actors/Cargo.toml` that starts with:
+    ```toml
+    [patch.crates-io]
+    fvm_shared = { path = "../ref-fvm/shared" }
+    ...
+    ```
+3. Run `cargo test --all` (or, at a minimum, `cargo check --all --tests --lib`.
+
+If that works, proceed with releasing these crates.
+
 ## Releasing
 
+### Release Schedules
 The FVM is a workspace of crates which have different release schedules:
 
-* The primary crates (`fvm`, `fvm_shared`, and `fvm_sdk`) and the integration testing framework (`fvm_integration_tests`) are released together.
+* The [primary crates](#primary-crates) are released together.
 * The `fvm_ipld_*` crates (living in ipld/) are released independently and only live in this repo for convenience.
 * The rest of the crates are for local testing and are not released.
 
-Versioning of the primary crates is not strictly semver compatible:
+### Versioning
+Versioning of the [primary crates](#primary-crates) is not strictly semver compatible:
 
 * Major releases are used to signal when the FVM drops support for old network versions.
 * Minor releases are used to signal breaking changes.
@@ -36,19 +72,17 @@ Versioning of the primary crates is not strictly semver compatible:
 
 Versioning of the `fvm_ipld_*` crates follows standard semver rules.
 
-All changes should be well tested. See [builtin actors testing](#builtin-actors-testing).
-
-### Primary FVM crates
+### Preparing [Primary Crates](#primary-crates)
 
 To propose a new release, open a pull request with the following changes:
 
-1. Update the version in `Cargo.toml`: `workspace.package→version`.
+1. Update the version in [`Cargo.toml`](https://github.com/filecoin-project/ref-fvm/blob/master/Cargo.toml): `workspace.package→version`.
 2. Update the version of the coupled workspace dependencies in `Cargo.toml` to match the new version
    (leaving semver range specifier `~` intact):
-   1. `wokspace.package→fvm→version`
-   2. `wokspace.package→fvm_shared→version`
-   3. `wokspace.package→fvm_sdk→version`
-   4. `wokspace.package→fvm_integration_tests→version`
+   1. `wokspace.dependencies→fvm→version`
+   2. `wokspace.dependencies→fvm_shared→version`
+   3. `wokspace.dependencies→fvm_sdk→version`
+   4. `wokspace.dependencies→fvm_integration_tests→version`
 3. Update the lockfile with a rebuild: `cargo check --all`.
 4. Make sure the `CHANGELOG.md` files in each of `fvm`, `sdk`, and `shared` are all up-to-date (look
    through `git log -- path/to/crate`), set the release date & version, and add a new "Unreleased"
@@ -57,7 +91,7 @@ To propose a new release, open a pull request with the following changes:
 
 See [PR #2002](https://github.com/filecoin-project/ref-fvm/pull/2002) for an example.
 
-### Other crates
+### Preparing Other/Non-Primary Crates
 
 To propose a release of a crate other than `fvm`, `fvm_shared`, `fvm_sdk`, or
 `fvm_integration_tests`, open a pull request with the following changes:
@@ -85,20 +119,26 @@ Finally, an [FVM "owner"](https://github.com/orgs/filecoin-project/teams/fvm-cra
 Example steps for an FVM "owner" to release `MINOR` and `PATCH` crates:
 
 1. Merge the `PATCH` release PR to master (e.g., [PR #2030](https://github.com/filecoin-project/ref-fvm/pull/2030)).
-2. Publish all [Primary FVM crates](https://github.com/filecoin-project/ref-fvm/blob/master/CONTRIBUTING.md#primary-fvm-crates). For each crate (fvm, fvm_shared, fvm_sdk, fvm_integration_tests):
+2. Publish all [primary crates](#primary-crates) . For each crate (fvm, fvm_shared, fvm_sdk, fvm_integration_tests):
 
-```shell
-cd crate_directory
-cargo publish
-git tag crate_name@vX.Y.Z
-```
+```bash
+# Declare an associative array for crate_name → crate_directory
+declare -A crates
+crates["fvm"]="fvm"
+crates["fvm_shared"]="shared"
+crates["sdk"]="fvm_sdk"
+crates["fvm_integration_tests"]="testing/integration"
 
-Example for fvm_shared:
+workspace_package_version = `tomlq '.workspace.package.version' Cargo.toml`
 
-```shell
-cd shared
-cargo publish
-git tag fvm_shared@vX.Y.Z
+for crate_name in "${!my_map[@]}"; do
+   crate_directory = ${crates[$key]}     
+   pushd $crate_directory
+   cargo publish
+   git_tag = "$crate_name@v$workspace_package_version"
+   git tag $git_tag
+   popd
+done
 ```
 
 3. After creating all tags, push them:
@@ -108,33 +148,6 @@ git push --tags
 ```
 
 4. Verify the release on [crates.io](https://crates.io/crates/fvm/versions).
-
-### Crate Dependency Graph
-
-The crates in this workspace have the following structure:
-
-![Workspace Graph](./doc/workspace.png)
-
-### Builtin-Actors Testing
-
-If you're releasing any non-trivial changes to crates used by the builtin actors, please test them. This includes:
-
-- Any crates in `ipld/` except `car`.
-- `shared/` (`fvm_shared`).
-- `sdk/` (`fvm_sdk`).
-
-To test:
-
-1. Checkout this repo as `ref-fvm/` and the builtin-actors repo as `builtin-actors/` in the same directory.
-2. Uncomment the "patch" section in `builtin-actors/Cargo.toml` that starts with:
-    ```toml
-    [patch.crates-io]
-    fvm_shared = { path = "../ref-fvm/shared" }
-    ...
-    ```
-3. Run `cargo test --all` (or, at a minimum, `cargo check --all --tests --lib`.
-
-If that works, proceed with releasing these crates.
 
 [chat]: https://docs.filecoin.io/about-filecoin/chat-and-discussion-forums/#chat
 [discuss]: https://github.com/filecoin-project/fvm-specs/discussions
