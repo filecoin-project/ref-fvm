@@ -261,6 +261,12 @@ pub trait CryptoOps {
     /// to small to fit the entire digest, it will be truncated. If too large, the leftover space
     /// will not be overwritten.
     fn hash(&self, code: u64, data: &[u8]) -> Result<Multihash>;
+
+    fn bls12_g1_add(
+        &self,
+        p1: &[u8; fvm_shared::crypto::bls12_381::G1_SIZE],
+        p2: &[u8; fvm_shared::crypto::bls12_381::G1_SIZE],
+    ) -> [u8; fvm_shared::crypto::bls12_381::G1_SIZE];
 }
 
 /// Randomness queries.
@@ -278,7 +284,7 @@ pub trait RandomnessOps {
     /// beacon from a given epoch.
     /// This randomness is not tied to any fork of the chain, and is unbiasable.
     fn get_randomness_from_beacon(&self, rand_epoch: ChainEpoch)
-        -> Result<[u8; RANDOMNESS_LENGTH]>;
+                                  -> Result<[u8; RANDOMNESS_LENGTH]>;
 }
 
 /// Debugging APIs.

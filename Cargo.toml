@@ -52,6 +52,7 @@ libipld-core = { version = "0.16.0", features = ["serde-codec"] }
 blake2b_simd = "1.0.1"
 libsecp256k1 = { version = "0.7.1" }
 bls-signatures = { version = "0.15", default-features = false }
+blstrs = { version = "0.7.1", default-features = false }
 
 # wasmtime
 wasmtime = {version = "19.0.2", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation"] }

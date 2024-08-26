@@ -35,6 +35,7 @@ bitflags = { version = "2.3.3", features = ["serde"] }
 filecoin-proofs-api = { version = "18", default-features = false, optional = true }
 libsecp256k1 = { workspace = true, optional = true }
 bls-signatures = { workspace = true, default-features = false, optional = true }
+blstrs = { workspace = true  } # optional = true
 
 [dev-dependencies]
 rand = { workspace = true }

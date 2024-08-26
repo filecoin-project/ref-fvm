@@ -327,7 +327,7 @@ where
             "recover_secp_public_key",
             crypto::recover_secp_public_key,
         )?;
-        linker.link_syscall("crypto", "hash", crypto::hash)?;
+        linker.link_syscall("crypto", "hash", crypto::hash)?; //XXX HERE
 
         linker.link_syscall("event", "emit_event", event::emit_event)?;
 

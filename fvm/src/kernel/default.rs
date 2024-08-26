@@ -7,7 +7,7 @@ use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{CBOR, IPLD_RAW};
-use fvm_shared::crypto::signature;
+use fvm_shared::crypto::{bls12_381, signature};
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::sys::out::vm::ContextFlags;
@@ -223,7 +223,7 @@ where
                         Forbidden,
                         "calling upgrade on actor already on call stack is forbidden"
                     )
-                    .into());
+                        .into());
                 }
             }
         }
@@ -637,7 +637,7 @@ where
                 IllegalArgument;
                 "unequal numbers of bls public keys and plaintexts"
             )
-            .into());
+                .into());
         }
 
         let t = self.call_manager.charge_gas(
@@ -708,6 +708,19 @@ where
 
         t.record(Ok(hasher.digest(data)))
     }
+
+    fn bls12_g1_add(
+        &self,
+        p1: &[u8; fvm_shared::crypto::bls12_381::G1_SIZE],
+        p2: &[u8; fvm_shared::crypto::bls12_381::G1_SIZE],
+    ) -> [u8; fvm_shared::crypto::bls12_381::G1_SIZE] {
+        let t = self
+            .call_manager
+            .charge_gas(self.call_manager.price_list().bls_pairing_cost())?; // XXX FIXME costs
+
+        let result = bls12_381::ops::g1_add(p1, p2);
+        t.record(result)
+    }
 }
 
 impl<C> NetworkOps for DefaultKernel<C>
@@ -724,11 +737,11 @@ where
             timestamp,
             base_fee,
             network:
-                NetworkConfig {
-                    network_version,
-                    chain_id,
-                    ..
-                },
+            NetworkConfig {
+                network_version,
+                chain_id,
+                ..
+            },
             ..
         } = self.call_manager.context();
 
@@ -870,7 +883,7 @@ where
                 "create_actor is restricted to InitActor. Called by {}",
                 self.actor_id
             )
-            .into());
+                .into());
         }
 
         if self.read_only {
@@ -983,7 +996,7 @@ where
                 Ok(())
             }
         }
-        .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
+            .or_error(fvm_shared::error::ErrorNumber::IllegalArgument)?;
 
         // Write to disk
         if let Ok(dir) = std::env::var(ENV_ARTIFACT_DIR).as_deref() {
@@ -995,8 +1008,8 @@ where
                 &self.actor_id.to_string(),
                 &self.call_manager.invocation_count().to_string(),
             ]
-            .iter()
-            .collect();
+                .iter()
+                .collect();
 
             if let Err(e) = std::fs::create_dir_all(dir.clone()) {
                 log::error!("failed to make directory to store debug artifacts {}", e);
@@ -1122,7 +1135,7 @@ where
                 key_offset,
                 event_keys.len()
             )
-            .into());
+                .into());
         }
 
         if val_offset != event_values.len() {
@@ -1131,7 +1144,7 @@ where
                 val_offset,
                 event_values.len()
             )
-            .into());
+                .into());
         }
 
         let actor_evt = ActorEvent::from(entries);

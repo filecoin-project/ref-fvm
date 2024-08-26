@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::cmp;
 
+use fvm_shared::crypto::bls12_381::{G1Uncompressed, G1_SIZE};
 use fvm_shared::crypto::signature::{
     BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
 };
@@ -140,4 +141,26 @@ pub fn hash(
     let length = cmp::min(digest_out.len(), digest.digest().len());
     digest_out[..length].copy_from_slice(&digest.digest()[..length]);
     Ok(length as u32)
+}
+
+// Performs BLS12-381 G1 addition on two points.
+pub fn bls12_g1_add(
+    context: Context<'_, impl CryptoOps>,
+    p1_off: u32,
+    p2_off: u32,
+    out_off: u32,
+) -> Result<()> {
+    let p1: G1Uncompressed = context.memory.try_slice(p1_off, G1_SIZE as u32)?
+        .try_into()
+        .expect("bls12-381 p1 point slice to array conversion failed");
+    let p2 = context.memory.try_slice(p2_off, G1_SIZE as u32)?
+        .try_into()
+        .expect("bls12-381 p2 point slice to array conversion failed");
+    let out = context.memory.try_slice_mut(out_off, BLS_PUB_LEN as u32)?
+        .try_into()
+        .expect("bls12-381 output point slice to array conversion failed");
+
+    context.kernel.bls_g1_add(p1, p2, out)
+
+    // context.kernel.bls_g1_add(p1, p2, out)
 }

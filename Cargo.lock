@@ -2737,6 +2737,7 @@ dependencies = [
  "bitflags 2.4.1",
  "blake2b_simd",
  "bls-signatures",
+ "blstrs",
  "cid 0.10.1",
  "coverage-helper",
  "data-encoding",
