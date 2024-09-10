@@ -232,7 +232,7 @@ fn min_memory_bytes(module: &Module) -> crate::kernel::Result<usize> {
     // However, we don't have access to that level of module runtime info, hence relying on the exported memory
     // that the `CallManager` will be looking for as well.
     if let Some(ExternType::Memory(m)) = module.get_export("memory") {
-        let min_memory_bytes = m.minimum() * wasmtime_environ::WASM_PAGE_SIZE as u64;
+        let min_memory_bytes = m.minimum() * wasmtime_environ::Memory::DEFAULT_PAGE_SIZE as u64;
         Ok(min_memory_bytes as usize)
     } else {
         Err(ExecutionError::Fatal(anyhow!("actor has no memory export")))
