@@ -40,22 +40,13 @@ once_cell = "1.18"
 minstant = "0.1.2"
 blake2b_simd = "1.0.0"
 byteorder = "1.4.3"
+wasmtime = { workspace = true }
+wasmtime-runtime = { workspace = true }
+wasmtime-environ = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = "1.3.0"
 fvm = { path = ".", features = ["testing"], default-features = false }
-
-[dependencies.wasmtime]
-version = "12.0.2"
-default-features = false
-features = ["cranelift", "pooling-allocator", "parallel-compilation"]
-
-[dependencies.wasmtime-environ]
-version = "12.0.2"
-
-[dependencies.wasmtime-runtime]
-version = "12.0.2"
-default-features = false
 
 [features]
 default = ["opencl"]
