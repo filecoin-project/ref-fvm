@@ -10,5 +10,5 @@ fvm_shared = { path = "../../shared" }
 anyhow = "1.0.71"
 clap = { version = "4.3.9", features = ["derive", "std", "help", "usage", "error-context"], default-features = false }
 hex = "0.4.3"
-env_logger = "0.10.0"
+env_logger = "0.11.5"
 fvm = { path = "../../fvm", default-features = false }
