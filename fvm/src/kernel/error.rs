@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use derive_more::Display;
 use fvm_shared::error::ErrorNumber;
 
