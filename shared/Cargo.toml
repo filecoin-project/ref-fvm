@@ -19,7 +19,7 @@ data-encoding-macro = "0.1.13"
 lazy_static = "1.4.0"
 cid = { workspace = true, features = ["serde-codec", "std"] }
 multihash = { workspace = true }
-unsigned-varint = "0.7.1"
+unsigned-varint = "0.8.0"
 anyhow = "1.0.71"
 fvm_ipld_encoding = { version = "0.4" }
 serde = { version = "1", default-features = false }
