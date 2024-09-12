@@ -20,7 +20,7 @@ lazy_static = "1.4.0"
 log = "0.4.8"
 cid = { workspace = true, features = ["serde-codec", "std"] }
 multihash = { workspace = true, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
-unsigned-varint = "0.7.1"
+unsigned-varint = "0.8.0"
 anyhow = "1.0.51"
 fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
