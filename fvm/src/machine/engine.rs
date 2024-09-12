@@ -171,6 +171,15 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // todo(M2): make sure this is guaranteed to run in linear time.
     c.cranelift_opt_level(Speed);
 
+    // Use traditional unix signal handlers instead of Mach ports on MacOS. The Mach ports signal
+    // handlers don't appear to be capturing all SIGILL signals (when run under lotus) and we're not
+    // entirely sure why. Upstream documentation indicates that this could be due to the use of
+    // `fork`, but we're only using threads, not subprocesses.
+    //
+    // The downside to using traditional signal handlers is that this may interfere with some
+    // debugging tools. But we'll just have to live with that.
+    c.macos_use_mach_ports(false);
+
     c
 }
 
