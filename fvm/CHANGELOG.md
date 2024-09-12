@@ -4,6 +4,12 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.11.0 [2024-09-12]
+
+- Update to wasmtime 24.
+- Switch from mach ports to unix signal handlers on macos.
+- Update misc dependencies.
+
 ## 3.10.0 [2024-06-12]
 
 - Update `filecoin-proofs-api` to v18

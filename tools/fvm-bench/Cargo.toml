@@ -1,14 +1,15 @@
 [package]
 name = "fvm-bench"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+publish = false
 
 [dependencies]
-fvm_integration_tests = { path = "../../testing/integration" }
+fvm = { workspace = true }
+fvm_integration_tests = { workspace = true }
 fvm_ipld_encoding = { version = "0.4" }
-fvm_shared = { path = "../../shared" }
+fvm_shared = { workspace = true }
 anyhow = "1.0.71"
 clap = { version = "4.3.9", features = ["derive", "std", "help", "usage", "error-context"], default-features = false }
 hex = "0.4.3"
 env_logger = "0.11.5"
-fvm = { path = "../../fvm", default-features = false }
