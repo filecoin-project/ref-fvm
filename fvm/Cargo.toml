@@ -24,7 +24,6 @@ fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 wasmtime = { workspace = true }
 wasmtime-environ = { workspace = true }
-wasmtime-runtime = { workspace = true }
 serde = { workspace = true }
 serde_tuple = { workspace = true }
 lazy_static = { workspace = true }

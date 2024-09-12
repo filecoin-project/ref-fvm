@@ -128,11 +128,11 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     let instance_count = ec.instance_pool_size();
     let instance_memory_maximum_size = ec.max_inst_memory_bytes;
-    if instance_memory_maximum_size % wasmtime_environ::WASM_PAGE_SIZE as u64 != 0 {
+    if instance_memory_maximum_size % wasmtime_environ::Memory::DEFAULT_PAGE_SIZE as u64 != 0 {
         return Err(anyhow!(
             "requested memory limit {} not a multiple of the WASM_PAGE_SIZE {}",
             instance_memory_maximum_size,
-            wasmtime_environ::WASM_PAGE_SIZE
+            wasmtime_environ::Memory::DEFAULT_PAGE_SIZE,
         ));
     }
 
@@ -150,9 +150,11 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     // Adjust the maximum amount of host memory that can be committed to an instance to
     // match the static linear memory size we reserve for each slot.
-    alloc_strat_cfg
-        .memory_pages(instance_memory_maximum_size / (wasmtime_environ::WASM_PAGE_SIZE as u64));
+    alloc_strat_cfg.max_memory_size(instance_memory_maximum_size as usize);
     c.allocation_strategy(InstanceAllocationStrategy::Pooling(alloc_strat_cfg));
+
+    // Explicitly disable custom page sizes, we always assume 64KiB.
+    c.wasm_custom_page_sizes(false);
 
     // wasmtime default: true
     // We disable this as we always charge for memory regardless and `memory_init_cow` can baloon compiled wasm modules.
@@ -164,6 +166,7 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     // wasmtime default: true
     // We don't want threads, there is no way to ensure determinism
+    #[cfg(feature = "wasmtime/threads")]
     c.wasm_threads(false);
 
     // wasmtime default: true
@@ -174,7 +177,7 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.wasm_relaxed_simd(false);
     c.relaxed_simd_deterministic(true);
 
-    // wasmtime default: false
+    // wasmtime default: true
     // We don't support the return_call_* functions.
     c.wasm_tail_call(false);
 
