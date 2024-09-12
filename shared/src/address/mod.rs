@@ -321,6 +321,36 @@ pub(crate) fn from_leb_bytes(bz: &[u8]) -> Result<u64, Error> {
     Ok(id)
 }
 
+/// Checksum calculates the 4 byte checksum hash
+pub fn checksum(ingest: &[u8]) -> Vec<u8> {
+    blake2b_simd::Params::new()
+        .hash_length(CHECKSUM_HASH_LEN)
+        .to_state()
+        .update(ingest)
+        .finalize()
+        .as_bytes()
+        .to_vec()
+}
+
+/// Validates the checksum against the ingest data
+pub fn validate_checksum(ingest: &[u8], expect: Vec<u8>) -> bool {
+    let digest = checksum(ingest);
+    digest == expect
+}
+
+/// Returns an address hash for given data
+fn address_hash(ingest: &[u8]) -> [u8; 20] {
+    let digest = blake2b_simd::Params::new()
+        .hash_length(PAYLOAD_HASH_LEN)
+        .to_state()
+        .update(ingest)
+        .finalize();
+
+    let mut hash = [0u8; 20];
+    hash.copy_from_slice(digest.as_bytes());
+    hash
+}
+
 #[cfg(test)]
 mod tests {
     // Test cases for FOR-02: https://github.com/ChainSafe/forest/issues/1134
@@ -371,34 +401,4 @@ mod tests {
             }
         }
     }
-}
-
-/// Checksum calculates the 4 byte checksum hash
-pub fn checksum(ingest: &[u8]) -> Vec<u8> {
-    blake2b_simd::Params::new()
-        .hash_length(CHECKSUM_HASH_LEN)
-        .to_state()
-        .update(ingest)
-        .finalize()
-        .as_bytes()
-        .to_vec()
-}
-
-/// Validates the checksum against the ingest data
-pub fn validate_checksum(ingest: &[u8], expect: Vec<u8>) -> bool {
-    let digest = checksum(ingest);
-    digest == expect
-}
-
-/// Returns an address hash for given data
-fn address_hash(ingest: &[u8]) -> [u8; 20] {
-    let digest = blake2b_simd::Params::new()
-        .hash_length(PAYLOAD_HASH_LEN)
-        .to_state()
-        .update(ingest)
-        .finalize();
-
-    let mut hash = [0u8; 20];
-    hash.copy_from_slice(digest.as_bytes());
-    hash
 }

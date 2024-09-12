@@ -22,7 +22,7 @@ mod send;
 mod sself;
 mod vm;
 
-pub(self) use context::Context;
+use context::Context;
 
 /// Invocation data attached to a wasm "store" and available to the syscall binding.
 pub struct InvocationData<K> {

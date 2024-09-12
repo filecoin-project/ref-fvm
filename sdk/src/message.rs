@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::sys::BlockId;
@@ -29,10 +27,7 @@ pub fn method_number() -> MethodNum {
 /// Returns the value received from the caller in AttoFIL.
 #[inline(always)]
 pub fn value_received() -> TokenAmount {
-    INVOCATION_CONTEXT
-        .value_received
-        .try_into()
-        .expect("invalid bigint")
+    INVOCATION_CONTEXT.value_received.into()
 }
 
 /// Returns the message parameters as an Option<IpldBlock>.
