@@ -177,7 +177,7 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.wasm_relaxed_simd(false);
     c.relaxed_simd_deterministic(true);
 
-    // wasmtime default: false
+    // wasmtime default: true
     // We don't support the return_call_* functions.
     c.wasm_tail_call(false);
 
