@@ -123,7 +123,7 @@ macro_rules! impl_bind_syscalls {
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
 
-                        let (mut memory, mut data) = memory_and_data(&mut caller);
+                        let (mut memory, data) = memory_and_data(&mut caller);
                         charge_syscall_gas!(data.kernel);
 
                         let ctx = Context{kernel: &mut data.kernel, memory: &mut memory};
@@ -153,7 +153,7 @@ macro_rules! impl_bind_syscalls {
                     self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
 
-                        let (mut memory, mut data) = memory_and_data(&mut caller);
+                        let (mut memory, data) = memory_and_data(&mut caller);
                         charge_syscall_gas!(data.kernel);
 
                         // We need to check to make sure we can store the return value _before_ we do anything.

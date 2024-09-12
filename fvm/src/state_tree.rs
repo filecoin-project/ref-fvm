@@ -721,7 +721,7 @@ mod tests {
         tree.set_actor(&INIT_ACTOR_ADDR, act_s).unwrap();
 
         // Test mutate function
-        tree.mutate_actor(&INIT_ACTOR_ADDR, |mut actor| {
+        tree.mutate_actor(&INIT_ACTOR_ADDR, |actor| {
             actor.sequence = 2;
             Ok(())
         })
@@ -750,8 +750,8 @@ mod tests {
         let mut tree = StateTree::new(&store, StateTreeVersion::V3).unwrap();
         let mut addresses: Vec<Address> = Vec::new();
 
-        let test_addresses = vec!["t0100", "t0101", "t0102"];
-        for a in test_addresses.iter() {
+        let test_addresses = ["t0100", "t0101", "t0102"];
+        for a in &test_addresses {
             addresses.push(a.parse().unwrap());
         }
 
