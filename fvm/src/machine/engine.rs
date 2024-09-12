@@ -10,7 +10,10 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use fvm_wasm_instrument::parity_wasm::elements;
 use wasmtime::OptLevel::Speed;
-use wasmtime::{Global, GlobalType, Linker, Memory, MemoryType, Module, Mutability, Val, ValType};
+use wasmtime::{
+    Global, GlobalType, Linker, Memory, MemoryType, Module, Mutability, Val, ValType,
+    WasmBacktraceDetails,
+};
 
 use crate::gas::WasmGasPrices;
 use crate::machine::NetworkConfig;
@@ -75,16 +78,31 @@ impl Default for MultiEngine {
 pub fn default_wasmtime_config() -> wasmtime::Config {
     let mut c = wasmtime::Config::default();
 
-    // wasmtime default: false
-    // We don't want threads, there is no way to ensure determisism
+    // Explicitly disable custom page sizes, we always assume 64KiB.
+    c.wasm_custom_page_sizes(false);
+
+    // wasmtime default: true
+    // We disable this as we always charge for memory regardless and `memory_init_cow` can baloon compiled wasm modules.
+    c.memory_init_cow(false);
+
+    // wasmtime default: true
+    // We don't want threads, there is no way to ensure determinism
+    #[cfg(feature = "wasmtime/threads")]
     c.wasm_threads(false);
 
     // wasmtime default: true
-    // simd isn't supported in wasm-instrument, but if we add support there, we can probably enable this.
+    // simd isn't supported in wasm-instrument, but if we add support there, we can probably enable
+    // this.
     // Note: stack limits may need adjusting after this is enabled
     c.wasm_simd(false);
+    c.wasm_relaxed_simd(false);
+    c.relaxed_simd_deterministic(true);
 
-    // wasmtime default: false
+    // wasmtime default: true
+    // We don't support the return_call_* functions.
+    c.wasm_tail_call(false);
+
+    // wasmtime default: true
     c.wasm_multi_memory(false);
 
     // wasmtime default: false
@@ -99,6 +117,16 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // we should be able to enable this for M2, just need to make sure that it's
     // handled correctly in wasm-instrument
     c.wasm_multi_value(false);
+
+    // wasmtime default: false
+    // Cool proposal to allow function references, but we don't support it yet.
+    #[cfg(feature = "wasmtime/gc")]
+    c.wasm_function_references(false);
+
+    // wasmtime default: false
+    // Wasmtime function reference proposal.
+    #[cfg(feature = "wasmtime/gc")]
+    c.wasm_gc(false);
 
     // wasmtime default: false
     //
@@ -125,13 +153,16 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     c.generate_address_map(false);
     c.cranelift_debug_verifier(false);
     c.native_unwind_info(false);
-    #[allow(deprecated)] // TODO https://github.com/bytecodealliance/wasmtime/issues/5037
     c.wasm_backtrace(false);
-    c.wasm_reference_types(false);
+    c.wasm_backtrace_details(WasmBacktraceDetails::Disable);
 
     // Reiterate some defaults
     c.guard_before_linear_memory(true);
     c.parallel_compilation(true);
+
+    // Disable caching if some other crate enables it. We do our own caching.
+    #[cfg(feature = "wasmtime/cache")]
+    c.disable_cache();
 
     #[cfg(feature = "wasmtime/async")]
     c.async_support(false);
