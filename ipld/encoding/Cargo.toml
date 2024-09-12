@@ -17,7 +17,7 @@ fvm_ipld_blockstore = { workspace = true }
 # multihash is also re-exported by `cid`. Having `multihash` here as a
 # depdendency is needed to enable the features of the re-export.
 multihash = { workspace = true, features = ["blake2b", "multihash-impl"] }
-serde_ipld_dagcbor = "0.4.0"
+serde_ipld_dagcbor = "0.6.1"
 serde_repr = "0.1"
 
 [features]
