@@ -4,6 +4,12 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.4.0 [2024-09-12]
+
+- Update to wasmtime 24.
+- Switch from mach ports to unix signal handlers on macos.
+- Update misc dependencies.
+
 ## 4.3.2 [2024-08-16]
 
 - feat: add `nv24-dev` feature flag [#2029](https://github.com/filecoin-project/ref-fvm/pull/2029)
