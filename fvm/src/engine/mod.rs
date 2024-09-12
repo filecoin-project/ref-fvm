@@ -19,7 +19,7 @@ use num_traits::Zero;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{
     Global, GlobalType, InstanceAllocationStrategy, Linker, Memory, MemoryType, Module, Mutability,
-    Val, ValType,
+    Val, ValType, WasmBacktraceDetails,
 };
 
 use crate::gas::{Gas, GasTimer, WasmGasPrices};
@@ -124,11 +124,11 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     let instance_count = ec.instance_pool_size();
     let instance_memory_maximum_size = ec.max_inst_memory_bytes;
-    if instance_memory_maximum_size % wasmtime_environ::WASM_PAGE_SIZE as u64 != 0 {
+    if instance_memory_maximum_size % wasmtime_environ::Memory::DEFAULT_PAGE_SIZE as u64 != 0 {
         return Err(anyhow!(
             "requested memory limit {} not a multiple of the WASM_PAGE_SIZE {}",
             instance_memory_maximum_size,
-            wasmtime_environ::WASM_PAGE_SIZE
+            wasmtime_environ::Memory::DEFAULT_PAGE_SIZE,
         ));
     }
 
@@ -138,14 +138,19 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // We want to pre-allocate all permissible memory to support the maximum allowed recursion limit.
 
     let mut alloc_strat_cfg = wasmtime::PoolingAllocationConfig::default();
-    alloc_strat_cfg.instance_count(instance_count);
+    alloc_strat_cfg.total_core_instances(instance_count);
+    alloc_strat_cfg.total_memories(instance_count);
+    alloc_strat_cfg.max_memories_per_module(1);
+    alloc_strat_cfg.total_tables(instance_count);
+    alloc_strat_cfg.max_tables_per_module(1);
 
     // Adjust the maximum amount of host memory that can be committed to an instance to
     // match the static linear memory size we reserve for each slot.
-    alloc_strat_cfg.instance_memory_pages(
-        instance_memory_maximum_size / (wasmtime_environ::WASM_PAGE_SIZE as u64),
-    );
+    alloc_strat_cfg.max_memory_size(instance_memory_maximum_size as usize);
     c.allocation_strategy(InstanceAllocationStrategy::Pooling(alloc_strat_cfg));
+
+    // Explicitly disable custom page sizes, we always assume 64KiB.
+    c.wasm_custom_page_sizes(false);
 
     // wasmtime default: true
     // We disable this as we always charge for memory regardless and `memory_init_cow` can baloon compiled wasm modules.
@@ -153,17 +158,26 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     // wasmtime default: 4GB
     c.static_memory_maximum_size(instance_memory_maximum_size);
+    c.static_memory_forced(true);
 
-    // wasmtime default: false
-    // We don't want threads, there is no way to ensure determisism
+    // wasmtime default: true
+    // We don't want threads, there is no way to ensure determinism
+    #[cfg(feature = "wasmtime/threads")]
     c.wasm_threads(false);
 
     // wasmtime default: true
-    // simd isn't supported in wasm-instrument, but if we add support there, we can probably enable this.
+    // simd isn't supported in wasm-instrument, but if we add support there, we can probably enable
+    // this.
     // Note: stack limits may need adjusting after this is enabled
     c.wasm_simd(false);
+    c.wasm_relaxed_simd(false);
+    c.relaxed_simd_deterministic(true);
 
-    // wasmtime default: false
+    // wasmtime default: true
+    // We don't support the return_call_* functions.
+    c.wasm_tail_call(false);
+
+    // wasmtime default: true
     c.wasm_multi_memory(false);
 
     // wasmtime default: false
@@ -178,6 +192,16 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // we should be able to enable this for M2, just need to make sure that it's
     // handled correctly in wasm-instrument
     c.wasm_multi_value(false);
+
+    // wasmtime default: false
+    // Cool proposal to allow function references, but we don't support it yet.
+    #[cfg(feature = "wasmtime/gc")]
+    c.wasm_function_references(false);
+
+    // wasmtime default: false
+    // Wasmtime function reference proposal.
+    #[cfg(feature = "wasmtime/gc")]
+    c.wasm_gc(false);
 
     // wasmtime default: false
     //
@@ -205,11 +229,15 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.cranelift_debug_verifier(false);
     c.native_unwind_info(false);
     c.wasm_backtrace(false);
-    c.wasm_reference_types(false);
+    c.wasm_backtrace_details(WasmBacktraceDetails::Disable);
 
     // Reiterate some defaults
     c.guard_before_linear_memory(true);
     c.parallel_compilation(true);
+
+    // Disable caching if some other crate enables it. We do our own caching.
+    #[cfg(feature = "wasmtime/cache")]
+    c.disable_cache();
 
     #[cfg(feature = "wasmtime/async")]
     c.async_support(false);

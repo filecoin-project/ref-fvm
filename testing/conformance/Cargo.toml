@@ -23,7 +23,7 @@ lazy_static = "1.4.0"
 log = "0.4.19"
 futures = "0.3.28"
 async-std = { version = "1.12", features = ["attributes"] }
-wasmtime = { version = "12.0.2", default-features = false }
+wasmtime = { workspace = true }
 base64 = "0.21.2"
 flate2 = { version = "1.0" }
 colored = "2"
@@ -45,7 +45,7 @@ default-features = false
 features = ["testing"]
 
 [features]
-vtune = ["wasmtime/vtune", "ittapi-rs"]
+vtune = ["wasmtime/profiling", "ittapi-rs"]
 m2-native = []
 
 [dev-dependencies]
