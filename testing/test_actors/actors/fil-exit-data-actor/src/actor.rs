@@ -15,7 +15,7 @@ pub fn invoke(blk: u32) -> u32 {
 fn invoke_method(_: u32) -> ! {
     let method = sdk::message::method_number();
     let exit_code = match method {
-        0 | 1 | 2 => 0,
+        0..=2 => 0,
         _ => 0x42,
     };
 

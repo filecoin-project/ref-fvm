@@ -165,7 +165,9 @@ fn on_event(p: OnEventParams) -> Result<()> {
 fn on_event_shape(p: OnEventParams) -> Result<()> {
     const MAX_DATA: usize = 8 << 10;
 
-    let EventCalibrationMode::Shape((key_size, value_size, last_value_size)) = p.mode else { panic!() };
+    let EventCalibrationMode::Shape((key_size, value_size, last_value_size)) = p.mode else {
+        panic!()
+    };
     let mut value = vec![0; value_size];
 
     // the last entry may not exceed total event values over MAX_DATA
@@ -203,7 +205,9 @@ fn on_event_shape(p: OnEventParams) -> Result<()> {
 }
 
 fn on_event_target_size(p: OnEventParams) -> Result<()> {
-    let EventCalibrationMode::TargetSize(target_size) = p.mode else { panic!() };
+    let EventCalibrationMode::TargetSize(target_size) = p.mode else {
+        panic!()
+    };
 
     // Deduct the approximate overhead of each entry (3 bytes) + flag (1 byte). This
     // is fuzzy because the size of the encoded CBOR depends on the length of fields, but it's good enough.
@@ -240,7 +244,7 @@ fn random_bytes(size: usize, seed: u64) -> Vec<u8> {
     lcg8(seed).take(size).collect()
 }
 
-fn random_mutations(data: &mut Vec<u8>, seed: u64, n: usize) {
+fn random_mutations(data: &mut [u8], seed: u64, n: usize) {
     let size = data.len();
     if size > 0 {
         for (i, b) in lcg64(seed).zip(lcg8(seed + 1)).take(n) {
