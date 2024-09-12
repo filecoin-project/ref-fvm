@@ -26,7 +26,7 @@ mod send;
 mod sself;
 mod vm;
 
-pub(self) use context::Context;
+use context::Context;
 
 /// Invocation data attached to a wasm "store" and available to the syscall binding.
 pub struct InvocationData<K> {
@@ -170,7 +170,7 @@ pub fn charge_for_init<K: Kernel>(
 ) -> crate::kernel::Result<GasTimer> {
     let min_memory_bytes = min_memory_bytes(module)?;
     let mut ctx = ctx.as_context_mut();
-    let mut data = ctx.data_mut();
+    let data = ctx.data_mut();
     let memory_gas = data.kernel.price_list().init_memory_gas(min_memory_bytes);
 
     // Adjust `last_memory_bytes` so that we don't charge for it again in `charge_for_exec`.

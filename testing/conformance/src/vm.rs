@@ -1,9 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
 
-use anyhow::anyhow;
 use cid::Cid;
 use multihash::MultihashGeneric;
 
@@ -84,9 +82,7 @@ impl TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>> {
         tracing: bool,
         price_network_version: Option<NetworkVersion>,
     ) -> anyhow::Result<TestMachine<Box<DefaultMachine<MemoryBlockstore, TestExterns>>>> {
-        let network_version = NetworkVersion::try_from(variant.nv)
-            .map_err(|_| anyhow!("unrecognized network version"))?;
-
+        let network_version = variant.nv.into();
         let base_fee = v
             .preconditions
             .basefee

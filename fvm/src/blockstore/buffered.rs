@@ -181,7 +181,9 @@ fn take_reachable(cache: &mut HashMap<Cid, Vec<u8>>, root: &Cid) -> Result<Vec<(
             //
             // The alternative would be to check if it's in the datastore, but that's likely even more
             // expensive. And there wouldn't be much we could do at that point but abort the block.
-            let Some(block) = cache.remove(&k) else { continue };
+            let Some(block) = cache.remove(&k) else {
+                continue;
+            };
 
             // At the moment, only DAG_CBOR can link to other blocks.
             if k.codec() == DAG_CBOR {

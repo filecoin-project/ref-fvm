@@ -621,7 +621,7 @@ mod tests {
         tree.set_actor(INIT_ACTOR_ID, act_s);
 
         // Test mutate function
-        tree.mutate_actor(INIT_ACTOR_ID, |mut actor| {
+        tree.mutate_actor(INIT_ACTOR_ID, |actor| {
             actor.sequence = 2;
             Ok(())
         })

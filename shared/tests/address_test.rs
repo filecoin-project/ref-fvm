@@ -581,7 +581,7 @@ fn address_hashmap() {
 
     // insert other value
     let h2 = Address::new_id(2);
-    assert!(hm.get(&h2).is_none());
+    assert!(!hm.contains_key(&h2));
     hm.insert(h2, 2);
     assert_eq!(hm.get(&h2).unwrap(), &2);
 

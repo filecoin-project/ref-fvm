@@ -210,7 +210,7 @@ fn on_event_target_size() {
         };
     }
 
-    for (obs, name) in vec![(validate_obs, CHARGE_VALIDATE), (accept_obs, CHARGE_ACCEPT)].iter() {
+    for (obs, name) in &[(validate_obs, CHARGE_VALIDATE), (accept_obs, CHARGE_ACCEPT)] {
         let regression = run_linear_regression(obs);
 
         export(name, obs, &regression).unwrap();
