@@ -1,11 +1,11 @@
 [package]
 name = "fvm"
 description = "Filecoin Virtual Machine reference implementation"
-version = "2.8.0"
-license = "MIT OR Apache-2.0"
-authors = ["Protocol Labs", "Filecoin Core Devs"]
-edition = "2021"
-repository = "https://github.com/filecoin-project/ref-fvm"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+authors.workspace = true
 keywords = ["filecoin", "web3", "wasm"]
 
 [lib]
@@ -19,7 +19,7 @@ derive_builder = "0.20.1"
 num-derive = "0.4.0"
 cid = { workspace = true, features = ["serde-codec"] }
 multihash = { workspace = true }
-fvm_shared = { version = "2.7.0", path = "../shared", features = ["crypto"] }
+fvm_shared = { workspace = true, features = ["crypto"] }
 fvm_ipld_hamt = { workspace = true }
 fvm_ipld_amt = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }

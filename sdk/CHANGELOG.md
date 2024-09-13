@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.0 (2024-09-12)
+
+- Update misc dependencies.
+
 ## 2.4.0 (2023-06-28)
 
 Breaking Changes:

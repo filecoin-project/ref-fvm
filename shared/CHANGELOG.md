@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.0 (2024-09-12)
+
+- Update misc dependencies.
+
 ## 2.7.0 (2024-06-12)
 
 - Update `filecoin-proofs-api` to v18 
