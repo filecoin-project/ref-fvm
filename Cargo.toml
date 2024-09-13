@@ -12,11 +12,23 @@ members = [
     "tools/fvm-bench",
 ]
 
+[workspace.package]
+version = "3.11.0"
+license = "MIT OR Apache-2.0"
+edition = "2021"
+repository = "https://github.com/filecoin-project/ref-fvm"
+authors = ["Protocol Labs", "Filecoin Core Devs"]
+
 [workspace.dependencies]
 cid = { version = "0.10.1", default-features = false }
 multihash = { version = "0.18.1", default-features = false }
 wasmtime = { version = "24.0.0", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
 wasmtime-environ = "24.0.0"
+
+fvm = { path = "fvm", version = "~3.11.0", default-features = false }
+fvm_shared = { path = "shared", version = "~3.11.0", default-features = false }
+fvm_sdk = { path = "sdk", version = "~3.11.0" }
+fvm_integration_tests = { path = "testing/integration", version = "~3.11.0" }
 
 [profile.actor]
 inherits = "release"

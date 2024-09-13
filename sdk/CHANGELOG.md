@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 3.11.0 [2024-09-12]
+
+- Update to wasmtime 24.
+- Switch from mach ports to unix signal handlers on macos.
+- Update misc dependencies.
+
 ## 3.3.0 [2023-06-28]
 
 Breaking Changes:

@@ -1,18 +1,18 @@
 [package]
 name = "fvm_sdk"
 description = "Filecoin Virtual Machine actor development SDK"
-version = "3.3.0"
-license = "MIT OR Apache-2.0"
-authors = ["Protocol Labs", "Filecoin Core Devs"]
-edition = "2021"
-repository = "https://github.com/filecoin-project/ref-fvm"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+authors.workspace = true
 
 [lib]
 crate-type = ["lib"]
 
 [dependencies]
 cid = { workspace = true }
-fvm_shared = { version = "3.6.0", path = "../shared" }
+fvm_shared = { workspace = true }
 ## num-traits; disabling default features makes it play nice with no_std.
 num-traits = { version = "0.2.15", default-features = false }
 lazy_static = { version = "1.4.0" }
