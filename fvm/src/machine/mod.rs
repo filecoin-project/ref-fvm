@@ -249,6 +249,12 @@ impl MachineContext {
         self
     }
 
+    /// Sets [`MachineContext::epoch`].
+    pub fn set_epoch(&mut self, epoch: ChainEpoch) -> &mut Self {
+        self.epoch = epoch;
+        self
+    }
+
     /// Set [`MachineContext::circ_supply`].
     pub fn set_circulating_supply(&mut self, amt: TokenAmount) -> &mut Self {
         self.circ_supply = amt;
