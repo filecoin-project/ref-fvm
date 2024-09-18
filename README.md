@@ -59,10 +59,10 @@ At least of 202409, ref-fvm follows this versioning scheme:
 Below is the mapping between ref-fvm versions and the network upgrade versions they support:
 
 | FVM Version | Supported Network Version Range | Source |
-|-------------|----------------------------------|--------|
+|-------------|---------------------------------|--------|
 | v2 | 15-17 | https://github.com/filecoin-project/ref-fvm/blob/release/v2/fvm/src/machine/default.rs#L64 |
-| v3 | 18-20 | https://github.com/filecoin-project/ref-fvm/blob/release/v3/fvm/src/machine/default.rs#L63|
-| v4 | 21+| https://github.com/filecoin-project/ref-fvm/blob/master/fvm/src/machine/default.rs#L55 |
+| v3 | 18-20 | https://github.com/filecoin-project/ref-fvm/blob/release/v3/fvm/src/machine/default.rs#L63 |
+| v4 | 21+ | https://github.com/filecoin-project/ref-fvm/blob/master/fvm/src/machine/default.rs#L55 |
 
 These are relevant issues/discussions about changing FVM versioning:
 * https://github.com/filecoin-project/ref-fvm/issues/358
