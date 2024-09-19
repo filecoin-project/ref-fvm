@@ -50,6 +50,24 @@ Here's what you'll find in each directory:
   - Disclaimers
     - Benchmarks are currently very slow to run, setup and teardown. This is due to using default WASM cache, and will be fixed soon.
 
+## Versioning
+At least of 202409, ref-fvm follows this versioning scheme:
+* Use the major version whenever we need to make large structural changes where maintaining backwards compatibility without accidentally introducing state mis-matches would be difficult. Basically, major versions drop support for prior network versions. This lets us import multiple copies of the FVM (one per major version) so we can continue to execute/explore old network state.
+* Use the minor version to indicate potentially breaking rust API changes. Minor versions keep support for prior network versions. This is how most rust projects would use their major version.
+* Use the patch version to indicate that the release is API (rust) compatible with the previous release. Patch releases may add support for new network versions (assuming the patch is on the latest major version), fix bugs, etc.
+
+Below is the mapping between ref-fvm versions and the network upgrade versions they support:
+
+| FVM Version | Supported Network Version Range | Source |
+|-------------|---------------------------------|--------|
+| v2 | 15-17 | https://github.com/filecoin-project/ref-fvm/blob/release/v2/fvm/src/machine/default.rs#L64 |
+| v3 | 18-20 | https://github.com/filecoin-project/ref-fvm/blob/release/v3/fvm/src/machine/default.rs#L63 |
+| v4 | 21+ | https://github.com/filecoin-project/ref-fvm/blob/master/fvm/src/machine/default.rs#L55 |
+
+These are relevant issues/discussions about changing FVM versioning:
+* https://github.com/filecoin-project/ref-fvm/issues/358
+* https://github.com/filecoin-project/ref-fvm/issues/1724
+
 ## License
 
 Dual-licensed: [MIT](./LICENSE-MIT), [Apache Software License v2](./LICENSE-APACHE), by way of the
