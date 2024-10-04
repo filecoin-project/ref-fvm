@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 4.4.1 [2024-10-04]
+
 - chore: remove the `nv24-dev` feature flag [#2051](https://github.com/filecoin-project/ref-fvm/pull/2051)
 
 ## 4.4.0 [2024-09-12]
