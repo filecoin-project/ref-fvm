@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.4.2 [2024-10-09]
+
+- Update wasmtime to 24.0.1.
+
 ## 4.4.1 [2024-10-04]
 
 - chore: remove the `nv24-dev` feature flag [#2051](https://github.com/filecoin-project/ref-fvm/pull/2051)

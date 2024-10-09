@@ -19,7 +19,7 @@ members = [
 ]
 
 [workspace.package]
-version = "4.4.1"
+version = "4.4.2"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/filecoin-project/ref-fvm"
@@ -55,7 +55,7 @@ bls-signatures = { version = "0.15", default-features = false }
 
 # wasmtime
 wasmtime = {version = "24.0.1", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
-wasmtime-environ = "24.0.0"
+wasmtime-environ = "24.0.1"
 
 # misc
 libfuzzer-sys = "0.4"
@@ -73,9 +73,9 @@ minstant = "0.1.3"
 coverage-helper = "0.2.0"
 
 # workspace
-fvm = { path = "fvm", version = "~4.4.1", default-features = false }
-fvm_shared = { path = "shared", version = "~4.4.1", default-features = false }
-fvm_sdk = { path = "sdk", version = "~4.4.1" }
+fvm = { path = "fvm", version = "~4.4.2", default-features = false }
+fvm_shared = { path = "shared", version = "~4.4.2", default-features = false }
+fvm_sdk = { path = "sdk", version = "~4.4.2" }
 fvm_ipld_amt = { path = "ipld/amt", version = "0.6.2" }
 fvm_ipld_hamt = { path = "ipld/hamt", version = "0.9.0" }
 fvm_ipld_kamt = { path = "ipld/kamt", version = "0.3.0" }
