@@ -54,7 +54,7 @@ libsecp256k1 = { version = "0.7.1" }
 bls-signatures = { version = "0.15", default-features = false }
 
 # wasmtime
-wasmtime = {version = "24.0.0", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
+wasmtime = {version = "24.0.1", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
 wasmtime-environ = "24.0.0"
 
 # misc
