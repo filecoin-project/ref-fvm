@@ -87,20 +87,13 @@ fvm_integration_tests = { path = "testing/integration", version = "~4.4.1" }
 fvm_gas_calibration_shared = { path = "testing/calibration/shared" }
 fvm_test_actors = { path = "testing/test_actors" }
 
-[profile.actor]
-inherits = "release"
-panic = "abort"
-overflow-checks = true
-lto = true
-opt-level = "z"
-#strip = true
-
+# Same as in the built-in actors repo
 [profile.wasm]
 inherits = "release"
-panic = "abort"
-overflow-checks = false
-lto = true
-opt-level = "z"
+panic = "unwind"
+overflow-checks = true
+lto = "thin"
+opt-level = 3
 strip = true
 codegen-units = 1
 incremental = false

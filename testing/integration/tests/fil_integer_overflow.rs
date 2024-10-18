@@ -60,94 +60,150 @@ fn integer_overflow() {
     // Instantiate machine
     tester.instantiate_machine(DummyExterns).unwrap();
 
-    // Params setup
+    // X is the target value.
     let x: i64 = 10000000000;
-    let params = RawBytes::serialize(x).unwrap();
 
-    // Send message to set
-    let message = Message {
-        from: sender.1,
-        to: actor_address,
-        gas_limit: 1000000000,
-        method_num: 1,
-        params,
-        ..Message::default()
-    };
+    {
+        // Params setup
+        let params = RawBytes::serialize(x).unwrap();
 
-    // Set inner state value
-    let res = tester
-        .executor
-        .as_mut()
-        .unwrap()
-        .execute_message(message, ApplyKind::Explicit, 100)
-        .unwrap();
+        // Send message to set
+        let message = Message {
+            from: sender.1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 1,
+            params,
+            ..Message::default()
+        };
 
-    assert_eq!(
-        ExitCode::OK,
-        res.msg_receipt.exit_code,
-        "{}",
-        res.failure_info.unwrap()
-    );
+        // Set inner state value
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
 
-    // Read inner state value
-    let message = Message {
-        from: sender.1,
-        to: actor_address,
-        gas_limit: 1000000000,
-        method_num: 3,
-        sequence: 1,
-        ..Message::default()
-    };
+        assert_eq!(
+            ExitCode::OK,
+            res.msg_receipt.exit_code,
+            "{}",
+            res.failure_info.unwrap()
+        );
 
-    let res = tester
-        .executor
-        .as_mut()
-        .unwrap()
-        .execute_message(message, ApplyKind::Explicit, 100)
-        .unwrap();
+        // Read inner state value
+        let message = Message {
+            from: sender.1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 3,
+            sequence: 1,
+            ..Message::default()
+        };
 
-    let current_state_value: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+        assert!(res.msg_receipt.exit_code.is_success());
 
-    assert_eq!(current_state_value, x);
+        let current_state_value: i64 = res.msg_receipt.return_data.deserialize().unwrap();
 
-    // Overflow inner state integer
-    let message = Message {
-        from: sender.1,
-        to: actor_address,
-        gas_limit: 1000000000,
-        method_num: 2,
-        sequence: 2,
-        ..Message::default()
-    };
+        assert_eq!(current_state_value, x);
+    }
 
-    // Set inner state value
-    tester
-        .executor
-        .as_mut()
-        .unwrap()
-        .execute_message(message, ApplyKind::Explicit, 100)
-        .unwrap();
+    {
+        // Overflow inner state integer with checked overflows.
+        let message = Message {
+            from: sender.1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 4,
+            sequence: 2,
+            ..Message::default()
+        };
 
-    // Read inner state value
-    let message = Message {
-        from: sender.1,
-        to: actor_address,
-        gas_limit: 1000000000,
-        method_num: 3,
-        sequence: 3,
-        ..Message::default()
-    };
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+        assert_eq!(ExitCode::SYS_ILLEGAL_INSTRUCTION, res.msg_receipt.exit_code);
 
-    let res = tester
-        .executor
-        .unwrap()
-        .execute_message(message, ApplyKind::Explicit, 100)
-        .unwrap();
+        // Read inner state value
+        let message = Message {
+            from: sender.1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 3,
+            sequence: 3,
+            ..Message::default()
+        };
 
-    let current_state_value: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+        assert!(res.msg_receipt.exit_code.is_success());
 
-    // Check overflow
-    let overflow_value: i64 = -5340232216128654848;
+        let current_state_value: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+        assert_eq!(current_state_value, x);
+    }
 
-    assert_eq!(current_state_value, overflow_value);
+    {
+        // Overflow inner state integer with wrapping.
+        let message = Message {
+            from: sender.1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 2,
+            sequence: 4,
+            ..Message::default()
+        };
+
+        // Set inner state value
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+        assert_eq!(
+            ExitCode::OK,
+            res.msg_receipt.exit_code,
+            "{}",
+            res.failure_info.unwrap()
+        );
+
+        // Read inner state value
+        let message = Message {
+            from: sender.1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 3,
+            sequence: 5,
+            ..Message::default()
+        };
+
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+        assert!(res.msg_receipt.exit_code.is_success());
+
+        let current_state_value: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+
+        // Check overflow
+        let overflow_value: i64 = -5340232216128654848;
+
+        assert_eq!(current_state_value, overflow_value);
+    }
 }
