@@ -40,8 +40,13 @@ bls-signatures = { workspace = true }
 hex = { workspace = true }
 minstant =  { workspace = true }
 wat = "1.0.66"
+criterion = { workspace = true }
 
 [features]
 default = []
 m2-native = []
 calibration = ["fvm/gas_calibration"]
+
+[[bench]]
+name = "compile"
+harness = false
