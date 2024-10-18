@@ -86,11 +86,11 @@ pub fn invoke(params_pointer: u32) -> u32 {
 
             None
         }
-        // Overflow value
+        // Overflow value, wrapping
         2 => {
             let mut state = State::load();
 
-            state.value = (state.value >> 1i64) * (state.value + 1);
+            state.value = (state.value >> 1i64).wrapping_mul(state.value.wrapping_add(1));
             state.save();
 
             None
@@ -108,6 +108,15 @@ pub fn invoke(params_pointer: u32) -> u32 {
                     );
                 }
             }
+        }
+        // Overflow value, default
+        4 => {
+            let mut state = State::load();
+
+            state.value = (state.value >> 1i64) * (state.value + 1);
+            state.save();
+
+            None
         }
         _ => abort(
             ExitCode::USR_UNHANDLED_MESSAGE.value(),
