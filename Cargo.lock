@@ -2557,6 +2557,7 @@ dependencies = [
  "blake2b_simd",
  "bls-signatures",
  "cid 0.10.1",
+ "criterion",
  "fil_builtin_actors_bundle",
  "futures",
  "fvm",
