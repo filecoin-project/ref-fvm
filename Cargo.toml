@@ -8,7 +8,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2.9.0"
+version = "2.9.1"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/filecoin-project/ref-fvm"
@@ -25,9 +25,9 @@ fvm_ipld_encoding = { version = "0.4.0" }
 wasmtime = { version = "25.0.2", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
 wasmtime-environ = "25.0.2"
 
-fvm = { path = "fvm", version = "~2.9.0", default-features = false }
-fvm_shared = { path = "shared", version = "~2.9.0", default-features = false }
-fvm_sdk = { path = "sdk", version = "~2.9.0" }
+fvm = { path = "fvm", version = "~2.9.1", default-features = false }
+fvm_shared = { path = "shared", version = "~2.9.1", default-features = false }
+fvm_sdk = { path = "sdk", version = "~2.9.1" }
 
 [profile.actor]
 inherits = "release"
