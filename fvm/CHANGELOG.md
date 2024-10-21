@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.9.1 (2024-10-21)
+
+- Update to wasmtime 25.
+
 ## 2.9.0 (2024-09-12)
 
 - Update to wasmtime 24.
