@@ -1,8 +1,7 @@
-use std::fmt::{Debug, Formatter};
-
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use serde::de::value;
+use std::fmt::{Debug, Formatter};
 use {serde, serde_ipld_dagcbor};
 
 use crate::{CodecProtocol, Error, RawBytes, CBOR, DAG_CBOR, IPLD_RAW};

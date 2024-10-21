@@ -16,6 +16,7 @@ members = [
     "testing/test_actors",
     "testing/test_actors/actors/*",
     "tools/fvm-bench",
+    "scripts/check-license",
 ]
 
 [workspace.package]
@@ -45,7 +46,7 @@ futures = "0.3.28"
 # IPLD/Encoding
 cid = { version = "0.10.1", default-features = false }
 multihash = { version = "0.18.1", default-features = false }
-libipld = { version = "0.16.0",  features = ["serde-codec"] }
+libipld = { version = "0.16.0", features = ["serde-codec"] }
 libipld-core = { version = "0.16.0", features = ["serde-codec"] }
 
 # crypto
@@ -54,7 +55,7 @@ libsecp256k1 = { version = "0.7.1" }
 bls-signatures = { version = "0.15", default-features = false }
 
 # wasmtime
-wasmtime = {version = "25.0.2", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
+wasmtime = { version = "25.0.2", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
 wasmtime-environ = "25.0.2"
 
 # misc

@@ -1,9 +1,8 @@
-use std::fmt;
-
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::multihash::{self, MultihashDigest};
 use cid::Cid;
+use std::fmt;
 
 /// Block represents a typed (i.e., with codec) IPLD block.
 #[derive(Copy, Clone)]

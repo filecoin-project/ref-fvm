@@ -7,10 +7,13 @@ build:
 
 clean:
 	cargo clean
+.PHONY: clean
 
 lint:
 	cargo fmt --all --check
 	cargo clippy --all --all-targets -- -D warnings
+.PHONY: lint
 
 license:
-	./scripts/add_license.sh
+	cargo run --bin check-license -- .
+.PHONY: license

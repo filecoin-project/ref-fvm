@@ -646,6 +646,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "check-license"
+version = "4.4.3"
+dependencies = [
+ "lazy_static",
+ "regex",
+ "walkdir",
+]
+
+[[package]]
 name = "ciborium"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
