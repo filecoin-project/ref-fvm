@@ -255,6 +255,16 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // debugging tools. But we'll just have to live with that.
     c.macos_use_mach_ports(false);
 
+    // wasmtime default: true
+    // Disable extended const support. We'll probably enable this in the future but that requires a
+    // FIP.
+    c.wasm_extended_const(false);
+
+    // wasmtime default: false
+    // Disable the component module.
+    #[cfg(feature = "wasmtime/component-model")]
+    c.wasm_component_model(false);
+
     Ok(c)
 }
 

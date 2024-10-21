@@ -22,8 +22,8 @@ authors = ["Protocol Labs", "Filecoin Core Devs"]
 [workspace.dependencies]
 cid = { version = "0.10.1", default-features = false }
 multihash = { version = "0.18.1", default-features = false }
-wasmtime = { version = "24.0.0", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
-wasmtime-environ = "24.0.0"
+wasmtime = { version = "25.0.2", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
+wasmtime-environ = "25.0.2"
 
 fvm = { path = "fvm", version = "~3.11.0", default-features = false }
 fvm_shared = { path = "shared", version = "~3.11.0", default-features = false }
