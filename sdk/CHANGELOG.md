@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 4.4.3 [2024-10-21]
+
+- Update wasmtime to 25.0.2.
+- Fixes long wasm compile times with wasmtime 24.
+
 ## 4.4.2 [2024-10-09]
 
 - Update wasmtime to 24.0.1.
