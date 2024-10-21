@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.11.1 [2024-10-21]
+
+- Update to wasmtime 25.
+
 ## 3.11.0 [2024-09-12]
 
 - Update to wasmtime 24.
