@@ -9,7 +9,7 @@ use cid::Cid;
 use forest_hash_utils::BytesKey;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-use multihash::Code;
+use multihash_codetable::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 

@@ -43,10 +43,10 @@ log = "0.4.19"
 futures = "0.3.28"
 
 # IPLD/Encoding
-cid = { version = "0.10.1", default-features = false }
-multihash = { version = "0.18.1", default-features = false }
-libipld = { version = "0.16.0",  features = ["serde-codec"] }
-libipld-core = { version = "0.16.0", features = ["serde-codec"] }
+cid = { version = "0.11.1", default-features = false }
+ipld-core = { version = "0.4.1", features = ["serde"] }
+multihash-codetable = { version = "0.1.4" }
+multihash-derive = { version = "0.9.1" }
 
 # crypto
 blake2b_simd = "1.0.1"

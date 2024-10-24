@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
-use multihash::Code;
+use multihash_codetable::Code;
 use once_cell::unsync::OnceCell;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};

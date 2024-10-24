@@ -8,7 +8,7 @@ use fvm_ipld_blockstore::{Block, Blockstore, Buffered};
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
 use fvm_shared::version::NetworkVersion;
 use log::debug;
-use multihash::Code::Blake2b256;
+use multihash_codetable::Code::Blake2b256;
 
 use super::{Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;

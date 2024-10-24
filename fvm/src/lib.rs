@@ -51,7 +51,7 @@ mod test {
     use fvm_ipld_encoding::{CborStore, DAG_CBOR};
     use fvm_shared::state::StateTreeVersion;
     use fvm_shared::IDENTITY_HASH;
-    use multihash::{Code, Multihash};
+    use multihash_codetable::{Code, Multihash};
 
     use crate::call_manager::DefaultCallManager;
     use crate::engine::EnginePool;

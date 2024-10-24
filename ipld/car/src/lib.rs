@@ -5,8 +5,6 @@
 mod error;
 mod util;
 
-use std::convert::TryFrom;
-
 use cid::Cid;
 pub use error::*;
 use futures::{AsyncRead, AsyncWrite, Stream, StreamExt};
@@ -96,7 +94,7 @@ where
 
     /// Returns the next IPLD Block in the buffer
     pub async fn next_block(&mut self) -> Result<Option<Block>, Error> {
-        use cid::multihash::{self, MultihashDigest};
+        use multihash_codetable::{Code, MultihashDigest};
         // Read node -> cid, bytes
         if let Some((cid, data)) = read_node(&mut self.reader).await? {
             if self.validate {
@@ -110,7 +108,7 @@ where
                         }
                     }
                     code => {
-                        let code = multihash::Code::try_from(code)?;
+                        let code = Code::try_from(code)?;
                         let actual = Cid::new_v1(cid.codec(), code.digest(&data));
                         if actual != cid {
                             return Err(Error::InvalidFile(format!(
@@ -180,10 +178,9 @@ mod tests {
     use async_std::channel::bounded;
     use async_std::io::Cursor;
     use async_std::sync::RwLock;
-    use cid::multihash::Code::Blake2b256;
-    use cid::multihash::MultihashDigest;
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::DAG_CBOR;
+    use multihash_codetable::{Code::Blake2b256, MultihashDigest};
 
     use super::*;
 

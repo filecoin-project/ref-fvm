@@ -14,6 +14,7 @@ anyhow = { workspace = true }
 cid = { workspace = true }
 serde = { workspace = true }
 serde_tuple = { workspace = true }
+multihash-codetable = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"] ## cdylib is necessary for Wasm build

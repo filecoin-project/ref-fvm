@@ -18,8 +18,8 @@ use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
 use fvm_shared::version::NetworkVersion;
+use ipld_core::ipld::Ipld;
 use lazy_static::lazy_static;
-use libipld_core::ipld::Ipld;
 use regex::Regex;
 use walkdir::DirEntry;
 

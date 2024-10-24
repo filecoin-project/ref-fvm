@@ -9,6 +9,8 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
 cid = { workspace = true }
+multihash-codetable = { workspace = true }
+multihash-derive = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 unsigned-varint = { workspace = true, features = ["futures"] }

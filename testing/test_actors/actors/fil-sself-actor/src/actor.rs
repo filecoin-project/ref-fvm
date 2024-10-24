@@ -1,10 +1,10 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use cid::multihash::{Code, MultihashDigest};
+use cid::multihash::Multihash;
 use cid::Cid;
 use fvm_ipld_encoding::{to_vec, DAG_CBOR};
 use fvm_sdk as sdk;
-use fvm_shared::econ::TokenAmount;
+use fvm_shared::{crypto::hash::SupportedHashes, econ::TokenAmount};
 use sdk::error::{ActorDeleteError, StateReadError, StateUpdateError};
 
 #[no_mangle]
@@ -16,7 +16,12 @@ pub fn invoke(_: u32) -> u32 {
     // test that root() returns the correct root
     //
     let empty = to_vec::<[(); 0]>(&[]).unwrap();
-    let expected_root = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(&empty));
+    let mh = Multihash::wrap(
+        SupportedHashes::Blake2b256.into(),
+        &sdk::crypto::hash_blake2b(&empty),
+    )
+    .unwrap();
+    let expected_root = Cid::new_v1(DAG_CBOR, mh);
     let root = sdk::sself::root().unwrap();
     assert_eq!(root, expected_root);
 

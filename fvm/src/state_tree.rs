@@ -5,7 +5,7 @@
 use std::cell::RefCell;
 
 use anyhow::{anyhow, Context as _};
-use cid::{multihash, Cid};
+use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use fvm_ipld_hamt::Hamt;
@@ -71,7 +71,10 @@ where
             }
             StateTreeVersion::V5 => {
                 let cid = store
-                    .put_cbor(&StateInfo0::default(), multihash::Code::Blake2b256)
+                    .put_cbor(
+                        &StateInfo0::default(),
+                        multihash_codetable::Code::Blake2b256,
+                    )
                     .context("failed to put state info")
                     .or_fatal()?;
                 Some(cid)
@@ -264,7 +267,7 @@ where
         // Set state for init actor in store and update root Cid
         actor.state = self
             .store()
-            .put_cbor(&state, multihash::Code::Blake2b256)
+            .put_cbor(&state, multihash_codetable::Code::Blake2b256)
             .or_fatal()?;
 
         self.set_actor(crate::init_actor::INIT_ACTOR_ID, actor);
@@ -349,7 +352,7 @@ where
                 };
                 let root = self
                     .store()
-                    .put_cbor(obj, multihash::Code::Blake2b256)
+                    .put_cbor(obj, multihash_codetable::Code::Blake2b256)
                     .or_fatal()?;
                 Ok(root)
             }

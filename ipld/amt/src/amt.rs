@@ -96,7 +96,6 @@
 //! in the cache.
 
 use anyhow::anyhow;
-use cid::multihash::Code;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::de::DeserializeOwned;
@@ -104,6 +103,7 @@ use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::serde::Deserialize;
 use fvm_ipld_encoding::CborStore;
 use itertools::sorted;
+use multihash_codetable::Code;
 
 use super::ValueMut;
 use crate::node::{CollapsedNode, Link};

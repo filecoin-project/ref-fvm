@@ -238,10 +238,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use cid::multihash::{Code, Multihash};
     use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
     use fvm_ipld_encoding::CborStore;
     use fvm_shared::{commcid, IDENTITY_HASH};
+    use multihash_codetable::{Code, Multihash};
     use serde::{Deserialize, Serialize};
 
     use super::*;

@@ -1179,7 +1179,7 @@ fn upgrade_actor_test() {
             codec: fvm_shared::IPLD_RAW,
             data: bytes,
         }
-        .cid(multihash::Code::Blake2b256)
+        .cid(multihash_codetable::Code::Blake2b256)
     };
 
     let receiver = Address::new_id(10000);

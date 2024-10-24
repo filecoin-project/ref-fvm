@@ -1,7 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::anyhow;
-use cid::{multihash, Cid};
+use cid::Cid;
 use fvm_ipld_blockstore::{Block, Blockstore};
 use serde::{de, ser};
 
@@ -27,7 +27,7 @@ pub trait CborStore: Blockstore + Sized {
     }
 
     /// Put an object in the block store and return the Cid identifier.
-    fn put_cbor<S>(&self, obj: &S, code: multihash::Code) -> anyhow::Result<Cid>
+    fn put_cbor<S>(&self, obj: &S, code: multihash_codetable::Code) -> anyhow::Result<Cid>
     where
         S: ser::Serialize,
     {

@@ -1,18 +1,19 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{anyhow, Result};
-use cid::{multihash::Code, Cid};
+use cid::Cid;
 use fvm_gas_calibration_shared::*;
 use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_shared::address::{Address, Protocol};
+use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::crypto::signature::{Signature, SignatureType, SECP_SIG_LEN};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::event::{ActorEvent, Entry};
 use fvm_shared::sys::SendFlags;
-use libipld::Ipld;
+use ipld_core::ipld::Ipld;
 use num_traits::FromPrimitive;
 use serde::de::DeserializeOwned;
 
@@ -82,7 +83,12 @@ fn on_block(p: OnBlockParams) -> Result<()> {
     for i in 0..p.iterations {
         random_mutations(&mut data, p.seed + i as u64, MUTATION_COUNT);
 
-        let cid = fvm_sdk::ipld::put(Code::Blake2b256.into(), 32, IPLD_RAW, data.as_slice())?;
+        let cid = fvm_sdk::ipld::put(
+            SupportedHashes::Blake2b256.into(),
+            32,
+            IPLD_RAW,
+            data.as_slice(),
+        )?;
 
         // First just put it to the side, because if we read it back now, then strangely the times of puts go down by 10x in the beginning
         // and only in later go up to where they are when they are the only thing we do. The distribution takes the shape of a sloping V.
@@ -243,7 +249,8 @@ fn on_scan_ipld_links(p: OnScanIpldLinksParams) -> Result<()> {
             p.cbor_field_count,
             p.cbor_link_count,
         );
-        let cid = fvm_sdk::ipld::put(Code::Blake2b256.into(), 32, DAG_CBOR, &obj).unwrap();
+        let cid =
+            fvm_sdk::ipld::put(SupportedHashes::Blake2b256.into(), 32, DAG_CBOR, &obj).unwrap();
         test_cids.push(cid);
         let res = fvm_sdk::ipld::get(&cid).unwrap();
         assert_eq!(obj, res);

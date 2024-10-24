@@ -10,13 +10,11 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 [dependencies]
 serde = { workspace = true }
 serde_tuple = { workspace = true }
-cid = { workspace = true, features = ["serde-codec", "std"] }
+cid = { workspace = true, features = ["serde", "std"] }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
-# multihash is also re-exported by `cid`. Having `multihash` here as a
-# depdendency is needed to enable the features of the re-export.
-multihash = { workspace = true, features = ["blake2b", "multihash-impl"] }
+multihash-codetable = { workspace = true, features = ["blake2b"] }
 serde_ipld_dagcbor = "0.6.1"
 serde_repr = "0.1"
 

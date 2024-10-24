@@ -45,7 +45,7 @@ impl State {
     #[allow(unused)]
     pub fn new_test<B: Blockstore>(store: &B) -> Self {
         #[cfg(feature = "m2-native")]
-        use cid::multihash::Code::Blake2b256;
+        use multihash_codetable::Code::Blake2b256;
 
         // Empty hamt Cid used for testing
         let e_cid = Hamt::<_, String>::new_with_bit_width(&store, 5)

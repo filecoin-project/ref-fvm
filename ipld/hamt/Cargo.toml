@@ -10,8 +10,8 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 [dependencies]
 serde = { workspace = true }
 byteorder = { workspace = true }
-cid = { workspace = true, features = ["serde-codec"] }
-multihash = { workspace = true }
+cid = { workspace = true, features = ["serde"] }
+multihash-codetable = { workspace = true }
 thiserror = { workspace = true }
 once_cell = { workspace = true }
 anyhow = { workspace = true }
@@ -19,7 +19,7 @@ fvm_ipld_encoding = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
 sha2 = "0.10"
 forest_hash_utils = "0.1"
-libipld-core = { workspace = true }
+ipld-core = { workspace = true }
 
 
 [features]
