@@ -18,7 +18,7 @@ use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IPLD_RAW};
 use lazy_static::lazy_static;
 use libsecp256k1::{PublicKey, SecretKey};
-use multihash::Code;
+use multihash_codetable::Code;
 
 use crate::builtin::{
     fetch_builtin_code_cid, set_burnt_funds_account, set_eam_actor, set_init_actor, set_sys_actor,

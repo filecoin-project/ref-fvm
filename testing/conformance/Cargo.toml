@@ -18,14 +18,13 @@ fvm_ipld_encoding = { workspace = true }
 anyhow = { workspace = true }
 num-traits = { workspace = true }
 cid = { workspace = true }
-multihash = { workspace = true }
 serde = { workspace = true }
 lazy_static = { workspace = true }
 log = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 serde_json = { workspace = true, features = ["raw_value"] }
-libipld-core = { workspace = true }
+ipld-core = { workspace = true }
 async-std = { version = "1.12", features = ["attributes"] }
 wasmtime = { workspace = true }
 base64 = "0.22.1"

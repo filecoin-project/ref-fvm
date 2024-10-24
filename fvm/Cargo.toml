@@ -16,7 +16,8 @@ anyhow = { workspace = true, features = ["backtrace"] }
 thiserror = { workspace = true }
 num-traits = { workspace = true }
 cid = { workspace = true, features = ["serde-codec"] }
-multihash = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
+multihash-codetable = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
+multihash-derive = { workspace = true }
 fvm_shared = { workspace = true, features = ["crypto"] }
 fvm_ipld_hamt = { workspace = true }
 fvm_ipld_amt = { workspace = true }

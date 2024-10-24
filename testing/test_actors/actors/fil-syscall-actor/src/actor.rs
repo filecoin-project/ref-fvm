@@ -8,11 +8,11 @@ use fvm_shared::crypto::hash::SupportedHashes as SharedSupportedHashes;
 use fvm_shared::crypto::signature::{Signature, SECP_SIG_LEN};
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sector::RegisteredSealProof;
-use multihash::derive::Multihash;
-use multihash::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
+use multihash_codetable::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
+use multihash_derive::MultihashDigest;
 use std::ptr;
 
-#[derive(Clone, Copy, Debug, Eq, Multihash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, MultihashDigest, PartialEq)]
 #[mh(alloc_size = 64)]
 // import hash functions into actor to test against output from syscall
 pub enum SupportedHashes {
@@ -263,7 +263,6 @@ fn test_bls_aggregate() {
 
 // use SDK methods to hash and compares against locally (inside the actor) hashed digest
 fn test_expected_hash() {
-    use multihash::MultihashDigest;
     let test_bytes = b"foo bar baz boxy";
 
     let blake_local = SupportedHashes::Blake2b256.digest(test_bytes);

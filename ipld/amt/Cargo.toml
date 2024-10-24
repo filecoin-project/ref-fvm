@@ -8,7 +8,8 @@ edition = "2021"
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]
-cid = { workspace = true, features = ["serde-codec"] }
+cid = { workspace = true, features = ["serde"] }
+multihash-codetable = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 once_cell = { workspace = true }

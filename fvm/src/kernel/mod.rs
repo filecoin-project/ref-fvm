@@ -323,7 +323,6 @@ pub mod prelude {
     pub use super::{Block, BlockId, BlockRegistry, BlockStat, CallResult, Kernel, SyscallHandler};
     pub use crate::gas::{Gas, GasTimer, PriceList};
     pub use ambassador::Delegate;
-    pub use cid::Cid;
     pub use fvm_shared::address::Address;
     pub use fvm_shared::clock::ChainEpoch;
     pub use fvm_shared::crypto::signature::{
@@ -337,7 +336,9 @@ pub mod prelude {
     pub use fvm_shared::sys::SendFlags;
     pub use fvm_shared::version::NetworkVersion;
     pub use fvm_shared::{ActorID, MethodNum};
-    pub use multihash::Multihash;
+
+    pub use cid::Cid;
+    pub type Multihash = cid::multihash::Multihash<64>;
 }
 
 use prelude::*;

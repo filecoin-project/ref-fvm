@@ -144,7 +144,7 @@ mod test {
     use fvm_ipld_encoding::{CBOR, DAG_CBOR, IPLD_RAW};
     use fvm_shared::commcid::FIL_COMMITMENT_UNSEALED;
     use fvm_shared::version::NetworkVersion;
-    use multihash::{Multihash, MultihashDigest};
+    use multihash_codetable::{Multihash, MultihashDigest};
     use num_traits::Zero;
     use serde::{Deserialize, Serialize};
 
@@ -183,7 +183,10 @@ mod test {
 
     #[test]
     fn basic_cbor() {
-        let test_cid = Cid::new_v1(IPLD_RAW, multihash::Code::Blake2b256.digest(b"foobar"));
+        let test_cid = Cid::new_v1(
+            IPLD_RAW,
+            multihash_codetable::Code::Blake2b256.digest(b"foobar"),
+        );
 
         let data = fvm_ipld_encoding::to_vec(&Test(0, test_cid, 1)).unwrap();
 
@@ -208,7 +211,10 @@ mod test {
 
     #[test]
     fn recursive_cbor() {
-        let test_cid = Cid::new_v1(IPLD_RAW, multihash::Code::Blake2b256.digest(b"foobar"));
+        let test_cid = Cid::new_v1(
+            IPLD_RAW,
+            multihash_codetable::Code::Blake2b256.digest(b"foobar"),
+        );
         let inlined_data = fvm_ipld_encoding::to_vec(&Test(0, test_cid, 1)).unwrap();
         let inline_cid = Cid::new_v1(DAG_CBOR, Multihash::wrap(0, &inlined_data).unwrap());
         let data = fvm_ipld_encoding::to_vec(&Test(0, inline_cid, 1)).unwrap();
@@ -223,7 +229,7 @@ mod test {
     fn ignores_pieces() {
         let test_cid = Cid::new_v1(
             FIL_COMMITMENT_UNSEALED,
-            multihash::Code::Blake2b256.digest(b"foobar"),
+            multihash_codetable::Code::Blake2b256.digest(b"foobar"),
         );
         let data = fvm_ipld_encoding::to_vec(&Test(0, test_cid, 1)).unwrap();
         assert!(scan_for_links(DAG_CBOR, &data, 4, 1).unwrap().is_empty());

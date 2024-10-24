@@ -3,10 +3,10 @@
 use std::convert::TryFrom;
 
 use anyhow::{anyhow, Result};
-use cid::multihash::Code;
 use cid::Cid;
 use fvm_ipld_blockstore::Block;
 use fvm_sdk as sdk;
+use multihash_codetable::Code;
 
 /// A blockstore that delegates to IPLD syscalls.
 pub struct Blockstore;

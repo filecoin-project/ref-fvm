@@ -2,8 +2,8 @@ use std::fmt;
 
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use cid::multihash::{self, MultihashDigest};
 use cid::Cid;
+use multihash_codetable::MultihashDigest;
 
 /// Block represents a typed (i.e., with codec) IPLD block.
 #[derive(Copy, Clone)]
@@ -27,7 +27,7 @@ where
         Self { codec, data }
     }
 
-    pub fn cid(&self, mh_code: multihash::Code) -> Cid {
+    pub fn cid(&self, mh_code: multihash_codetable::Code) -> Cid {
         Cid::new_v1(self.codec, mh_code.digest(self.data.as_ref()))
     }
 

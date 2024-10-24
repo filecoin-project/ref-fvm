@@ -12,7 +12,7 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::upgrade::UpgradeInfo;
-use multihash::MultihashDigest;
+use multihash_codetable::MultihashDigest;
 
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
@@ -692,13 +692,8 @@ where
     }
 
     fn hash(&self, code: u64, data: &[u8]) -> Result<Multihash> {
-        let hasher = SupportedHashes::try_from(code).map_err(|e| {
-            if let multihash::Error::UnsupportedCode(code) = e {
-                syscall_error!(IllegalArgument; "unsupported hash code {}", code)
-            } else {
-                syscall_error!(AssertionFailed; "hash expected unsupported code, got {}", e)
-            }
-        })?;
+        let hasher = SupportedHashes::try_from(code)
+            .map_err(|err| syscall_error!(IllegalArgument; "unsupported hash code {}", err.0))?;
 
         let t = self.call_manager.charge_gas(
             self.call_manager

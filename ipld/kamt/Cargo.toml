@@ -10,8 +10,8 @@ repository = "https://github.com/filecoin-project/ref-fvm"
 [dependencies]
 serde = { workspace = true }
 byteorder = { workspace = true }
-cid = { workspace = true, features = ["serde-codec"] }
-multihash = { workspace = true }
+cid = { workspace = true, features = ["serde"] }
+multihash-codetable = { workspace = true }
 thiserror = { workspace = true }
 once_cell = { workspace = true }
 anyhow = { workspace = true }
