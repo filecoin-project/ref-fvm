@@ -151,7 +151,7 @@ git push --tags
    https://crates.io/crates/fvm/versions
    https://crates.io/crates/fvm_shared/versions
    https://crates.io/crates/fvm_sdk/versions
-   https://crates.io/crates/fvm_ingration_tests/versions
+   https://crates.io/crates/fvm_integration_tests/versions
 
 [chat]: https://docs.filecoin.io/about-filecoin/chat-and-discussion-forums/#chat
 [discuss]: https://github.com/filecoin-project/fvm-specs/discussions
