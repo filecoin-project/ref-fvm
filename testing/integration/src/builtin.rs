@@ -9,7 +9,7 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::address::Address;
 use fvm_shared::ActorID;
-use multihash::Code;
+use multihash_codetable::Code;
 
 use crate::error::Error::{FailedToLoadManifest, FailedToSetState};
 

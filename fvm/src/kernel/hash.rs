@@ -1,9 +1,10 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use multihash::derive::Multihash;
-use multihash::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
+use multihash_codetable::{
+    Blake2b256, Blake2b512, Keccak256, MultihashDigest, Ripemd160, Sha2_256,
+};
 
-#[derive(Clone, Copy, Debug, Eq, Multihash, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, MultihashDigest, PartialEq, Hash)]
 #[mh(alloc_size = 64)]
 /// Codes and hashers supported by FVM.
 /// You _can_ use this hash directly inside of your actor,

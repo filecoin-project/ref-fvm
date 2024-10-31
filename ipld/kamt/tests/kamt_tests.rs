@@ -12,7 +12,7 @@ use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::CborStore;
 use fvm_ipld_kamt::id::Identity;
 use fvm_ipld_kamt::{Config, Error, HashedKey, Kamt};
-use multihash::Code;
+use multihash_codetable::Code;
 use quickcheck::Arbitrary;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;

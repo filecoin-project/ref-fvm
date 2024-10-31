@@ -1,13 +1,12 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use cid::multihash::Code;
 use cid::Cid;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::{to_vec, CborStore, RawBytes, CBOR, DAG_CBOR};
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_sdk::NO_DATA_BLOCK_ID;
-use fvm_shared::error::ExitCode;
+use fvm_shared::{crypto::hash::SupportedHashes, error::ExitCode};
 mod blockstore;
 use blockstore::Blockstore;
 
@@ -50,7 +49,7 @@ impl State {
             ),
         };
         let cid = match fvm_sdk::ipld::put(
-            Code::Blake2b256.into(),
+            SupportedHashes::Blake2b256.into(),
             32,
             DAG_CBOR,
             serialized.as_slice(),

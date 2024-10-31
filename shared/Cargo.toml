@@ -14,7 +14,6 @@ num-traits = { workspace = true }
 num-derive = { workspace = true }
 lazy_static = { workspace = true }
 cid = { workspace = true, features = ["serde-codec", "std"] }
-multihash = { workspace = true }
 unsigned-varint = { workspace = true }
 anyhow = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
@@ -39,7 +38,7 @@ bls-signatures = { workspace = true, default-features = false, optional = true }
 [dev-dependencies]
 rand = { workspace = true }
 serde_json = { workspace = true }
-multihash = { workspace = true, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
+multihash-codetable = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
 quickcheck_macros = { workspace = true }
 coverage-helper = { workspace = true }
 fvm_shared = { path = ".", features = ["arb"] }

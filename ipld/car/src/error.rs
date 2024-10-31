@@ -25,8 +25,8 @@ impl From<cid::Error> for Error {
     }
 }
 
-impl From<cid::multihash::Error> for Error {
-    fn from(err: cid::multihash::Error) -> Error {
+impl From<multihash_derive::UnsupportedCode> for Error {
+    fn from(err: multihash_derive::UnsupportedCode) -> Error {
         Error::ParsingError(err.to_string())
     }
 }

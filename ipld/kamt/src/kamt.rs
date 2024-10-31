@@ -7,7 +7,7 @@ use std::borrow::Borrow;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-use multihash::Code;
+use multihash_codetable::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 

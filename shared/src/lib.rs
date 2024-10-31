@@ -35,11 +35,11 @@ pub mod sys;
 pub mod upgrade;
 pub mod version;
 
+use cid::multihash::Multihash;
 use crypto::hash::SupportedHashes;
 use econ::TokenAmount;
 use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::DAG_CBOR;
-use multihash::Multihash;
 
 use crate::error::ExitCode;
 
@@ -153,8 +153,8 @@ pub const EMPTY_ARR_CID: Cid = Cid::new_v1(
 
 #[test]
 fn test_empty_arr_cid() {
-    use cid::multihash::{Code, MultihashDigest};
     use fvm_ipld_encoding::to_vec;
+    use multihash_codetable::{Code, MultihashDigest};
 
     let empty = to_vec::<[(); 0]>(&[]).unwrap();
     let expected = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(&empty));

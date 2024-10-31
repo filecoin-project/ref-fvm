@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use anyhow::Result;
-use cid::{multihash, Cid};
+use cid::Cid;
 
 pub mod tracking;
 
@@ -37,7 +37,7 @@ pub trait Blockstore {
     /// Puts the block into the blockstore, computing the hash with the specified multicodec.
     ///
     /// By default, this defers to put.
-    fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
+    fn put<D>(&self, mh_code: multihash_codetable::Code, block: &Block<D>) -> Result<Cid>
     where
         Self: Sized,
         D: AsRef<[u8]>,
@@ -51,7 +51,7 @@ pub trait Blockstore {
     ///
     ///
     /// ```rust
-    /// use multihash::Code::Blake2b256;
+    /// use multihash_codetable::Code::Blake2b256;
     /// use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore, Block};
     ///
     /// let bs = MemoryBlockstore::default();
@@ -62,7 +62,7 @@ pub trait Blockstore {
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+        I: IntoIterator<Item = (multihash_codetable::Code, Block<D>)>,
     {
         self.put_many_keyed(blocks.into_iter().map(|(mc, b)| (b.cid(mc), b)))?;
         Ok(())
@@ -105,7 +105,7 @@ macro_rules! impl_blockstore {
                     (**self).has(k)
                 }
 
-                fn put<D>(&self, mh_code: multihash::Code, block: &Block<D>) -> Result<Cid>
+                fn put<D>(&self, mh_code: multihash_codetable::Code, block: &Block<D>) -> Result<Cid>
                 where
                     Self: Sized,
                     D: AsRef<[u8]>,
@@ -117,7 +117,7 @@ macro_rules! impl_blockstore {
                 where
                     Self: Sized,
                     D: AsRef<[u8]>,
-                    I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+                    I: IntoIterator<Item = (multihash_codetable::Code, Block<D>)>,
                 {
                     (**self).put_many(blocks)
                 }

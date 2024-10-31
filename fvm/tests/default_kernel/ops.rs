@@ -9,7 +9,7 @@ mod ipld {
     use fvm::machine::Machine;
     use fvm_ipld_blockstore::Blockstore;
     use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
-    use multihash::MultihashDigest;
+    use multihash_codetable::MultihashDigest;
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;

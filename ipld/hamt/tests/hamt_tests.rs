@@ -14,7 +14,7 @@ use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
 use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash};
-use multihash::Code;
+use multihash_codetable::Code;
 use quickcheck::Arbitrary;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
