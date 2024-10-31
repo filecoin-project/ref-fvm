@@ -4,6 +4,12 @@ Changes to the FVM's Blockstore abstraction
 
 ## [Unreleased]
 
+## 0.3.0 [2024-10-31]
+
+Update cid to v0.11 and multihash to v0.19.
+
+You will have to update your multihash and cid crates to be compatible, see the [multihash release notes](https://github.com/multiformats/rust-multihash/blob/master/CHANGELOG.md#-2023-06-06) for details on the breaking changes.
+
 ## 0.2.1 [2024-04-30]
 
 - Constify `Block::new`.

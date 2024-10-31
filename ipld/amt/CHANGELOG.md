@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 0.7.0 [2024-10-31]
+
+- Update `cid` to v0.11 and `multihash` to v0.19.
+- Update to `fvm_ipld_blockstore` 0.3.0 and `fvm_ipld_encoding` 0.5.0.
+
+You will have to update your multihash and cid crates to be compatible, see the [multihash release notes](https://github.com/multiformats/rust-multihash/blob/master/CHANGELOG.md#-2023-06-06) for details on the breaking changes.
+
 ## 0.6.2 [2023-09-28)
 
 Fix a bug in `for_each_ranged` if the start offset exceeds the max possible value in the AMT (due to the AMT's height).
