@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 
+use cid::multihash::Multihash;
 use cid::Cid;
 use fvm::call_manager::{CallManager, DefaultCallManager, FinishRet, InvocationResult};
 use fvm::gas::{Gas, GasTracker, PriceList};
@@ -26,7 +27,6 @@ use fvm_shared::sector::{
 };
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, MethodNum, TOTAL_FILECOIN};
-use multihash::MultihashGeneric;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};
@@ -389,7 +389,7 @@ where
     K: Kernel<CallManager = TestCallManager<C>>,
 {
     // forwarded
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<Multihash<64>> {
         self.0.hash(code, data)
     }
 

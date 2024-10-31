@@ -21,7 +21,7 @@ use fvm_shared::sector::SectorInfo;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
-use multihash::MultihashDigest;
+use multihash_codetable::{Code, Multihash, MultihashDigest};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::io::Write;
 
@@ -293,7 +293,7 @@ where
         }
 
         let block = self.blocks.get(id)?;
-        let code = multihash::Code::try_from(hash_fun)
+        let code = Code::try_from(hash_fun)
             .map_err(|_| syscall_error!(IllegalCid; "invalid CID codec"))?;
 
         self.call_manager.charge_gas(
@@ -479,17 +479,12 @@ where
             })
     }
 
-    fn hash(&mut self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
+    fn hash(&mut self, code: u64, data: &[u8]) -> Result<Multihash> {
         self.call_manager
             .charge_gas(self.call_manager.price_list().on_hashing(data.len()))?;
 
-        let hasher = SupportedHashes::try_from(code).map_err(|e| {
-            if let multihash::Error::UnsupportedCode(code) = e {
-                syscall_error!(IllegalArgument; "unsupported hash code {}", code)
-            } else {
-                syscall_error!(AssertionFailed; "hash expected unsupported code, got {}", e)
-            }
-        })?;
+        let hasher = SupportedHashes::try_from(code)
+            .map_err(|err| syscall_error!(IllegalArgument; "unsupported hash code {}", err.0))?;
         Ok(hasher.digest(data))
     }
 

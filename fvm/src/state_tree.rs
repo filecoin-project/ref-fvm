@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Context as _};
-use cid::{multihash, Cid};
+use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::CborStore;
@@ -208,7 +208,10 @@ where
             }
             StateTreeVersion::V3 | StateTreeVersion::V4 => {
                 let cid = store
-                    .put_cbor(&StateInfo0::default(), multihash::Code::Blake2b256)
+                    .put_cbor(
+                        &StateInfo0::default(),
+                        multihash_codetable::Code::Blake2b256,
+                    )
                     .context("failed to put state info")
                     .or_fatal()?;
                 Some(cid)
@@ -424,7 +427,7 @@ where
         // Set state for init actor in store and update root Cid
         actor.state = self
             .store()
-            .put_cbor(&state, multihash::Code::Blake2b256)
+            .put_cbor(&state, multihash_codetable::Code::Blake2b256)
             .or_fatal()?;
 
         self.set_actor(&crate::init_actor::INIT_ACTOR_ADDR, actor)?;
@@ -484,7 +487,7 @@ where
                 };
                 let root = self
                     .store()
-                    .put_cbor(obj, multihash::Code::Blake2b256)
+                    .put_cbor(obj, multihash_codetable::Code::Blake2b256)
                     .or_fatal()?;
                 Ok(root)
             }
@@ -629,8 +632,6 @@ pub mod json {
 
 #[cfg(test)]
 mod tests {
-    use cid::multihash::Code::Blake2b256;
-    use cid::multihash::Multihash;
     use cid::Cid;
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::{CborStore, DAG_CBOR};
@@ -640,6 +641,7 @@ mod tests {
     use fvm_shared::state::StateTreeVersion;
     use fvm_shared::{IDENTITY_HASH, IPLD_RAW};
     use lazy_static::lazy_static;
+    use multihash_codetable::{Code::Blake2b256, Multihash};
 
     use crate::init_actor;
     use crate::init_actor::INIT_ACTOR_ADDR;

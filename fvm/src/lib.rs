@@ -40,9 +40,9 @@ pub mod system_actor;
 
 pub mod trace;
 
-use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
 use fvm_ipld_encoding::{to_vec, DAG_CBOR};
+use multihash_codetable::{Code, MultihashDigest};
 
 lazy_static::lazy_static! {
     /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
@@ -57,7 +57,7 @@ mod test {
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::CborStore;
     use fvm_shared::state::StateTreeVersion;
-    use multihash::Code;
+    use multihash_codetable::Code;
 
     use crate::call_manager::DefaultCallManager;
     use crate::externs::{Consensus, Externs, Rand};

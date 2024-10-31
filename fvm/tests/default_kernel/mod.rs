@@ -5,7 +5,7 @@ use std::rc::Rc;
 use fvm::kernel::default::DefaultKernel;
 use fvm::kernel::{Block, BlockRegistry};
 use fvm::Kernel;
-use multihash::Code;
+use multihash_codetable::Code;
 use num_traits::Zero;
 
 use super::*;
