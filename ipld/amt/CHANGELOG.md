@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.7.1 [2024-11-08]
+
+Remove unnecessary features from `multihash-codetable`.
+
 ## 0.7.0 [2024-10-31]
 
 - Update `cid` to v0.11 and `multihash` to v0.19.
