@@ -61,8 +61,10 @@ impl NetworkVersion {
     pub const V22: Self = Self(22);
     /// Waffle (builtin-actors v14)
     pub const V23: Self = Self(23);
-    /// TBD (builtin-actors v15)
+    /// TukTuk (builtin-actors v15)
     pub const V24: Self = Self(24);
+    /// TBD (builtin-actors v16)
+    pub const V25: Self = Self(25);
 
     pub const MAX: Self = Self(u32::MAX);
 
