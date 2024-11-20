@@ -448,7 +448,6 @@ where
     /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
     /// ```
     #[inline]
-    #[deprecated = "use `.iter()` instead"]
     pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
     where
         F: FnMut(u64, &V) -> anyhow::Result<()>,
@@ -462,7 +461,6 @@ where
 
     /// Iterates over each value in the Amt and runs a function on the values, for as long as that
     /// function keeps returning `true`.
-    #[deprecated = "use `.iter()` instead"]
     pub fn for_each_while<F>(&self, mut f: F) -> Result<(), Error>
     where
         F: FnMut(u64, &V) -> anyhow::Result<bool>,
@@ -508,7 +506,6 @@ where
     /// assert_eq!(num_traversed, 3);
     /// assert_eq!(next_idx, Some(10));
     /// ```
-    #[deprecated = "use `.iter_from()` and `.take(limit)` instead"]
     pub fn for_each_ranged<F>(
         &self,
         start_at: Option<u64>,
@@ -539,7 +536,6 @@ where
     /// `limit` elements have been traversed. Returns a tuple describing the number of elements
     /// iterated over and optionally the index of the next element in the AMT if more elements
     /// remain.
-    #[deprecated = "use `.iter_from()` and `.take(limit)` instead"]
     pub fn for_each_while_ranged<F>(
         &self,
         start_at: Option<u64>,
