@@ -2424,7 +2424,7 @@ dependencies = [
  "fvm_ipld_amt 0.7.1",
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_encoding 0.5.1",
- "fvm_ipld_hamt 0.10.1",
+ "fvm_ipld_hamt 0.10.2",
  "fvm_shared 4.5.1",
  "lazy_static",
  "log",
@@ -2740,7 +2740,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_ipld_hamt"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -2782,7 +2782,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_ipld_kamt"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -3213,7 +3213,7 @@ version = "0.0.0"
 dependencies = [
  "arbitrary",
  "fvm_ipld_blockstore 0.3.1",
- "fvm_ipld_hamt 0.10.1",
+ "fvm_ipld_hamt 0.10.2",
  "libfuzzer-sys",
 ]
 
@@ -3223,7 +3223,7 @@ version = "0.0.0"
 dependencies = [
  "arbitrary",
  "fvm_ipld_blockstore 0.3.1",
- "fvm_ipld_kamt 0.4.1",
+ "fvm_ipld_kamt 0.4.2",
  "libfuzzer-sys",
 ]
 

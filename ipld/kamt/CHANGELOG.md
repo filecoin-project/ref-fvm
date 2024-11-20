@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.2 [2024-11-20]
+
+- Un-deprecate `.for_each(...)`. The `.iter()` method is still preferred but `.for_each(...)` is still useful.
 
 ## 0.4.1 [2024-11-08]
 
