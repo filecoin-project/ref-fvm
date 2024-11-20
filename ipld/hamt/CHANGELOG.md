@@ -6,7 +6,7 @@ Changes to the reference FVM's HAMT implementation.
 
 ## 0.10.2 [2024-11-20]
 
-- Un-deprecate `.for_each(...)` and related functions. The `.iter()` method is still preferred but `.for_each(...)` is still useful.
+Empty-release intended to un-deprecate `.for_each` but it was never actually deprecated in this crate.
 
 ## 0.10.1 [2024-11-08]
 
