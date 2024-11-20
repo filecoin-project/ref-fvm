@@ -2421,7 +2421,7 @@ dependencies = [
  "filecoin-proofs-api",
  "fvm",
  "fvm-wasm-instrument",
- "fvm_ipld_amt 0.7.2",
+ "fvm_ipld_amt 0.7.3",
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_encoding 0.5.1",
  "fvm_ipld_hamt 0.10.2",
@@ -2590,7 +2590,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_ipld_amt"
-version = "0.7.2"
+version = "0.7.3"
 dependencies = [
  "anyhow",
  "cid 0.11.1",
@@ -3201,7 +3201,7 @@ version = "0.0.0"
 dependencies = [
  "arbitrary",
  "cid 0.11.1",
- "fvm_ipld_amt 0.7.2",
+ "fvm_ipld_amt 0.7.3",
  "fvm_ipld_blockstore 0.3.1",
  "itertools 0.13.0",
  "libfuzzer-sys",
