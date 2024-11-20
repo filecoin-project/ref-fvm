@@ -209,7 +209,7 @@ where
             let stack = self.stack.last_mut()?;
             match stack.node {
                 Node::Leaf { vals } => {
-                    while stack.idx < vals.len() {
+                    while stack.idx < vals.len() && self.key <= MAX_INDEX {
                         match vals[stack.idx] {
                             Some(ref v) => {
                                 stack.idx += 1;
@@ -256,10 +256,10 @@ where
                         }
                         Some(&None) => {
                             stack.idx += 1;
-                            self.key += nodes_for_height(
+                            self.key = self.key.saturating_add(nodes_for_height(
                                 self.bit_width,
                                 self.height - self.stack.len() as u32 + 1,
-                            );
+                            ));
                         }
                         None => {
                             self.stack.pop();
@@ -280,6 +280,41 @@ mod tests {
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::BytesDe;
     use quickcheck_macros::quickcheck;
+
+    // Check for regressions around checked additions when iterating over high-keys.
+    #[test]
+    fn check_iter_high_keys() {
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        // Test overflowing from last node
+        for c in 0..3 {
+            for i in (MAX_INDEX - 10)..=MAX_INDEX {
+                let mut amt = Amt::new_with_bit_width(&db, 8);
+                for j in (0..c).rev() {
+                    amt.set(i - j, "foo".to_owned()).unwrap();
+                }
+                let mut iter = amt.iter();
+                for j in (0..c).rev() {
+                    let (k, v) = iter.next().unwrap().unwrap();
+                    assert_eq!(k, i - j);
+                    assert_eq!(v, "foo");
+                }
+
+                assert!(iter.next().is_none());
+            }
+        }
+
+        // Test overflowing from second-to-last node
+        {
+            let mut amt = Amt::new_with_bit_width(&db, 8);
+            let idx = 7 * (u64::MAX / 8);
+            amt.set(idx, "foo".to_owned()).unwrap();
+            let mut iter = amt.iter();
+            let (k, v) = iter.next().unwrap().unwrap();
+            assert_eq!(k, idx);
+            assert_eq!(v, "foo");
+            assert!(iter.next().is_none());
+        }
+    }
 
     #[test]
     fn check_iter_empty() {
