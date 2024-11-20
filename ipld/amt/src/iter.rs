@@ -343,7 +343,6 @@ mod tests {
         let k = Amt::<&str, _>::new_from_iter(&mem, data.iter().map(|s| &**s)).unwrap();
         let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
         let mut restored = Vec::new();
-        #[allow(deprecated)]
         a.for_each(|k, v| {
             restored.push((k as usize, v.clone()));
             Ok(())
@@ -381,7 +380,6 @@ mod tests {
         let new_amt = Amt::load(&c, &db).unwrap();
 
         let mut x = 0;
-        #[allow(deprecated)]
         new_amt
             .for_each(|k, _: &BytesDe| {
                 if k != indexes[x] {

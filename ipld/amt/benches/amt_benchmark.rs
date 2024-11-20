@@ -123,7 +123,6 @@ fn for_each(c: &mut Criterion) {
     c.bench_function("AMT for_each function", |b| {
         b.iter(|| {
             let a = Amt::load(&cid, &db).unwrap();
-            #[allow(deprecated)]
             black_box(a).for_each(|_, _v: &u64| Ok(())).unwrap();
         })
     });
