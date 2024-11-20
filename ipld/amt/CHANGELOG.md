@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.7.2 [2024-11-20]
+
+- Un-deprecate `.for_each(...)` and related functions. The `.iter()` method is still preferred but `.for_each(...)` is still useful.
+
 ## 0.7.1 [2024-11-08]
 
 Remove unnecessary features from `multihash-codetable`.
