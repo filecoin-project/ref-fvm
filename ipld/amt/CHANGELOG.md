@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.7.3 [2024-11-20]
+
+- Fix a bug where the new `iter()` method would panic or overflow in some cases when iterating past the end of the AMT when the AMT stored high keys.
+
 ## 0.7.2 [2024-11-20]
 
 - Un-deprecate `.for_each(...)` and related functions. The `.iter()` method is still preferred but `.for_each(...)` is still useful.
