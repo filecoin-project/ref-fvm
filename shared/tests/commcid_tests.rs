@@ -1,9 +1,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::multihash::{Code, Multihash, MultihashDigest};
 use cid::Cid;
 use fvm_shared::commcid::*;
+use multihash_codetable::{Code, Multihash, MultihashDigest};
 use rand::{thread_rng, Rng};
 
 fn rand_comm() -> Commitment {

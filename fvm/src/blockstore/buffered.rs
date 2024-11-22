@@ -268,10 +268,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use cid::multihash::{Code, Multihash};
     use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
     use fvm_ipld_encoding::CborStore;
     use fvm_shared::{commcid, IDENTITY_HASH};
+    use multihash_codetable::{Code, Multihash};
     use serde::{Deserialize, Serialize};
 
     use super::*;
@@ -357,7 +357,7 @@ mod tests {
             mem.get_cbor::<(Cid, u8)>(&root_cid).unwrap(),
             Some((obj_cid, 1)),
         );
-        assert_eq!(buf_store.get_cbor::<u8>(&identity_cid).unwrap(), None);
+        assert_eq!(buf_store.get(&identity_cid).unwrap(), None);
         assert_eq!(buf_store.get(&unsealed_comm_cid).unwrap(), None);
         assert_eq!(buf_store.get(&sealed_comm_cid).unwrap(), None);
         assert_eq!(mem.get_cbor::<u8>(&unconnected).unwrap(), None);

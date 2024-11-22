@@ -1,7 +1,8 @@
-use multihash::derive::Multihash;
-use multihash::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
+use multihash_codetable::{
+    Blake2b256, Blake2b512, Keccak256, MultihashDigest, Ripemd160, Sha2_256,
+};
 
-#[derive(Clone, Copy, Debug, Eq, Multihash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, MultihashDigest, PartialEq)]
 #[mh(alloc_size = 64)]
 /// Codes and hashers supported by FVM.
 /// You _can_ use this hash directly inside of your actor,

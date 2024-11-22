@@ -7,3 +7,9 @@ pub enum SupportedHashes {
     Keccak256 = 0x1b,
     Ripemd160 = 0x1053,
 }
+
+impl From<SupportedHashes> for u64 {
+    fn from(value: SupportedHashes) -> Self {
+        value as Self
+    }
+}

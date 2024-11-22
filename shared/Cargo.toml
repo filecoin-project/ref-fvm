@@ -19,7 +19,7 @@ data-encoding-macro = "0.1.12"
 lazy_static = "1.4.0"
 log = "0.4.8"
 cid = { workspace = true, features = ["serde-codec", "std"] }
-multihash = { workspace = true, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
+multihash = { workspace = true }
 unsigned-varint = "0.8.0"
 anyhow = "1.0.51"
 fvm_ipld_blockstore = { workspace = true }
@@ -42,7 +42,8 @@ byteorder = "1.4.3"
 rand = "0.8"
 rand_chacha = "0.3"
 serde_json = "1.0.56"
-multihash = { workspace = true, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
+multihash = { workspace = true }
+multihash-codetable = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
 
 [features]
 default = []

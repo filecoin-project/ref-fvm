@@ -15,7 +15,7 @@ use fvm_ipld_encoding::CborStore;
 use fvm_shared::address::Address;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
-use multihash::Code;
+use multihash_codetable::Code;
 
 pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V15;
 
