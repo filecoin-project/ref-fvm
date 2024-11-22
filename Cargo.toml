@@ -5,11 +5,6 @@ members = [
     "sdk",
     "shared",
     "testing/conformance",
-    "testing/integration",
-    "testing/calibration/shared",
-    "testing/test_actors",
-    "testing/test_actors/actors/*",
-    "tools/fvm-bench",
 ]
 
 [workspace.package]

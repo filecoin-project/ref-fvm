@@ -1,8 +1,0 @@
-%push(0)
-
-loop:
-jumpdest
-%push(1)
-add
-%push(loop)
-jump
