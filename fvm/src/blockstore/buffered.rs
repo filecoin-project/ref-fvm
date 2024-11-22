@@ -357,7 +357,7 @@ mod tests {
             mem.get_cbor::<(Cid, u8)>(&root_cid).unwrap(),
             Some((obj_cid, 1)),
         );
-        assert_eq!(buf_store.get_cbor::<u8>(&identity_cid).unwrap(), None);
+        assert_eq!(buf_store.get(&identity_cid).unwrap(), None);
         assert_eq!(buf_store.get(&unsealed_comm_cid).unwrap(), None);
         assert_eq!(buf_store.get(&sealed_comm_cid).unwrap(), None);
         assert_eq!(mem.get_cbor::<u8>(&unconnected).unwrap(), None);
