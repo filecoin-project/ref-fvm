@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.10.0 (2024-11-21)
+
+- Update `cid` to v0.11 and `multihash` to v0.19.
+- Update to `fvm_ipld_blockstore` 0.3.0 and `fvm_ipld_encoding` 0.5.0.
+
+You will have to update your multihash and cid crates to be compatible, see the [multihash release notes](https://github.com/multiformats/rust-multihash/blob/master/CHANGELOG.md#-2023-06-06) for details on the breaking changes.
+
 ## 2.9.1 (2024-10-21)
 
 - Update to wasmtime 25.
