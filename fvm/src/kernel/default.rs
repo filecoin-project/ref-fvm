@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Context as _};
 use blake2b_simd::Params;
 use byteorder::WriteBytesExt;
+use cid::multihash::Multihash;
 use cid::Cid;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
@@ -26,7 +27,7 @@ use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::{commcid, ActorID};
 use lazy_static::lazy_static;
-use multihash::MultihashDigest;
+use multihash_codetable::MultihashDigest;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rayon::prelude::ParallelDrainRange;
 use std::io::Write;
@@ -486,14 +487,9 @@ where
         )
     }
 
-    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
-        let hasher = SupportedHashes::try_from(code).map_err(|e| {
-            if let multihash::Error::UnsupportedCode(code) = e {
-                syscall_error!(IllegalArgument; "unsupported hash code {}", code)
-            } else {
-                syscall_error!(AssertionFailed; "hash expected unsupported code, got {}", e)
-            }
-        })?;
+    fn hash(&self, code: u64, data: &[u8]) -> Result<Multihash<64>> {
+        let hasher = SupportedHashes::try_from(code)
+            .map_err(|err| syscall_error!(IllegalArgument; "unsupported hash code {}", err.0))?;
 
         let t = self.call_manager.charge_gas(
             self.call_manager

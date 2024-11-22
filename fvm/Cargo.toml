@@ -15,13 +15,14 @@ crate-type = ["lib"]
 anyhow = { version = "1.0.71", features = ["backtrace"] }
 thiserror = "1.0.40"
 num-traits = "0.2"
-cid = { workspace = true, features = ["serde-codec"] }
-multihash = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
+cid = { workspace = true, features = ["serde"] }
+multihash-codetable = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
+multihash-derive = { workspace = true }
 fvm_shared = { workspace = true, features = ["crypto"] }
-fvm_ipld_hamt = { version = "0.9.0" }
-fvm_ipld_amt = { version = "0.6.1" }
-fvm_ipld_blockstore = { version = "0.2.0" }
-fvm_ipld_encoding = { version = "0.4.0" }
+fvm_ipld_hamt = { workspace = true }
+fvm_ipld_amt = { workspace = true }
+fvm_ipld_blockstore = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
 lazy_static = "1.4.0"
