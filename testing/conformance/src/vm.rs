@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::sync::{Arc, Mutex};
 
+use cid::multihash::Multihash;
 use cid::Cid;
-use multihash::MultihashGeneric;
 
 use fvm::call_manager::{CallManager, DefaultCallManager};
 use fvm::gas::{price_list_by_network_version, Gas, GasTimer, PriceList};
@@ -342,7 +342,7 @@ where
     K: Kernel<CallManager = C>,
 {
     // forwarded
-    fn hash(&self, code: u64, data: &[u8]) -> Result<MultihashGeneric<64>> {
+    fn hash(&self, code: u64, data: &[u8]) -> Result<Multihash<64>> {
         self.0.hash(code, data)
     }
 

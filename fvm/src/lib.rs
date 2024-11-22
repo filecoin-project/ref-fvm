@@ -42,9 +42,9 @@ mod eam_actor;
 mod history_map;
 pub mod trace;
 
-use cid::multihash::{Code, MultihashDigest};
 use cid::Cid;
 use fvm_ipld_encoding::{to_vec, DAG_CBOR};
+use multihash_codetable::{Code, MultihashDigest};
 
 lazy_static::lazy_static! {
     /// Cid of the empty array Cbor bytes (`EMPTY_ARR_BYTES`).
@@ -61,7 +61,7 @@ mod test {
     use fvm_ipld_encoding::{CborStore, DAG_CBOR};
     use fvm_shared::state::StateTreeVersion;
     use fvm_shared::IDENTITY_HASH;
-    use multihash::{Code, Multihash};
+    use multihash_codetable::{Code, Multihash};
 
     use crate::call_manager::DefaultCallManager;
     use crate::engine::EnginePool;

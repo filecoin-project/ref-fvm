@@ -23,7 +23,7 @@ use fvm_shared::event::StampedEvent;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IDENTITY_HASH};
-use multihash::{Code, Multihash};
+use multihash_codetable::{Code, Multihash};
 
 pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V18;
 
