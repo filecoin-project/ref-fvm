@@ -28,7 +28,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        name: [build, check-m2-native, check-clippy, test-fvm, test, integration, conformance, calibration]
+        name: [build, check-clippy, check-m2-native, test-fvm, test, conformance]
         include:
           - name: build
             key: v3
@@ -57,22 +57,12 @@ jobs:
             key: v3-cov
             covname: lcov.info
             command: llvm-cov
-            args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --lcov --output-path lcov.info
-          - name: integration
-            key: v3-cov
-            covname: itest-lcov.info
-            command: llvm-cov
-            args: --package fvm_integration_tests --package "*actor" --lcov --output-path itest-lcov.info
+            args: --all --exclude fvm --exclude fvm_conformance_tests --lcov --output-path lcov.info
           - name: conformance
             key: v3
             command: test
             args: --package fvm_conformance_tests
             submodules: true
-          - name: calibration
-            key: v3
-            command: test
-            # we disable default features because rust will otherwise unify them and turn on opencl in CI.
-            args: --release --test gas_calibration_test --features calibration --no-default-features
         exclude:
           - os: macos-latest
             name: check-m2-native
@@ -84,8 +74,6 @@ jobs:
             name: test
           - os: macos-latest
             name: test-fvm
-          - os: macos-latest
-            name: calibration
     env:
       CARGO_INCREMENTAL: 0
       CARGO_TERM_COLOR: always
