@@ -559,8 +559,8 @@ mod tests {
     #[test]
     fn test_clear() {
         let store = MemoryBlockstore::default();
-        let mut kamt: Kamt<_, u32, String, Identity> = Kamt::new_with_config(store, Config::default());
-
+        let mut kamt: Kamt<_, u32, String, Identity> =
+            Kamt::new_with_config(store, Config::default());
 
         // Insert some entries into the KAMT
         kamt.set(1, "a".to_string()).unwrap();
