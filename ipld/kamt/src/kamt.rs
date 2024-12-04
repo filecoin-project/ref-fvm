@@ -133,6 +133,11 @@ where
 
     /// Clears all entries in the KAMT and resets the root to an empty node.
     pub fn clear(&mut self) {
+        // Check if the KAMT is already empty
+        if self.is_empty() {
+            return; // Avoid unnecessary root reset
+        }
+
         self.root = Node::default(); // Reset the root to an empty node
         self.flushed_cid = None; // Invalidate the flushed CID
     }
@@ -561,6 +566,15 @@ mod tests {
         let store = MemoryBlockstore::default();
         let mut kamt: Kamt<_, u32, String, Identity> =
             Kamt::new_with_config(store, Config::default());
+
+        // Verify the KAMT is initially empty
+        assert!(kamt.is_empty());
+
+        // Call clear on an already empty KAMT
+        kamt.clear();
+
+        // Verify it is still empty
+        assert!(kamt.is_empty());
 
         // Insert some entries into the KAMT
         kamt.set(1, "a".to_string()).unwrap();
