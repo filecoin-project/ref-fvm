@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3 [2024-12-04]
+
+- Add a `.clear()` method for resetting the KAMT to empty.
+
 ## 0.4.2 [2024-11-20]
 
 - Un-deprecate `.for_each(...)`. The `.iter()` method is still preferred but `.for_each(...)` is still useful.

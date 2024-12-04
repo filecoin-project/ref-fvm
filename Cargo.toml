@@ -80,8 +80,8 @@ fvm_integration_tests = { path = "testing/integration", version = "~4.5.3" }
 
 # workspace (other)
 fvm_ipld_amt = { path = "ipld/amt", version = "0.7.3" }
-fvm_ipld_hamt = { path = "ipld/hamt", version = "0.10.2" }
-fvm_ipld_kamt = { path = "ipld/kamt", version = "0.4.2" }
+fvm_ipld_hamt = { path = "ipld/hamt", version = "0.10.3" }
+fvm_ipld_kamt = { path = "ipld/kamt", version = "0.4.3" }
 fvm_ipld_car = { path = "ipld/car", version = "0.8.1" }
 fvm_ipld_blockstore = { path = "ipld/blockstore", version = "0.3.1" }
 fvm_ipld_bitfield = { path = "ipld/bitfield", version = "0.7.1" }
