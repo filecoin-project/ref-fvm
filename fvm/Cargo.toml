@@ -61,4 +61,3 @@ gas_calibration = []
 # The current implementation keeps it by default for backward compatibility reason.
 # See <https://github.com/filecoin-project/ref-fvm/issues/2001>
 verify-signature = []
-nv25-dev = []
