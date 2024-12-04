@@ -571,13 +571,13 @@ mod tests {
         assert_eq!(kamt.get(&2).unwrap(), Some(&"b".to_string()));
 
         // Verify the KAMT is not empty
-        assert_eq!(kamt.is_empty(), false);
+        assert!(!kamt.is_empty());
 
         // Clear the KAMT
         kamt.clear();
 
         // Verify the KAMT is empty
-        assert_eq!(kamt.is_empty(), true);
+        assert!(kamt.is_empty());
 
         // Verify previous entries are gone
         assert_eq!(kamt.get(&1).unwrap(), None);
