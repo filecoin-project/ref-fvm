@@ -336,6 +336,17 @@ where
         self.root.is_empty()
     }
 
+    /// Clears all entries in the HAMT and resets the root to an empty node.
+    pub fn clear(&mut self) {
+        // Check if the HAMT is already empty
+        if self.is_empty() {
+            return; // Avoid unnecessary root reset
+        }
+
+        self.root = Node::default(); // Reset the root to an empty node
+        self.flushed_cid = None; // Invalidate the flushed CID
+    }
+
     /// Iterates over each KV in the Hamt and runs a function on the values.
     ///
     /// This function will constrain all values to be of the same type
@@ -532,5 +543,51 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use fvm_ipld_blockstore::MemoryBlockstore;
+
+    #[test]
+    fn test_clear() {
+        let store = MemoryBlockstore::default();
+        let mut hamt: Hamt<_, _, usize> = Hamt::new_with_config(store, Config::default());
+
+        // Verify the HAMT is initially empty
+        assert!(hamt.is_empty());
+
+        // Call clear on an already empty HAMT
+        hamt.clear();
+
+        // Verify it is still empty
+        assert!(hamt.is_empty());
+
+        // Insert some entries into the HAMT
+        hamt.set(1, "a".to_string()).unwrap();
+        hamt.set(2, "b".to_string()).unwrap();
+
+        // Verify the entries exist
+        assert_eq!(hamt.get(&1).unwrap(), Some(&"a".to_string()));
+        assert_eq!(hamt.get(&2).unwrap(), Some(&"b".to_string()));
+
+        // Verify the HAMT is not empty
+        assert!(!hamt.is_empty());
+
+        // Clear the HAMT
+        hamt.clear();
+
+        // Verify the HAMT is empty
+        assert!(hamt.is_empty());
+
+        // Verify previous entries are gone
+        assert_eq!(hamt.get(&1).unwrap(), None);
+        assert_eq!(hamt.get(&2).unwrap(), None);
+
+        // Ensure subsequent operations still work
+        hamt.set(3, "c".to_string()).unwrap();
+        assert_eq!(hamt.get(&3).unwrap(), Some(&"c".to_string()));
     }
 }
