@@ -130,6 +130,17 @@ where
     pub fn is_empty(&self) -> bool {
         self.root.is_empty()
     }
+
+    /// Clears all entries in the KAMT and resets the root to an empty node.
+    pub fn clear(&mut self) {
+        // Check if the KAMT is already empty
+        if self.is_empty() {
+            return; // Avoid unnecessary root reset
+        }
+
+        self.root = Node::default(); // Reset the root to an empty node
+        self.flushed_cid = None; // Invalidate the flushed CID
+    }
 }
 
 impl<BS, K, V, H, const N: usize> Kamt<BS, K, V, H, N>
@@ -548,5 +559,46 @@ mod tests {
         assert_eq!(kvs, results);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_clear() {
+        let store = MemoryBlockstore::default();
+        let mut kamt: Kamt<_, u32, String, Identity> =
+            Kamt::new_with_config(store, Config::default());
+
+        // Verify the KAMT is initially empty
+        assert!(kamt.is_empty());
+
+        // Call clear on an already empty KAMT
+        kamt.clear();
+
+        // Verify it is still empty
+        assert!(kamt.is_empty());
+
+        // Insert some entries into the KAMT
+        kamt.set(1, "a".to_string()).unwrap();
+        kamt.set(2, "b".to_string()).unwrap();
+
+        // Verify the entries exist
+        assert_eq!(kamt.get(&1).unwrap(), Some(&"a".to_string()));
+        assert_eq!(kamt.get(&2).unwrap(), Some(&"b".to_string()));
+
+        // Verify the KAMT is not empty
+        assert!(!kamt.is_empty());
+
+        // Clear the KAMT
+        kamt.clear();
+
+        // Verify the KAMT is empty
+        assert!(kamt.is_empty());
+
+        // Verify previous entries are gone
+        assert_eq!(kamt.get(&1).unwrap(), None);
+        assert_eq!(kamt.get(&2).unwrap(), None);
+
+        // Ensure subsequent operations still work
+        kamt.set(3, "c".to_string()).unwrap();
+        assert_eq!(kamt.get(&3).unwrap(), Some(&"c".to_string()));
     }
 }
