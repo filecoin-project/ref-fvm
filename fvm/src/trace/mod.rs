@@ -38,4 +38,5 @@ pub enum ExecutionEvent {
         id: ActorID,
         state: ActorState,
     },
+    Log(String),
 }

@@ -404,4 +404,8 @@ impl CallManager for DummyCallManager {
     ) -> fvm::kernel::Result<()> {
         todo!()
     }
+
+    fn log(&mut self, _msg: String) {
+        todo!()
+    }
 }

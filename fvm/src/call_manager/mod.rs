@@ -174,6 +174,9 @@ pub trait CallManager: 'static {
 
     /// Appends an event to the event accumulator.
     fn append_event(&mut self, evt: StampedEvent);
+
+    /// log
+    fn log(&mut self, msg: String);
 }
 
 /// The result of calling actor's entrypoint
