@@ -951,8 +951,8 @@ impl<C> DebugOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn log(&self, msg: String) {
-        println!("{}", msg)
+    fn log(&mut self, msg: String) {
+        self.call_manager.log(msg)
     }
 
     fn debug_enabled(&self) -> bool {

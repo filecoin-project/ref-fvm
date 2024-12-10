@@ -513,6 +513,10 @@ where
 
         Ok(())
     }
+
+    fn log(&mut self, msg: String) {
+        self.trace(ExecutionEvent::Log(msg))
+    }
 }
 
 impl<M> DefaultCallManager<M>
