@@ -2812,7 +2812,6 @@ dependencies = [
  "byteorder",
  "cid 0.11.1",
  "criterion",
- "forest_hash_utils",
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_encoding 0.5.1",
  "hex",
