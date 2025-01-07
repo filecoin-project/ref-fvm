@@ -6,9 +6,9 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
 use cid::Cid;
-use forest_hash_utils::BytesKey;
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::de::DeserializeOwned;
+use fvm_ipld_encoding::BytesDe;
 use fvm_ipld_encoding::CborStore;
 use fvm_ipld_kamt::id::Identity;
 use fvm_ipld_kamt::{Config, Error, HashedKey, Kamt};
@@ -104,7 +104,7 @@ fn test_load(factory: KamtFactory) {
 
     // loading from an empty store does not work
     let empty_store = MemoryBlockstore::default();
-    assert!(factory.load::<_, u32, BytesKey>(&c2, &empty_store).is_err());
+    assert!(factory.load::<_, u32, BytesDe>(&c2, &empty_store).is_err());
 
     // storing the kamt should produce the same cid as storing the root
     let c3 = kamt.flush().unwrap();
@@ -319,8 +319,8 @@ fn prop_cid_ops_reduced<const N: u32>(factory: KamtFactory, ops: LimitedKeyOps<N
     cid1 == cid2
 }
 
-fn tstring(v: impl Display) -> BytesKey {
-    BytesKey(v.to_string().into_bytes())
+fn tstring(v: impl Display) -> BytesDe {
+    BytesDe(v.to_string().into_bytes())
 }
 
 fn kstring(v: impl Display) -> HashedKey<32> {
