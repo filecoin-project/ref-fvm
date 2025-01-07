@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Rename `window_post_partitions_sectors` on both the `RegisteredPoStProof` and `RegisteredSealProof` types to `window_post_partition_sectors` to match the builtin actors (from @zhinqiangxu). This is a small breaking change.
+
 ## 4.5.3 [2024-12-04]
 
 - chore: remove the nv25-dev feature flag [#2093](https://github.com/filecoin-project/ref-fvm/pull/2093)
