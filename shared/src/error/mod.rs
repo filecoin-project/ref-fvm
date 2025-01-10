@@ -61,7 +61,7 @@ impl ExitCode {
     /// - The sender's nonce nonce didn't match the message nonce.
     /// - The sender didn't have the funds to cover the message gas.
     pub const SYS_SENDER_STATE_INVALID: ExitCode = ExitCode::new(2);
-    //pub const SYS_RESERVED_3 ExitCode = ExitCode::new(3);
+    pub const SYS_RESERVED_1: ExitCode = ExitCode::new(3);
     /// The message receiver trapped (panicked).
     pub const SYS_ILLEGAL_INSTRUCTION: ExitCode = ExitCode::new(4);
     /// The message receiver either doesn't exist and can't be automatically created or it doesn't
@@ -71,17 +71,17 @@ impl ExitCode {
     pub const SYS_INSUFFICIENT_FUNDS: ExitCode = ExitCode::new(6);
     /// Message execution (including subcalls) used more gas than the specified limit.
     pub const SYS_OUT_OF_GAS: ExitCode = ExitCode::new(7);
-    // pub const SYS_RESERVED_8: ExitCode = ExitCode::new(8);
+    pub const SYS_RESERVED_2: ExitCode = ExitCode::new(8);
     /// The message receiver aborted with a reserved exit code.
     pub const SYS_ILLEGAL_EXIT_CODE: ExitCode = ExitCode::new(9);
     /// An internal VM assertion failed.
     pub const SYS_ASSERTION_FAILED: ExitCode = ExitCode::new(10);
     /// The actor returned a block handle that doesn't exist
     pub const SYS_MISSING_RETURN: ExitCode = ExitCode::new(11);
-    // pub const SYS_RESERVED_12: ExitCode = ExitCode::new(12);
-    // pub const SYS_RESERVED_13: ExitCode = ExitCode::new(13);
-    // pub const SYS_RESERVED_14: ExitCode = ExitCode::new(14);
-    // pub const SYS_RESERVED_15: ExitCode = ExitCode::new(15);
+    pub const SYS_RESERVED_3: ExitCode = ExitCode::new(12);
+    pub const SYS_RESERVED_4: ExitCode = ExitCode::new(13);
+    pub const SYS_RESERVED_5: ExitCode = ExitCode::new(14);
+    pub const SYS_RESERVED_6: ExitCode = ExitCode::new(15);
 
     /// The lowest exit code that an actor may abort with.
     pub const FIRST_USER_EXIT_CODE: u32 = 16;
@@ -109,11 +109,6 @@ impl ExitCode {
     pub const USR_READ_ONLY: ExitCode = ExitCode::new(25);
     /// The method cannot handle a transfer of value.
     pub const USR_NOT_PAYABLE: ExitCode = ExitCode::new(26);
-    // pub const RESERVED_27: ExitCode = ExitCode::new(27);
-    // pub const RESERVED_28: ExitCode = ExitCode::new(28);
-    // pub const RESERVED_29: ExitCode = ExitCode::new(29);
-    // pub const RESERVED_30: ExitCode = ExitCode::new(30);
-    // pub const RESERVED_31: ExitCode = ExitCode::new(31);
 }
 
 /// When a syscall fails, it returns an `ErrorNumber` to indicate why. The syscalls themselves
