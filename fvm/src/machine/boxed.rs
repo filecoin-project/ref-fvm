@@ -5,6 +5,7 @@ use cid::Cid;
 use super::{Machine, MachineContext, Manifest};
 use crate::kernel::Result;
 use crate::state_tree::StateTree;
+use fvm_ipld_blockstore::Blockstore;
 
 type Type = MachineContext;
 
@@ -46,6 +47,11 @@ impl<M: Machine> Machine for Box<M> {
     #[inline(always)]
     fn flush(&mut self) -> Result<Cid> {
         (**self).flush()
+    }
+
+    #[inline(always)]
+    fn dump_cache<B: Blockstore>(&mut self, bs: B) -> Result<()> {
+        (**self).dump_cache(bs)
     }
 
     #[inline(always)]

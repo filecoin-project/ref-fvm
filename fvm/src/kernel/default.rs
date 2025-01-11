@@ -485,6 +485,9 @@ where
             .or_fatal()?;
         self.blocks.mark_reachable(&k);
 
+        // TODO: remove this, it's just for debugging.
+        self.call_manager.log(format!("block_link({})", k));
+
         t.stop_with(start);
         Ok(k)
     }

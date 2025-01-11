@@ -10,6 +10,7 @@ use fvm::call_manager::{Backtrace, CallManager, Entrypoint, FinishRet, Invocatio
 use fvm::engine::Engine;
 use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
+use fvm::kernel::ExecutionError;
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
@@ -180,6 +181,10 @@ impl Machine for DummyMachine {
 
     fn new_limiter(&self) -> Self::Limiter {
         DummyLimiter::default()
+    }
+
+    fn dump_cache<S: Blockstore>(&mut self, _bs: S) -> anyhow::Result<(), ExecutionError> {
+        Ok(())
     }
 }
 
