@@ -73,6 +73,9 @@ pub trait Machine: 'static {
         self.state_tree_mut().flush()
     }
 
+    /// Dumps all cached state blocks (intermediate and final) to the provided blockstore.
+    fn dump_cache<S: Blockstore>(&mut self, bs: S) -> Result<()>;
+
     /// Consumes the machine and returns the owned blockstore.
     fn into_store(self) -> Self::Blockstore;
 

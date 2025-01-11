@@ -5,6 +5,7 @@ use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Result};
 use cid::Cid;
+use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{RawBytes, CBOR};
 use fvm_shared::address::Payload;
 use fvm_shared::econ::TokenAmount;
@@ -288,6 +289,12 @@ where
     fn flush(&mut self) -> anyhow::Result<Cid> {
         let k = (**self).flush()?;
         Ok(k)
+    }
+
+    /// Dumps all cached state blocks (intermediate and final) to the provided blockstore.
+    fn dump_cache<B: Blockstore>(&mut self, bs: B) -> anyhow::Result<()> {
+        (**self).dump_cache(bs)?;
+        Ok(())
     }
 }
 
