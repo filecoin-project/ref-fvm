@@ -148,7 +148,7 @@ lazy_static! {
         },
 
         compute_unsealed_sector_cid_base: Gas::new(98647),
-        verify_seal_base: Gas::new(2000), // TODO revisit potential removal of this
+        verify_seal_base: Gas::new(2000),
 
         verify_aggregate_seal_per: [
             (
@@ -312,6 +312,11 @@ lazy_static! {
         ipld_cbor_scan_per_field: Gas::new(35),
         ipld_link_tracked: Gas::new(300),
         ipld_link_checked: Gas::new(300),
+    };
+
+    static ref TEEP_PRICES: PriceList = PriceList {
+        verify_seal_base: Gas::new(42_000_000),
+        ..WATERMELON_PRICES.clone()
     };
 }
 
@@ -1001,11 +1006,10 @@ impl PriceList {
 /// Returns gas price list by NetworkVersion for gas consumption.
 pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'static PriceList {
     match network_version {
-        NetworkVersion::V21
-        | NetworkVersion::V22
-        | NetworkVersion::V23
-        | NetworkVersion::V24
-        | NetworkVersion::V25 => &WATERMELON_PRICES,
+        NetworkVersion::V21 | NetworkVersion::V22 | NetworkVersion::V23 | NetworkVersion::V24 => {
+            &WATERMELON_PRICES
+        }
+        NetworkVersion::V25 => &TEEP_PRICES,
         _ => panic!("network version {nv} not supported", nv = network_version),
     }
 }
