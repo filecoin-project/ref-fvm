@@ -34,6 +34,17 @@ where
     pub fn into_inner(self) -> BS {
         self.base
     }
+
+    /// Dumps all cached state blocks to the provided blockstore. Blocks in the cache are not
+    /// guaranteed to be connected to the final state tree and may be intermediate state blocks
+    /// that are not reachable from the eventual state root.
+    pub fn dump_cache<S: Blockstore>(&self, bs: S) -> Result<()> {
+        log::info!(
+            "Dumping {} cache blocks to blockstore",
+            self.write.borrow().len()
+        );
+        bs.put_many_keyed(self.write.borrow().iter().map(|(k, v)| (*k, v.as_slice())))
+    }
 }
 
 impl<BS> Buffered for BufferedBlockstore<BS>
