@@ -245,6 +245,7 @@ where
     fn with_transaction(
         &mut self,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
+        always_revert: bool,
     ) -> Result<InvocationResult> {
         self.state_tree_mut().begin_transaction();
         self.events.begin_transaction();
@@ -254,6 +255,7 @@ where
             Ok(v) => (!v.exit_code.is_success(), Ok(v)),
             Err(e) => (true, Err(e)),
         };
+        let revert = always_revert || revert;
 
         self.state_tree_mut().end_transaction(revert)?;
         self.events.end_transaction(revert)?;

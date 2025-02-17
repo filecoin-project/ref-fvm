@@ -291,6 +291,7 @@ impl CallManager for DummyCallManager {
     fn with_transaction(
         &mut self,
         _f: impl FnOnce(&mut Self) -> kernel::Result<InvocationResult>,
+        _always_revert: bool,
     ) -> kernel::Result<InvocationResult> {
         // Ok(InvocationResult::Return(None))
         todo!()

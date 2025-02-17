@@ -77,9 +77,12 @@ pub trait CallManager: 'static {
     ) -> Result<InvocationResult>;
 
     /// Execute some operation (usually a call_actor) within a transaction.
+    /// The always_revert parameter indicates if the transaction is going to revert at the end of its
+    /// execution. This is useful for read-only transactions.
     fn with_transaction(
         &mut self,
         f: impl FnOnce(&mut Self) -> Result<InvocationResult>,
+        always_revert: bool,
     ) -> Result<InvocationResult>;
 
     /// Finishes execution, returning the gas used, machine, and exec trace if requested.
