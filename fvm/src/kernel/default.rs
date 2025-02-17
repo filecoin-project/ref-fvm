@@ -153,17 +153,20 @@ where
         }
 
         // Send.
-        let result = self.call_manager.with_transaction(|cm| {
-            cm.call_actor::<K>(
-                from,
-                *recipient,
-                Entrypoint::Invoke(method),
-                params,
-                value,
-                gas_limit,
-                read_only,
-            )
-        })?;
+        let result = self.call_manager.with_transaction(
+            |cm| {
+                cm.call_actor::<K>(
+                    from,
+                    *recipient,
+                    Entrypoint::Invoke(method),
+                    params,
+                    value,
+                    gas_limit,
+                    read_only,
+                )
+            },
+            false,
+        )?;
 
         // Store result and return.
         Ok(match result {
@@ -241,41 +244,44 @@ where
             return Err(syscall_error!(LimitExceeded; "cannot store return block").into());
         }
 
-        let result = self.call_manager.with_transaction(|cm| {
-            let state = cm
-                .get_actor(self.actor_id)?
-                .ok_or_else(|| syscall_error!(IllegalOperation; "actor deleted"))?;
+        let result = self.call_manager.with_transaction(
+            |cm| {
+                let state = cm
+                    .get_actor(self.actor_id)?
+                    .ok_or_else(|| syscall_error!(IllegalOperation; "actor deleted"))?;
 
-            // store the code cid of the calling actor before running the upgrade entrypoint
-            // in case it was changed (which could happen if the target upgrade entrypoint
-            // sent a message to this actor which in turn called upgrade)
-            let code = state.code;
+                // store the code cid of the calling actor before running the upgrade entrypoint
+                // in case it was changed (which could happen if the target upgrade entrypoint
+                // sent a message to this actor which in turn called upgrade)
+                let code = state.code;
 
-            // update the code cid of the actor to new_code_cid
-            cm.set_actor(
-                self.actor_id,
-                ActorState::new(
-                    new_code_cid,
-                    state.state,
-                    state.balance,
-                    state.sequence,
+                // update the code cid of the actor to new_code_cid
+                cm.set_actor(
+                    self.actor_id,
+                    ActorState::new(
+                        new_code_cid,
+                        state.state,
+                        state.balance,
+                        state.sequence,
+                        None,
+                    ),
+                )?;
+
+                // run the upgrade entrypoint
+                let result = cm.call_actor::<K>(
+                    self.caller,
+                    Address::new_id(self.actor_id),
+                    Entrypoint::Upgrade(UpgradeInfo { old_code_cid: code }),
+                    params,
+                    &TokenAmount::from_whole(0),
                     None,
-                ),
-            )?;
+                    false,
+                )?;
 
-            // run the upgrade entrypoint
-            let result = cm.call_actor::<K>(
-                self.caller,
-                Address::new_id(self.actor_id),
-                Entrypoint::Upgrade(UpgradeInfo { old_code_cid: code }),
-                params,
-                &TokenAmount::from_whole(0),
-                None,
-                false,
-            )?;
-
-            Ok(result)
-        });
+                Ok(result)
+            },
+            false,
+        );
 
         match result {
             Ok(InvocationResult { exit_code, value }) => {

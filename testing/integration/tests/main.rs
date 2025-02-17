@@ -21,16 +21,16 @@ use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_test_actors::wasm_bin::{
     ADDRESS_ACTOR_BINARY, CREATE_ACTOR_BINARY, CUSTOM_SYSCALL_ACTOR_BINARY, EXIT_DATA_ACTOR_BINARY,
-    HELLO_WORLD_ACTOR_BINARY, IPLD_ACTOR_BINARY, OOM_ACTOR_BINARY, READONLY_ACTOR_BINARY,
-    SSELF_ACTOR_BINARY, STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY,
+    HELLO_WORLD_ACTOR_BINARY, INTEGER_OVERFLOW_ACTOR_BINARY, IPLD_ACTOR_BINARY, OOM_ACTOR_BINARY,
+    READONLY_ACTOR_BINARY, SSELF_ACTOR_BINARY, STACK_OVERFLOW_ACTOR_BINARY, SYSCALL_ACTOR_BINARY,
     SYSCALL_ACTOR_BINARY_FIP0079, UPGRADE_ACTOR_BINARY, UPGRADE_RECEIVE_ACTOR_BINARY,
 };
 use num_traits::Zero;
 
 mod bundles;
 use bundles::*;
-use fvm_shared::ActorID;
 use fvm_shared::chainid::ChainID;
+use fvm_shared::{ActorID, METHOD_SEND};
 
 /// The state object.
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]
@@ -1371,6 +1371,209 @@ fn upgrade_actor_test() {
                 .code;
             assert_eq!(code, expected_cid);
         }
+    }
+}
+
+/// Testing a read only transaction where fund send are not applied
+#[test]
+fn test_readonly_txn_send_ok() {
+    let mut tester = new_tester(
+        NetworkVersion::V21,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let (_, sender) = tester.create_account().unwrap();
+
+    // Send to an f4 to create a placeholder. Otherwise, we end up invoking a constructor.
+    let receiver = Address::new_delegated(10, b"foobar").expect("failed to construct f4 address");
+
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    let executor = tester.executor.as_mut().unwrap();
+
+    let message = Message {
+        from: sender,
+        to: receiver,
+        gas_limit: i64::MAX as u64,
+        method_num: METHOD_SEND,
+        sequence: 1,
+        value: TokenAmount::from_atto(1),
+        ..Message::default()
+    };
+
+    let sender_pre_balance = executor
+        .state_tree()
+        .get_actor_by_address(&sender)
+        .unwrap()
+        .unwrap()
+        .balance;
+    let receiver_pre_balance = executor
+        .state_tree()
+        .get_actor_by_address(&sender)
+        .unwrap()
+        .unwrap()
+        .balance;
+
+    // always revert the transaction
+    let always_revert = true;
+    let res = executor
+        .execute_message_with_revert(message, ApplyKind::Explicit, 100, always_revert)
+        .unwrap();
+
+    let sender_post_balance = executor
+        .state_tree()
+        .get_actor_by_address(&sender)
+        .unwrap()
+        .unwrap()
+        .balance;
+    let receiver_post_balance = executor
+        .state_tree()
+        .get_actor_by_address(&sender)
+        .unwrap()
+        .unwrap()
+        .balance;
+
+    assert!(res.msg_receipt.exit_code.is_success());
+    assert_eq!(sender_pre_balance, sender_post_balance);
+    assert_eq!(receiver_pre_balance, receiver_post_balance);
+}
+
+/// Testing a read only transaction where create actor will not take effect
+#[test]
+fn test_readonly_txn_set_integer() {
+    // Instantiate tester
+    let mut tester = new_tester(
+        NetworkVersion::V21,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
+    let sender = sender[0];
+
+    // Set actor state
+    let actor_state = State::default();
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    let (actor_address, wasm_bin) = (Address::new_id(10000), INTEGER_OVERFLOW_ACTOR_BINARY);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    // X is the target value.
+    let x: i64 = 10000000000;
+
+    {
+        // Params setup
+        let params = RawBytes::serialize(x).unwrap();
+
+        // Send message to set
+        let message = Message {
+            from: sender.1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 1,
+            params,
+            ..Message::default()
+        };
+
+        // Set inner state value
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+
+        assert_eq!(
+            ExitCode::OK,
+            res.msg_receipt.exit_code,
+            "{}",
+            res.failure_info.unwrap()
+        );
+
+        // Read inner state value
+        let message = Message {
+            from: sender.1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 3,
+            sequence: 1,
+            ..Message::default()
+        };
+
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message(message, ApplyKind::Explicit, 100)
+            .unwrap();
+        assert!(res.msg_receipt.exit_code.is_success());
+
+        let current_state_value: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+
+        assert_eq!(current_state_value, x);
+    }
+
+    // now we perform the revert test, to see the effects are not applied
+    let y: i64 = 10000000001;
+
+    {
+        // Params setup
+        let params = RawBytes::serialize(y).unwrap();
+
+        // Send message to set
+        let message = Message {
+            from: sender.1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 1,
+            params,
+            ..Message::default()
+        };
+
+        // Set inner state value
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message_with_revert(message, ApplyKind::Explicit, 100, true)
+            .unwrap();
+
+        assert_eq!(
+            ExitCode::OK,
+            res.msg_receipt.exit_code,
+            "{}",
+            res.failure_info.unwrap()
+        );
+
+        // Read inner state value
+        let message = Message {
+            from: sender.1,
+            to: actor_address,
+            gas_limit: 1000000000,
+            method_num: 3,
+            sequence: 1,
+            ..Message::default()
+        };
+
+        let res = tester
+            .executor
+            .as_mut()
+            .unwrap()
+            .execute_message_with_revert(message, ApplyKind::Explicit, 100, true)
+            .unwrap();
+        assert!(res.msg_receipt.exit_code.is_success());
+
+        let current_state_value: i64 = res.msg_receipt.return_data.deserialize().unwrap();
+        assert_eq!(current_state_value, x);
     }
 }
 
