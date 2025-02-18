@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
+use fvm::executor::ExecutionOptions;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
 use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
@@ -29,7 +30,9 @@ use num_traits::Zero;
 
 mod bundles;
 use bundles::*;
+use fvm::gas::GasOutputs;
 use fvm_shared::chainid::ChainID;
+use fvm_shared::receipt::Receipt;
 use fvm_shared::{ActorID, METHOD_SEND};
 
 /// The state object.
@@ -1524,6 +1527,121 @@ fn test_readonly_txn_set_integer() {
         let current_state_value: i64 = res.msg_receipt.return_data.deserialize().unwrap();
         assert_eq!(current_state_value, x);
     }
+}
+
+/// Test case for customized gas hook where txn gas cost is not applied
+#[test]
+fn test_gas_hook_send_ok() {
+    let mut tester = new_tester(
+        NetworkVersion::V21,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let (id, sender) = tester.create_account().unwrap();
+    tester
+        .state_tree
+        .as_mut()
+        .unwrap()
+        .mutate_actor(id, |s| {
+            s.deposit_funds(&TokenAmount::from_whole(10)).unwrap();
+            Ok(())
+        })
+        .unwrap();
+
+    // Send to an f4 to create a placeholder. Otherwise, we end up invoking a constructor.
+    let receiver = Address::new_delegated(10, b"foobar").expect("failed to construct f4 address");
+
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    let executor = tester.executor.as_mut().unwrap();
+    let amount = TokenAmount::from_atto(10);
+
+    let message = Message {
+        from: sender,
+        to: receiver,
+        gas_limit: 10000000,
+        method_num: METHOD_SEND,
+        sequence: 0,
+        value: amount.clone(),
+        gas_fee_cap: TokenAmount::from_atto(1),
+        gas_premium: TokenAmount::from_atto(1),
+        ..Message::default()
+    };
+
+    let sender_pre_balance = executor
+        .state_tree()
+        .get_actor_by_address(&sender)
+        .unwrap()
+        .unwrap()
+        .balance;
+
+    let res = executor
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+    let sender_post_balance = executor
+        .state_tree()
+        .get_actor_by_address(&sender)
+        .unwrap()
+        .unwrap()
+        .balance;
+    assert!(res.msg_receipt.exit_code.is_success());
+    assert!(
+        sender_post_balance < sender_pre_balance - amount.clone(),
+        "txn gas should be deducted"
+    );
+
+    // now we make sure no txn gas is consumed from the sender
+    // only the funds are transferred
+
+    let message = Message {
+        from: sender,
+        to: receiver,
+        gas_limit: 10000000,
+        method_num: METHOD_SEND,
+        sequence: 1,
+        value: amount.clone(),
+        gas_fee_cap: TokenAmount::from_atto(1),
+        gas_premium: TokenAmount::from_atto(1),
+        ..Message::default()
+    };
+
+    let sender_pre_balance = executor
+        .state_tree()
+        .get_actor_by_address(&sender)
+        .unwrap()
+        .unwrap()
+        .balance;
+
+    let f = |sender: ActorID, _: &Receipt, gas: &GasOutputs| {
+        let GasOutputs {
+            base_fee_burn,
+            over_estimation_burn,
+            miner_tip,
+            refund,
+            ..
+        } = gas;
+        let total = base_fee_burn + over_estimation_burn + refund + miner_tip;
+        vec![(sender, total)]
+    };
+    let options = ExecutionOptions {
+        always_revert: false,
+        txn_gas_hook: f,
+    };
+
+    let res = executor
+        .execute_message_with_options(message, ApplyKind::Explicit, 100, options)
+        .unwrap();
+
+    let sender_post_balance = executor
+        .state_tree()
+        .get_actor_by_address(&sender)
+        .unwrap()
+        .unwrap()
+        .balance;
+    assert!(res.msg_receipt.exit_code.is_success());
+    assert_eq!(sender_post_balance, sender_pre_balance - amount.clone());
 }
 
 #[derive(Default)]

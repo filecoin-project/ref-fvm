@@ -24,6 +24,16 @@ use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel}
 use crate::machine::{Machine, BURNT_FUNDS_ACTOR_ID, REWARD_ACTOR_ID};
 use crate::trace::ExecutionTrace;
 
+/// The list of options for executing an fvm message
+pub struct ExecutionOptions<F> {
+    /// Indicates if the execution should always revert regardless the transaction outcome.
+    /// This is useful for read only executions.
+    pub always_revert: bool,
+    /// The hook to handle the transaction gas fee at the end.
+    /// If this is not provided, a default fvm implementation will be used.
+    pub txn_gas_hook: F,
+}
+
 /// The default [`Executor`].
 ///
 /// # Warning
@@ -112,11 +122,25 @@ where
     pub fn execute_message_with_revert(
         &mut self,
         msg: Message,
-        mut apply_kind: ApplyKind,
+        apply_kind: ApplyKind,
         raw_length: usize,
         always_revert: bool,
     ) -> anyhow::Result<ApplyRet> {
-        if always_revert {
+        let options = ExecutionOptions {
+            always_revert,
+            txn_gas_hook: default_gas_hook,
+        };
+        self.execute_message_with_options(msg, apply_kind, raw_length, options)
+    }
+
+    pub fn execute_message_with_options<F: TxnGasHook>(
+        &mut self,
+        msg: Message,
+        mut apply_kind: ApplyKind,
+        raw_length: usize,
+        options: ExecutionOptions<F>,
+    ) -> anyhow::Result<ApplyRet> {
+        if options.always_revert {
             // The apply kind is always hard coded to implicit if the call is expected to revert.
             // This will bypass some checks and gas deduction in `preflight_messages`.
             apply_kind = ApplyKind::Implicit;
@@ -213,7 +237,7 @@ where
                         false,
                     )
                 },
-                always_revert,
+                options.always_revert,
             );
 
             let (res, machine) = match cm.finish() {
@@ -320,7 +344,7 @@ where
         };
 
         match apply_kind {
-            ApplyKind::Explicit => self.finish_message(
+            ApplyKind::Explicit => self.finish_message_with_hook(
                 sender_id,
                 msg,
                 receipt,
@@ -328,6 +352,7 @@ where
                 gas_cost,
                 exec_trace,
                 events,
+                options.txn_gas_hook,
             ),
             ApplyKind::Implicit => Ok(ApplyRet {
                 msg_receipt: receipt,
@@ -484,7 +509,7 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn finish_message(
+    fn finish_message_with_hook<F>(
         &mut self,
         sender_id: ActorID,
         msg: Message,
@@ -493,17 +518,12 @@ where
         gas_cost: TokenAmount,
         exec_trace: ExecutionTrace,
         events: Vec<StampedEvent>,
-    ) -> anyhow::Result<ApplyRet> {
-        // NOTE: we don't support old network versions in the FVM, so we always burn.
-        let GasOutputs {
-            base_fee_burn,
-            over_estimation_burn,
-            miner_penalty,
-            miner_tip,
-            refund,
-            gas_refund,
-            gas_burned,
-        } = GasOutputs::compute(
+        gas_hook: F,
+    ) -> anyhow::Result<ApplyRet>
+    where
+        F: TxnGasHook,
+    {
+        let gas_outputs = GasOutputs::compute(
             receipt.gas_used,
             msg.gas_limit,
             &self.context().base_fee,
@@ -511,7 +531,7 @@ where
             &msg.gas_premium,
         );
 
-        let mut transfer_to_actor = |addr: ActorID, amt: &TokenAmount| -> anyhow::Result<()> {
+        let mut transfer_to_actor = |addr: ActorID, amt: &TokenAmount| {
             if amt.is_negative() {
                 return Err(anyhow!("attempted to transfer negative value into actor"));
             }
@@ -525,19 +545,34 @@ where
             Ok(())
         };
 
-        transfer_to_actor(BURNT_FUNDS_ACTOR_ID, &base_fee_burn)?;
+        let gas_distributions = gas_hook.call(sender_id, &receipt, &gas_outputs);
+        let gas_sum: TokenAmount = gas_distributions.iter().map(|(_, amount)| amount).sum();
 
-        transfer_to_actor(REWARD_ACTOR_ID, &miner_tip)?;
+        // NOTE: we don't support old network versions in the FVM, so we always burn.
+        let GasOutputs {
+            base_fee_burn,
+            over_estimation_burn,
+            miner_penalty,
+            miner_tip,
+            refund,
+            gas_refund,
+            gas_burned,
+        } = gas_outputs;
 
-        transfer_to_actor(BURNT_FUNDS_ACTOR_ID, &over_estimation_burn)?;
+        if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_sum {
+            // Sanity check. This could be a fatal error.
+            return Err(anyhow!("gas processing hook gives out extra gas"));
+        }
 
-        // refund unused gas
-        transfer_to_actor(sender_id, &refund)?;
+        for (id, amount) in gas_distributions {
+            transfer_to_actor(id, &amount)?;
+        }
 
-        if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_cost {
+        if gas_sum != gas_cost {
             // Sanity check. This could be a fatal error.
             return Err(anyhow!("Gas handling math is wrong"));
         }
+
         Ok(ApplyRet {
             msg_receipt: receipt,
             penalty: miner_penalty,
@@ -567,5 +602,50 @@ where
                 (ret, Some(machine))
             },
         )
+    }
+}
+
+fn default_gas_hook(
+    sender_id: ActorID,
+    _: &Receipt,
+    gas_output: &GasOutputs,
+) -> Vec<(ActorID, TokenAmount)> {
+    vec![
+        (BURNT_FUNDS_ACTOR_ID, gas_output.base_fee_burn.clone()),
+        (REWARD_ACTOR_ID, gas_output.miner_tip.clone()),
+        (
+            BURNT_FUNDS_ACTOR_ID,
+            gas_output.over_estimation_burn.clone(),
+        ),
+        (sender_id, gas_output.refund.clone()),
+    ]
+}
+
+/// The gas hook to handle how to transfer the final txn gas.
+/// Returns a vec of the amount of gas that should be deposited into each actor id
+pub trait TxnGasHook {
+    fn call(
+        self,
+        // the sender of the txn
+        actor_id: ActorID,
+        // the transaction outcome
+        receipt: &Receipt,
+        // the gas usage and distribution according to fvm rules
+        gas_outputs: &GasOutputs,
+    ) -> Vec<(ActorID, TokenAmount)>;
+}
+
+// Implement the trait for any function/closure that matches the signature
+impl<F> TxnGasHook for F
+where
+    F: FnOnce(ActorID, &Receipt, &GasOutputs) -> Vec<(ActorID, TokenAmount)>,
+{
+    fn call(
+        self,
+        actor_id: ActorID,
+        receipt: &Receipt,
+        gas_outputs: &GasOutputs,
+    ) -> Vec<(ActorID, TokenAmount)> {
+        self(actor_id, receipt, gas_outputs)
     }
 }

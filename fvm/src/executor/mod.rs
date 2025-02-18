@@ -20,6 +20,8 @@ use crate::call_manager::Backtrace;
 use crate::trace::ExecutionTrace;
 use crate::Kernel;
 
+pub use default::{ExecutionOptions, TxnGasHook};
+
 /// An executor executes messages on the underlying machine/kernel. It's responsible for:
 ///
 /// 1. Validating messages (nonce, sender, etc).
