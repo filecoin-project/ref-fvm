@@ -5,5 +5,6 @@ pub mod bundle;
 pub mod custom_kernel;
 pub mod dummy;
 pub mod error;
+pub mod externs;
 pub mod tester;
 pub mod testkit;

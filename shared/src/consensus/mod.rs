@@ -5,7 +5,7 @@ use num_derive::FromPrimitive;
 use super::{Address, ChainEpoch};
 
 /// Result of checking two headers for a consensus fault.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ConsensusFault {
     /// Address of the miner at fault (always an ID address).
     pub target: Address,
@@ -16,7 +16,7 @@ pub struct ConsensusFault {
 }
 
 /// Consensus fault types in VM.
-#[derive(FromPrimitive, Clone, Copy, Debug)]
+#[derive(FromPrimitive, Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 pub enum ConsensusFaultType {
     DoubleForkMining = 1,

@@ -4,7 +4,7 @@
 
 use cid::Cid;
 use fvm_shared::clock::ChainEpoch;
-use fvm_shared::consensus::ConsensusFault;
+pub use fvm_shared::consensus::ConsensusFault;
 
 pub trait Externs: Rand + Consensus + Chain {}
 
