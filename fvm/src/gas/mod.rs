@@ -11,7 +11,7 @@ use num_traits::Zero;
 
 pub use self::charge::GasCharge;
 pub use self::outputs::GasOutputs;
-pub use self::price_list::{PriceList, WasmGasPrices, price_list_by_network_version};
+pub use self::price_list::{price_list_by_network_version, PriceList, WasmGasPrices};
 pub use self::timer::{GasDuration, GasInstant, GasTimer};
 use crate::kernel::{ClassifyResult, ExecutionError, Result};
 

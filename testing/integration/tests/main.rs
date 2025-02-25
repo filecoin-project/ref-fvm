@@ -6,10 +6,11 @@ use std::rc::Rc;
 
 use anyhow::anyhow;
 use cid::Cid;
+use fvm::executor::ExecutionOptions;
 use fvm::executor::{ApplyKind, Executor, ThreadedExecutor};
 use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
-use fvm_integration_tests::tester::{Account, IntegrationExecutor, Tester};
+use fvm_integration_tests::tester::{Account, BasicExecutor, BasicTester, IntegrationExecutor, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::RawBytes;
 use fvm_ipld_encoding::tuple::*;
@@ -29,7 +30,9 @@ use num_traits::Zero;
 
 mod bundles;
 use bundles::*;
+use fvm::gas::GasOutputs;
 use fvm_shared::chainid::ChainID;
+use fvm_shared::receipt::Receipt;
 use fvm_shared::{ActorID, METHOD_SEND};
 
 /// The state object.
@@ -1403,18 +1406,8 @@ fn test_readonly_txn_send_ok() {
         ..Message::default()
     };
 
-    let sender_pre_balance = executor
-        .state_tree()
-        .get_actor_by_address(&sender)
-        .unwrap()
-        .unwrap()
-        .balance;
-    let receiver_pre_balance = executor
-        .state_tree()
-        .get_actor_by_address(&sender)
-        .unwrap()
-        .unwrap()
-        .balance;
+    let sender_pre_balance = address_balance(&executor, &sender);
+    let receiver_pre_balance = address_balance(&executor, &receiver);
 
     // always revert the transaction
     let always_revert = true;
@@ -1422,18 +1415,8 @@ fn test_readonly_txn_send_ok() {
         .execute_message_with_revert(message, ApplyKind::Explicit, 100, always_revert)
         .unwrap();
 
-    let sender_post_balance = executor
-        .state_tree()
-        .get_actor_by_address(&sender)
-        .unwrap()
-        .unwrap()
-        .balance;
-    let receiver_post_balance = executor
-        .state_tree()
-        .get_actor_by_address(&sender)
-        .unwrap()
-        .unwrap()
-        .balance;
+    let sender_post_balance = address_balance(&executor, &sender);
+    let receiver_post_balance = address_balance(&executor, &receiver);
 
     assert!(res.msg_receipt.exit_code.is_success());
     assert_eq!(sender_pre_balance, sender_post_balance);
@@ -1577,6 +1560,101 @@ fn test_readonly_txn_set_integer() {
     }
 }
 
+/// Test case for customized gas hook where txn gas cost is not applied
+#[test]
+fn test_gas_hook_send_ok() {
+    let mut tester = new_tester(
+        NetworkVersion::V21,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let (id, sender) = tester.create_account().unwrap();
+    tester
+        .state_tree
+        .as_mut()
+        .unwrap()
+        .mutate_actor(id, |s| {
+            s.deposit_funds(&TokenAmount::from_whole(10)).unwrap();
+            Ok(())
+        })
+        .unwrap();
+
+    // Send to an f4 to create a placeholder. Otherwise, we end up invoking a constructor.
+    let receiver = Address::new_delegated(10, b"foobar").expect("failed to construct f4 address");
+
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    let executor = tester.executor.as_mut().unwrap();
+    let amount = TokenAmount::from_atto(10);
+
+    let message = Message {
+        from: sender,
+        to: receiver,
+        gas_limit: 10000000,
+        method_num: METHOD_SEND,
+        sequence: 0,
+        value: amount.clone(),
+        gas_fee_cap: TokenAmount::from_atto(1),
+        gas_premium: TokenAmount::from_atto(1),
+        ..Message::default()
+    };
+
+    let sender_pre_balance =address_balance(&executor, &sender);
+
+    let res = executor
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+    let sender_post_balance = address_balance(&executor, &sender);
+    assert!(res.msg_receipt.exit_code.is_success());
+    assert!(
+        sender_post_balance < sender_pre_balance - amount.clone(),
+        "txn gas should be deducted"
+    );
+
+    // now we make sure no txn gas is consumed from the sender
+    // only the funds are transferred
+
+    let message = Message {
+        from: sender,
+        to: receiver,
+        gas_limit: 10000000,
+        method_num: METHOD_SEND,
+        sequence: 1,
+        value: amount.clone(),
+        gas_fee_cap: TokenAmount::from_atto(1),
+        gas_premium: TokenAmount::from_atto(1),
+        ..Message::default()
+    };
+
+    let sender_pre_balance = address_balance(&executor, &sender);
+
+    let f = |sender: ActorID, _: &Receipt, gas: &GasOutputs| {
+        let GasOutputs {
+            base_fee_burn,
+            over_estimation_burn,
+            miner_tip,
+            refund,
+            ..
+        } = gas;
+        let total = base_fee_burn + over_estimation_burn + refund + miner_tip;
+        vec![(sender, total)]
+    };
+    let options = ExecutionOptions {
+        always_revert: false,
+        txn_gas_hook: f,
+    };
+
+    let res = executor
+        .execute_message_with_options(message, ApplyKind::Explicit, 100, options)
+        .unwrap();
+
+    let sender_post_balance = address_balance(&executor, &sender);
+    assert!(res.msg_receipt.exit_code.is_success());
+    assert_eq!(sender_post_balance, sender_pre_balance - amount.clone());
+}
+
 #[derive(Default)]
 pub struct FailingBlockstore {
     fail_for: RefCell<HashSet<Cid>>,
@@ -1608,4 +1686,12 @@ impl Blockstore for FailingBlockstore {
     fn put_keyed(&self, k: &Cid, block: &[u8]) -> anyhow::Result<()> {
         self.target.put_keyed(k, block)
     }
+}
+
+/// This obtains the account balance, if the address does not exist, it returns 0
+fn address_balance(executor: &BasicExecutor, addr: &Address) -> TokenAmount {
+    let Ok(Some(actor)) = executor.state_tree().get_actor_by_address(addr) else {
+        return TokenAmount::zero()
+    };
+    actor.balance
 }
