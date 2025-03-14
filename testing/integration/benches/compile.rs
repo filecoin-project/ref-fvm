@@ -16,7 +16,7 @@ use fvm_shared::version::NetworkVersion;
 fn bench_compile(c: &mut Criterion) {
     c.bench_function("bench actor compile", |b| {
         let blockstore = MemoryBlockstore::default();
-        let bundle_cid = bundle::import_bundle(&blockstore, actors_v12::BUNDLE_CAR).unwrap();
+        let bundle_cid = bundle::import_bundle(&blockstore, actors::BUNDLE_CAR).unwrap();
 
         let (manifest_version, manifest_cid): (u32, Cid) =
             blockstore.get_cbor(&bundle_cid).unwrap().unwrap();

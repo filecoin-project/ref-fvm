@@ -1,0 +1,18 @@
+# This workflow will run `cargo-deny`, checking for dependency issues related to licensing, known vulnerabilities, and more.
+# The configuration file is in [deny.toml](../../deny.toml).
+name: Cargo Deny
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  merge_group:
+
+jobs:
+  cargo-deny:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: EmbarkStudios/cargo-deny-action@v2
+      with:
+        rust-version: "1.81.0"

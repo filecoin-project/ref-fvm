@@ -31,7 +31,7 @@ ambassador = { workspace = true }
 wasmtime = { workspace = true, default-features = false, features = ["cranelift", "parallel-compilation"] }
 
 [dev-dependencies]
-actors-v12 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "master" }
+actors = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "master" }
 fvm_test_actors = { workspace = true }
 fvm_gas_calibration_shared = { workspace = true }
 blake2b_simd = { workspace = true }

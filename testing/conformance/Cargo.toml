@@ -6,6 +6,7 @@ authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin C
 edition = "2021"
 exclude = ["/test-vectors"]
 publish = false
+license.workspace = true
 repository = "https://github.com/filecoin-project/ref-fvm"
 
 [dependencies]

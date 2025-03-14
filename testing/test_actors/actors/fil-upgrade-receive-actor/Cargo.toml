@@ -3,6 +3,7 @@ name = "fil_upgrade_receive_actor"
 version = "0.1.0"
 edition = "2021"
 publish = false
+license.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 fvm_sdk = { workspace = true, features = ["upgrade-actor"] }

@@ -13,7 +13,7 @@ use lazy_static::lazy_static;
 
 lazy_static! {
     static ref BUNDLES: BTreeMap<NetworkVersion, &'static [u8]> =
-        [(NetworkVersion::V21, actors_v12::BUNDLE_CAR),]
+        [(NetworkVersion::V21, actors::BUNDLE_CAR),]
             .into_iter()
             .collect();
 }
