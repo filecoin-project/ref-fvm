@@ -4,6 +4,12 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.6.0 [2025-03-14]
+
+- Update `ipld-core` and `serde_ipld_dagcbor` [#2104](https://github.com/filecoin-project/ref-fvm/pull/2104)
+- Add support for Teep/Tock
+- Move the actor logs into the trace [#2098](https://github.com/filecoin-project/ref-fvm/pull/2098)
+
 ## 4.5.3 [2024-12-04]
 
 - chore: remove the nv25-dev feature flag [#2093](https://github.com/filecoin-project/ref-fvm/pull/2093)

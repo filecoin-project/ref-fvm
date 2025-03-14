@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## 4.6.0 [2025-03-14]
+
+- feat: add Tock / nv26 and nv27 TBD [#2107](https://github.com/filecoin-project/ref-fvm/pull/2107)
+- chore: update ipld-core and serde_ipld_dagcbor [#2104](https://github.com/filecoin-project/ref-fvm/pull/2104)
+- feat: Teep pricing changes [#2103](https://github.com/filecoin-project/ref-fvm/pull/2103)
+- chore: remove the hash-utils dependency from the KAMT [#2099](https://github.com/filecoin-project/ref-fvm/pull/2099)
+- chore: move the actor logs into the trace [#2098](https://github.com/filecoin-project/ref-fvm/pull/2098)
+- chore: release kamt/hamt to add a clear method [#2096](https://github.com/filecoin-project/ref-fvm/pull/2096)
+- feat: hamt: Add public fn clear to reset and clear all entries in HAMT [#2095](https://github.com/filecoin-project/ref-fvm/pull/2095)
+
 ## 4.5.3 [2024-12-04]
 
 - chore: remove the nv25-dev feature flag [#2093](https://github.com/filecoin-project/ref-fvm/pull/2093)

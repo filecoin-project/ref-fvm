@@ -4,6 +4,10 @@ Changes to the FVM's shared encoding utilities.
 
 ## [Unreleased]
 
+## 0.5.2 [2025-03-14]
+
+Update `ipld-core` and `serde_ipld_dagcbor` to support optional fields in tuple-encoded structs.
+
 ## 0.5.1 [2024-11-08]
 
 Remove unnecessary features from `multihash-codetable`.
