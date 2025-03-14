@@ -85,7 +85,7 @@ fvm_ipld_kamt = { path = "ipld/kamt", version = "0.4.3" }
 fvm_ipld_car = { path = "ipld/car", version = "0.8.1" }
 fvm_ipld_blockstore = { path = "ipld/blockstore", version = "0.3.1" }
 fvm_ipld_bitfield = { path = "ipld/bitfield", version = "0.7.1" }
-fvm_ipld_encoding = { path = "ipld/encoding", version = "0.5.1" }
+fvm_ipld_encoding = { path = "ipld/encoding", version = "0.5.2" }
 fvm_gas_calibration_shared = { path = "testing/calibration/shared" }
 fvm_test_actors = { path = "testing/test_actors" }
 
