@@ -4,6 +4,7 @@ version = "0.0.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 publish = false
 edition = "2021"
+license = "MIT OR Apache-2.0"
 
 [package.metadata]
 cargo-fuzz = true
