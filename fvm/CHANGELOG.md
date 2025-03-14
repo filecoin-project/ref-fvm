@@ -4,7 +4,7 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-## 4.5.4 [2025-03-14]
+## 4.6.0 [2025-03-14]
 
 - Update `ipld-core` and `serde_ipld_dagcbor` [#2104](https://github.com/filecoin-project/ref-fvm/pull/2104)
 - Add support for Teep/Tock

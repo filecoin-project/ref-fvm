@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## 4.5.4 [2025-03-14]
+## 4.6.0 [2025-03-14]
 
 - feat: add Tock / nv26 and nv27 TBD [#2107](https://github.com/filecoin-project/ref-fvm/pull/2107)
 - chore: update ipld-core and serde_ipld_dagcbor [#2104](https://github.com/filecoin-project/ref-fvm/pull/2104)

@@ -4,7 +4,7 @@
 
 - Rename `window_post_partitions_sectors` on both the `RegisteredPoStProof` and `RegisteredSealProof` types to `window_post_partition_sectors` to match the builtin actors (from @zhinqiangxu). This is a small breaking change.
 
-## 4.5.4 [2025-03-14]
+## 4.6.0 [2025-03-14]
 
 - Rename `window_post_partitions_sectors` on both the `RegisteredPoStProof` and `RegisteredSealProof` types to `window_post_partition_sectors` to match the builtin actors (from @zhinqiangxu). This is a small breaking change. [#1805](https://github.com/filecoin-project/ref-fvm/pull/1805)
 - Add Tock / nv26 and nv27 TBD network versions [#2107](https://github.com/filecoin-project/ref-fvm/pull/2107)
