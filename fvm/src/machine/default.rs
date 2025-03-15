@@ -163,6 +163,11 @@ where
         Ok(root)
     }
 
+    /// Dumps all cached state blocks (intermediate and final) to the provided blockstore.
+    fn dump_cache<S: Blockstore>(&mut self, bs: S) -> Result<()> {
+        self.blockstore().dump_cache(bs).or_fatal()
+    }
+
     fn into_store(self) -> Self::Blockstore {
         self.state_tree.into_store()
     }

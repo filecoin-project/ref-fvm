@@ -10,7 +10,7 @@ use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{DefaultMachine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
 use fvm::syscalls::Linker;
-use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
@@ -135,6 +135,10 @@ where
 
     fn flush(&mut self) -> Result<Cid> {
         self.machine.flush()
+    }
+
+    fn dump_cache<S: Blockstore>(&mut self, bs: S) -> Result<()> {
+        self.machine.dump_cache(bs)
     }
 
     fn machine_id(&self) -> &str {
