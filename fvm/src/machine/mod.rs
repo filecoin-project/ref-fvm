@@ -73,9 +73,6 @@ pub trait Machine: 'static {
         self.state_tree_mut().flush()
     }
 
-    /// Dumps all cached state blocks (intermediate and final) to the provided blockstore.
-    fn dump_cache<S: Blockstore>(&mut self, bs: S) -> Result<()>;
-
     /// Consumes the machine and returns the owned blockstore.
     fn into_store(self) -> Self::Blockstore;
 
@@ -197,6 +194,7 @@ impl NetworkConfig {
             initial_state_root: initial_state,
             circ_supply: fvm_shared::TOTAL_FILECOIN.clone(),
             tracing: false,
+            flush_all_blocks: false,
         }
     }
 
@@ -243,6 +241,10 @@ pub struct MachineContext {
     /// Whether or not to produce execution traces in the returned result.
     /// Not consensus-critical, but has a performance impact.
     pub tracing: bool,
+
+    /// When true, flush() will write all blocks created during execution to the
+    /// blockstore, not just those reachable from the final state root.
+    pub flush_all_blocks: bool,
 }
 
 impl MachineContext {
@@ -267,6 +269,12 @@ impl MachineContext {
     /// Enable execution traces. [`MachineContext::tracing`].
     pub fn enable_tracing(&mut self) -> &mut Self {
         self.tracing = true;
+        self
+    }
+
+    /// Enable flushing all blocks. [`MachineContext::flush_all_blocks`].
+    pub fn enable_flush_all_blocks(&mut self) -> &mut Self {
+        self.flush_all_blocks = true;
         self
     }
 }

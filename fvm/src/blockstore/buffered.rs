@@ -35,15 +35,17 @@ where
         self.base
     }
 
-    /// Dumps all cached state blocks to the provided blockstore. Blocks in the cache are not
-    /// guaranteed to be connected to the final state tree and may be intermediate state blocks
-    /// that are not reachable from the eventual state root.
-    pub fn dump_cache<S: Blockstore>(&self, bs: S) -> Result<()> {
+    /// Flushes all blocks from the write cache to the provided blockstore,
+    /// regardless of whether they're reachable from any state root.
+    /// Unlike the standard flush() operation which only writes blocks connected
+    /// to the final state tree, this writes every block created during execution.
+    pub fn flush_all(&self) -> Result<()> {
         log::info!(
-            "Dumping {} cache blocks to blockstore",
+            "Flushing all ({}) cache blocks to blockstore",
             self.write.borrow().len()
         );
-        bs.put_many_keyed(self.write.borrow().iter().map(|(k, v)| (*k, v.as_slice())))
+        self.base
+            .put_many_keyed(self.write.borrow().iter().map(|(k, v)| (*k, v.as_slice())))
     }
 }
 

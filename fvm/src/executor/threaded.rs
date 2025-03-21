@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::anyhow;
 use cid::Cid;
-use fvm_ipld_blockstore::Blockstore;
 use fvm_shared::message::Message;
 use lazy_static::lazy_static;
 
@@ -50,10 +49,5 @@ where
 
     fn flush(&mut self) -> anyhow::Result<Cid> {
         self.0.flush()
-    }
-
-    /// Dumps all cached state blocks (intermediate and final) to the provided blockstore.
-    fn dump_cache<S: Blockstore>(&mut self, bs: S) -> anyhow::Result<()> {
-        self.0.dump_cache(bs)
     }
 }

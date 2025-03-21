@@ -157,15 +157,17 @@ where
     /// This method also flushes all new blocks (reachable from this new root CID) from the write
     /// buffer into the underlying blockstore (the blockstore with which the machine was
     /// constructed).
+    ///
+    /// If an intermediate blockstore was provided, all intermediate blocks created during message
+    /// execution are flushed to it.
     fn flush(&mut self) -> Result<Cid> {
         let root = self.state_tree_mut().flush()?;
-        self.blockstore().flush(&root).or_fatal()?;
+        if self.context.flush_all_blocks {
+            self.blockstore().flush_all().or_fatal()?;
+        } else {
+            self.blockstore().flush(&root).or_fatal()?;
+        }
         Ok(root)
-    }
-
-    /// Dumps all cached state blocks (intermediate and final) to the provided blockstore.
-    fn dump_cache<S: Blockstore>(&mut self, bs: S) -> Result<()> {
-        self.blockstore().dump_cache(bs).or_fatal()
     }
 
     fn into_store(self) -> Self::Blockstore {

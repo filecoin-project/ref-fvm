@@ -7,7 +7,6 @@ use std::fmt::Display;
 
 use cid::Cid;
 pub use default::DefaultExecutor;
-use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -45,9 +44,6 @@ pub trait Executor {
 
     /// Flushes the state-tree, returning the new root CID.
     fn flush(&mut self) -> anyhow::Result<Cid>;
-
-    /// Dumps all cached state blocks (intermediate and final) to the provided blockstore.
-    fn dump_cache<S: Blockstore>(&mut self, bs: S) -> anyhow::Result<()>;
 }
 
 /// A description of some failure encountered when applying a message.
