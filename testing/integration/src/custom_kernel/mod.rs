@@ -30,6 +30,7 @@ pub trait CustomKernel: Kernel {
 }
 
 // our custom kernel extends the filecoin kernel
+#[allow(clippy::duplicated_attributes)]
 #[derive(Delegate)]
 #[delegate(IpldBlockOps, where = "C: CallManager")]
 #[delegate(ActorOps, where = "C: CallManager")]
