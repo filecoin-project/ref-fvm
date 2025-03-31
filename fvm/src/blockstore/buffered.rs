@@ -40,12 +40,18 @@ where
     /// Unlike the standard flush() operation which only writes blocks connected
     /// to the final state tree, this writes every block created during execution.
     pub fn flush_all(&self) -> Result<()> {
-        log::info!(
+        log::debug!(
             "Flushing all ({}) cache blocks to blockstore",
-            self.write.borrow().len()
+            self.buffer_len()
         );
-        self.base
-            .put_many_keyed(self.write.borrow().iter().map(|(k, v)| (*k, v.as_slice())))
+
+        self.base.put_many_keyed(self.write.borrow_mut().drain())?;
+
+        Ok(())
+    }
+
+    pub fn buffer_len(&self) -> usize {
+        self.write.borrow().len()
     }
 }
 
@@ -341,5 +347,100 @@ mod tests {
         assert_eq!(buf_store.get(&unsealed_comm_cid).unwrap(), None);
         assert_eq!(buf_store.get(&sealed_comm_cid).unwrap(), None);
         assert_eq!(mem.get_cbor::<u8>(&unconnected).unwrap(), None);
+    }
+
+    #[test]
+    fn test_flush_vs_flush_all() {
+        fn setup(
+            mem: &MemoryBlockstore,
+            buf_store: &BufferedBlockstore<&MemoryBlockstore>,
+        ) -> (Cid, Cid, Cid, Cid) {
+            // A DAG of 2 blocks
+            let value1 = 42u8;
+            let value2 = 84u8;
+            let value1_cid = buf_store.put_cbor(&value1, Code::Blake2b256).unwrap();
+            let root_cid = buf_store
+                .put_cbor(&(value1_cid, value2), Code::Blake2b256)
+                .unwrap();
+
+            // Two additional disconnected blocks
+            let disconnected1 = 100u8;
+            let disconnected2 = 200u8;
+            let disconnected1_cid = buf_store
+                .put_cbor(&disconnected1, Code::Blake2b256)
+                .unwrap();
+            let disconnected2_cid = buf_store
+                .put_cbor(&disconnected2, Code::Blake2b256)
+                .unwrap();
+
+            // Verify initial state - everything in buffer, nothing in backing store
+            assert_eq!(buf_store.get_cbor::<u8>(&value1_cid).unwrap(), Some(value1));
+            assert_eq!(
+                buf_store.get_cbor::<(Cid, u8)>(&root_cid).unwrap(),
+                Some((value1_cid, value2))
+            );
+            assert_eq!(
+                buf_store.get_cbor::<u8>(&disconnected1_cid).unwrap(),
+                Some(disconnected1)
+            );
+            assert_eq!(
+                buf_store.get_cbor::<u8>(&disconnected2_cid).unwrap(),
+                Some(disconnected2)
+            );
+            assert_eq!(mem.get_cbor::<u8>(&value1_cid).unwrap(), None);
+            assert_eq!(mem.get_cbor::<(Cid, u8)>(&root_cid).unwrap(), None);
+            assert_eq!(mem.get_cbor::<u8>(&disconnected1_cid).unwrap(), None);
+            assert_eq!(mem.get_cbor::<u8>(&disconnected2_cid).unwrap(), None);
+
+            (root_cid, value1_cid, disconnected1_cid, disconnected2_cid)
+        }
+
+        // Case 1: flush operation only writes connected blocks
+        {
+            let mem = MemoryBlockstore::default();
+            let buf_store = BufferedBlockstore::new(&mem);
+            let (root_cid, value1_cid, disconnected1_cid, disconnected2_cid) =
+                setup(&mem, &buf_store);
+
+            // flush() should write only he DAG
+            buf_store.flush(&root_cid).unwrap();
+
+            // DAG should be in backing store
+            assert_eq!(mem.get_cbor::<u8>(&value1_cid).unwrap(), Some(42u8));
+            assert_eq!(
+                mem.get_cbor::<(Cid, u8)>(&root_cid).unwrap(),
+                Some((value1_cid, 84u8))
+            );
+
+            // Disconnected blocks should NOT be in backing store
+            assert_eq!(mem.get_cbor::<u8>(&disconnected1_cid).unwrap(), None);
+            assert_eq!(mem.get_cbor::<u8>(&disconnected2_cid).unwrap(), None);
+
+            // Verify that the buffer still contains the disconnected blocks
+            assert_eq!(buf_store.buffer_len(), 2);
+        }
+
+        // Case 2: flush_all operation writes all blocks
+        {
+            let mem = MemoryBlockstore::default();
+            let buf_store = BufferedBlockstore::new(&mem);
+            let (root_cid, value1_cid, disconnected1_cid, disconnected2_cid) =
+                setup(&mem, &buf_store);
+
+            // flush_all() should write all blocks
+            buf_store.flush_all().unwrap();
+
+            // All blocks should be in backing store
+            assert_eq!(mem.get_cbor::<u8>(&value1_cid).unwrap(), Some(42u8));
+            assert_eq!(
+                mem.get_cbor::<(Cid, u8)>(&root_cid).unwrap(),
+                Some((value1_cid, 84u8))
+            );
+            assert_eq!(mem.get_cbor::<u8>(&disconnected1_cid).unwrap(), Some(100u8));
+            assert_eq!(mem.get_cbor::<u8>(&disconnected2_cid).unwrap(), Some(200u8));
+
+            // Verify that all blocks are removed from the buffer
+            assert_eq!(buf_store.buffer_len(), 0);
+        }
     }
 }
