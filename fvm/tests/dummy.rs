@@ -191,6 +191,7 @@ pub struct DummyCallManager {
     pub origin: ActorID,
     pub nonce: u64,
     pub test_data: Rc<RefCell<TestData>>,
+    pub logs: Vec<kernel::LogEntry>,
     limits: DummyLimiter,
 }
 
@@ -216,6 +217,7 @@ impl DummyCallManager {
                 test_data: rc,
                 limits: DummyLimiter::default(),
                 gas_premium: TokenAmount::zero(),
+                logs: vec![],
             },
             cell_ref,
         )
@@ -235,6 +237,7 @@ impl DummyCallManager {
                 test_data: rc,
                 limits: DummyLimiter::default(),
                 gas_premium: TokenAmount::zero(),
+                logs: vec![],
             },
             cell_ref,
         )
@@ -267,6 +270,7 @@ impl CallManager for DummyCallManager {
             nonce,
             test_data: rc,
             limits,
+            logs: vec![],
         }
     }
 
@@ -401,7 +405,7 @@ impl CallManager for DummyCallManager {
         todo!()
     }
 
-    fn log(&mut self, _msg: String) {
-        todo!()
+    fn log(&mut self, entry: kernel::LogEntry) {
+        self.logs.push(entry);
     }
 }

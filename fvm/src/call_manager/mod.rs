@@ -10,7 +10,7 @@ use fvm_shared::{ActorID, MethodNum, METHOD_CONSTRUCTOR};
 
 use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
-use crate::kernel::{self, BlockRegistry, ClassifyResult, Context, Result};
+use crate::kernel::{self, BlockRegistry, ClassifyResult, Context, LogEntry, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::ActorState;
 use crate::Kernel;
@@ -176,7 +176,7 @@ pub trait CallManager: 'static {
     fn append_event(&mut self, evt: StampedEvent);
 
     /// log
-    fn log(&mut self, msg: String);
+    fn log(&mut self, entry: LogEntry);
 }
 
 /// The result of calling actor's entrypoint

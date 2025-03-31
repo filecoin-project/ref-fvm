@@ -5,7 +5,7 @@ use super::*;
 mod ipld {
 
     use cid::Cid;
-    use fvm::kernel::{IpldBlockOps, SupportedHashes};
+    use fvm::kernel::{IpldBlockOps, LogEntry, SupportedHashes};
     use fvm::machine::Machine;
     use fvm_ipld_blockstore::Blockstore;
     use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
@@ -199,6 +199,11 @@ mod ipld {
                 "gas use creating and linking a block does not match price list"
             )
         }
+
+        assert!(call_manager.logs.contains(&LogEntry::BlockLink(cid)));
+        let (call_manager1, _) = kern1.into_inner();
+        assert!(call_manager1.logs.contains(&LogEntry::BlockLink(cid))); // cid1==cid
+        assert!(call_manager1.logs.contains(&LogEntry::BlockLink(other_cid)));
 
         Ok(())
     }

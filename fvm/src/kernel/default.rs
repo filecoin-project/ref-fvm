@@ -486,6 +486,8 @@ where
         self.blocks.mark_reachable(&k);
 
         t.stop_with(start);
+
+        self.call_manager.log(LogEntry::BlockLink(k));
         Ok(k)
     }
 
@@ -951,8 +953,8 @@ impl<C> DebugOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn log(&mut self, msg: String) {
-        self.call_manager.log(msg)
+    fn log(&mut self, entry: LogEntry) {
+        self.call_manager.log(entry)
     }
 
     fn debug_enabled(&self) -> bool {
