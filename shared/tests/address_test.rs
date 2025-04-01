@@ -234,12 +234,12 @@ fn delegated_address() {
             expected: "f432f77777777x32lpna",
         },
         F4TestVec {
-            namespace: std::u64::MAX,
+            namespace: u64::MAX,
             subaddr: &[],
             expected: "f418446744073709551615ftnkyfaq",
         },
         F4TestVec {
-            namespace: std::u64::MAX,
+            namespace: u64::MAX,
             subaddr: &[0; MAX_SUBADDRESS_LEN],
             expected: "f418446744073709551615faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafbbuagu",
         },
@@ -291,7 +291,7 @@ fn id_address() {
             expected: "f0999999",
         },
         IDTestVec {
-            input: std::u64::MAX,
+            input: u64::MAX,
             expected: "f018446744073709551615",
         },
     ];

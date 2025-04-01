@@ -40,7 +40,7 @@ impl<'de> Deserialize<'de> for BenchData {
     where
         D: Deserializer<'de>,
     {
-        Deserialize::deserialize(deserializer)?;
+        let _: () = Deserialize::deserialize(deserializer)?;
         Ok(Self::default())
     }
 }
