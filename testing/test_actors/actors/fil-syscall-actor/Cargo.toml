@@ -20,3 +20,6 @@ crate-type = ["cdylib"] ## cdylib is necessary for Wasm build
 [features]
 coverage = ["minicov"]
 verify-signature = ["fvm_sdk/verify-signature"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

@@ -15,3 +15,6 @@ minicov = "0.3"
 
 [lib]
 crate-type = ["cdylib"] ## cdylib is necessary for Wasm build
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
