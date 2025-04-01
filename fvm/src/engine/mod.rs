@@ -160,10 +160,9 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.static_memory_maximum_size(instance_memory_maximum_size);
     c.static_memory_forced(true);
 
-    // wasmtime default: true
-    // We don't want threads, there is no way to ensure determinism
-    #[cfg(feature = "wasmtime/threads")]
-    c.wasm_threads(false);
+    // Note: Threads are disabled by default.
+    // If we add the "wasmtime/threads" feature in the future,
+    // we would explicitly set c.wasm_threads(false) here.
 
     // wasmtime default: true
     // simd isn't supported in wasm-instrument, but if we add support there, we can probably enable
@@ -193,15 +192,9 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // handled correctly in wasm-instrument
     c.wasm_multi_value(false);
 
-    // wasmtime default: false
-    // Cool proposal to allow function references, but we don't support it yet.
-    #[cfg(feature = "wasmtime/gc")]
-    c.wasm_function_references(false);
-
-    // wasmtime default: false
-    // Wasmtime function reference proposal.
-    #[cfg(feature = "wasmtime/gc")]
-    c.wasm_gc(false);
+    // Note: GC is disabled by default.
+    // If we add the "wasmtime/gc" feature in the future,
+    // we would explicitly set c.wasm_gc(false) and c.wasm_function_references(false) here.
 
     // wasmtime default: false
     //
@@ -235,12 +228,13 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.guard_before_linear_memory(true);
     c.parallel_compilation(true);
 
-    // Disable caching if some other crate enables it. We do our own caching.
-    #[cfg(feature = "wasmtime/cache")]
-    c.disable_cache();
+    // Note: Caching is disabled by default.
+    // If we add the "wasmtime/cache" feature in the future,
+    // we would explicitly set c.disable_cache() here.
 
-    #[cfg(feature = "wasmtime/async")]
-    c.async_support(false);
+    // Note: Async is disabled by default.
+    // If we add the "wasmtime/async" feature in the future,
+    // we would explicitly set c.async_support(false) here.
 
     // Doesn't seem to have significant impact on the time it takes to load code
     // todo(M2): make sure this is guaranteed to run in linear time.
@@ -260,10 +254,9 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // FIP.
     c.wasm_extended_const(false);
 
-    // wasmtime default: false
-    // Disable the component module.
-    #[cfg(feature = "wasmtime/component-model")]
-    c.wasm_component_model(false);
+    // Note: Component model is disabled by default.
+    // If we add the "wasmtime/component-model" feature in the future,
+    // we would explicitly set c.wasm_component_model(false) here.
 
     Ok(c)
 }
@@ -712,7 +705,7 @@ impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
         desired: usize,
         maximum: Option<usize>,
     ) -> anyhow::Result<bool> {
-        if maximum.map_or(false, |m| desired > m) {
+        if maximum.is_some_and(|m| desired > m) {
             return Ok(false);
         }
 
@@ -725,7 +718,7 @@ impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
         desired: u32,
         maximum: Option<u32>,
     ) -> anyhow::Result<bool> {
-        if maximum.map_or(false, |m| desired > m) {
+        if maximum.is_some_and(|m| desired > m) {
             return Ok(false);
         }
         Ok(self.0.grow_instance_table(current, desired))

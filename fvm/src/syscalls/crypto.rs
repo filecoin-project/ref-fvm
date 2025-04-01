@@ -144,11 +144,13 @@ pub fn verify_post(
 }
 
 /// Verifies that two block headers provide proof of a consensus fault:
+///
 /// - both headers mined by the same actor
 /// - headers are different
 /// - first header is of the same or lower epoch as the second
 /// - at least one of the headers appears in the current chain at or after epoch `earliest`
 /// - the headers provide evidence of a fault (see the spec for the different fault types).
+///
 /// The parameters are all serialized block headers. The third "extra" parameter is consulted only for
 /// the "parent grinding fault", in which case it must be the sibling of h1 (same parent tipset) and one of the
 /// blocks in the parent of h2 (i.e. h2's grandparent).
