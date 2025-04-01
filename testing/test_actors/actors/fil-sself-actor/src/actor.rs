@@ -56,8 +56,5 @@ pub fn invoke(_: u32) -> u32 {
     // calling destroy on an already destroyed actor should succeed (no-op)
     sdk::sself::self_destruct(false).expect("deleting an already deleted actor should succeed");
 
-    #[cfg(coverage)]
-    sdk::debug::store_artifact("sself_actor.profraw", minicov::capture_coverage());
-
     0
 }

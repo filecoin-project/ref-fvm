@@ -10,8 +10,5 @@ fvm_ipld_encoding = { workspace = true }
 fvm_sdk = { workspace = true }
 fvm_shared = { workspace = true }
 
-[target.'cfg(coverage)'.dependencies]
-minicov = "0.3"
-
 [lib]
 crate-type = ["cdylib"] ## cdylib is necessary for Wasm build

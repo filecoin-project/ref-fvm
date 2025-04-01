@@ -1981,7 +1981,6 @@ dependencies = [
  "fvm_ipld_encoding 0.5.2",
  "fvm_sdk 4.6.0",
  "fvm_shared 4.6.0",
- "minicov",
 ]
 
 [[package]]
@@ -2036,7 +2035,6 @@ dependencies = [
  "fvm_ipld_encoding 0.5.2",
  "fvm_sdk 4.6.0",
  "fvm_shared 4.6.0",
- "minicov",
  "multihash-codetable",
  "multihash-derive",
 ]
@@ -3628,16 +3626,6 @@ dependencies = [
  "serde",
  "tempfile",
  "typenum",
-]
-
-[[package]]
-name = "minicov"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f27fe9f1cc3c22e1687f9446c2083c4c5fc7f0bcf1c7a86bdbded14985895b4b"
-dependencies = [
- "cc",
- "walkdir",
 ]
 
 [[package]]
