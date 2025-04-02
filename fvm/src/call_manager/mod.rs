@@ -10,7 +10,7 @@ use fvm_shared::{ActorID, MethodNum, METHOD_CONSTRUCTOR};
 
 use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
-use crate::kernel::{self, BlockRegistry, ClassifyResult, Context, LogEntry, Result};
+use crate::kernel::{self, BlockRegistry, ClassifyResult, Context, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::ActorState;
 use crate::Kernel;
@@ -24,7 +24,7 @@ mod default;
 pub use default::DefaultCallManager;
 use fvm_shared::event::StampedEvent;
 
-use crate::trace::ExecutionTrace;
+use crate::trace::{ExecutionTrace, IpldOperation};
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
@@ -87,6 +87,7 @@ pub trait CallManager: 'static {
 
     /// Returns a reference to the machine.
     fn machine(&self) -> &Self::Machine;
+
     /// Returns a mutable reference to the machine.
     fn machine_mut(&mut self) -> &mut Self::Machine;
 
@@ -176,7 +177,9 @@ pub trait CallManager: 'static {
     fn append_event(&mut self, evt: StampedEvent);
 
     /// log
-    fn log(&mut self, entry: LogEntry);
+    fn log(&mut self, msg: String);
+
+    fn trace_ipld(&mut self, op: IpldOperation, cid: Cid, size: usize);
 }
 
 /// The result of calling actor's entrypoint

@@ -24,7 +24,7 @@ use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::Engine;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{
-    Block, BlockRegistry, ClassifyResult, ExecutionError, Kernel, LogEntry, Result, SyscallError,
+    Block, BlockRegistry, ClassifyResult, ExecutionError, Kernel, Result, SyscallError,
 };
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
@@ -514,11 +514,12 @@ where
         Ok(())
     }
 
-    fn log(&mut self, entry: LogEntry) {
-        self.trace(ExecutionEvent::Log(match entry {
-            LogEntry::Syscall(msg) => format!("SyscallLog({})", msg),
-            LogEntry::BlockLink(cid) => format!("BlockLink({})", cid),
-        }));
+    fn log(&mut self, msg: String) {
+        self.trace(ExecutionEvent::Log(msg))
+    }
+
+    fn trace_ipld(&mut self, op: crate::trace::IpldOperation, cid: Cid, size: usize) {
+        self.trace(ExecutionEvent::Ipld { op, cid, size })
     }
 }
 

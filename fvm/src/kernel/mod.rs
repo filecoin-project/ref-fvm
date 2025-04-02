@@ -281,19 +281,11 @@ pub trait RandomnessOps {
         -> Result<[u8; RANDOMNESS_LENGTH]>;
 }
 
-#[derive(PartialEq)]
-pub enum LogEntry {
-    /// A log message originating from a log() syscall.
-    Syscall(String),
-    /// A new block was created.
-    BlockLink(Cid),
-}
-
 /// Debugging APIs.
 #[delegatable_trait]
 pub trait DebugOps {
     /// Log a message.
-    fn log(&mut self, entry: LogEntry);
+    fn log(&mut self, msg: String);
 
     /// Returns whether debug mode is enabled.
     fn debug_enabled(&self) -> bool;
@@ -328,9 +320,7 @@ pub mod prelude {
         ActorOps, CryptoOps, DebugOps, EventOps, IpldBlockOps, MessageOps, NetworkOps,
         RandomnessOps, SelfOps, SendOps, UpgradeOps,
     };
-    pub use super::{
-        Block, BlockId, BlockRegistry, BlockStat, CallResult, Kernel, LogEntry, SyscallHandler,
-    };
+    pub use super::{Block, BlockId, BlockRegistry, BlockStat, CallResult, Kernel, SyscallHandler};
     pub use crate::gas::{Gas, GasTimer, PriceList};
     pub use ambassador::Delegate;
     pub use fvm_shared::address::Address;
