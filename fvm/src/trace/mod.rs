@@ -1,3 +1,4 @@
+use cid::Cid;
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::ipld_block::IpldBlock;
@@ -12,6 +13,13 @@ use crate::kernel::SyscallError;
 
 /// Execution Trace, only for informational and debugging purposes.
 pub type ExecutionTrace = Vec<ExecutionEvent>;
+
+/// The type of operation being performed in an Ipld ExecutionEvent.
+#[derive(Clone, Debug, PartialEq)]
+pub enum IpldOperation {
+    Get, // open
+    Put, // link
+}
 
 /// An "event" that happened during execution.
 ///
@@ -39,4 +47,9 @@ pub enum ExecutionEvent {
         state: ActorState,
     },
     Log(String),
+    Ipld {
+        op: IpldOperation,
+        cid: Cid,
+        size: usize,
+    },
 }

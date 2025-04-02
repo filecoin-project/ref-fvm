@@ -13,6 +13,7 @@ use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
+use fvm::trace::IpldOperation;
 use fvm::{kernel, Kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
@@ -191,6 +192,7 @@ pub struct DummyCallManager {
     pub origin: ActorID,
     pub nonce: u64,
     pub test_data: Rc<RefCell<TestData>>,
+    pub ipld_traces: Vec<(IpldOperation, Cid, usize)>,
     limits: DummyLimiter,
 }
 
@@ -216,6 +218,7 @@ impl DummyCallManager {
                 test_data: rc,
                 limits: DummyLimiter::default(),
                 gas_premium: TokenAmount::zero(),
+                ipld_traces: vec![],
             },
             cell_ref,
         )
@@ -235,6 +238,7 @@ impl DummyCallManager {
                 test_data: rc,
                 limits: DummyLimiter::default(),
                 gas_premium: TokenAmount::zero(),
+                ipld_traces: vec![],
             },
             cell_ref,
         )
@@ -267,6 +271,7 @@ impl CallManager for DummyCallManager {
             nonce,
             test_data: rc,
             limits,
+            ipld_traces: vec![],
         }
     }
 
@@ -403,5 +408,9 @@ impl CallManager for DummyCallManager {
 
     fn log(&mut self, _msg: String) {
         todo!()
+    }
+
+    fn trace_ipld(&mut self, op: IpldOperation, cid: Cid, size: usize) {
+        self.ipld_traces.push((op, cid, size));
     }
 }

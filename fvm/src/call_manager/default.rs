@@ -517,6 +517,10 @@ where
     fn log(&mut self, msg: String) {
         self.trace(ExecutionEvent::Log(msg))
     }
+
+    fn trace_ipld(&mut self, op: crate::trace::IpldOperation, cid: Cid, size: usize) {
+        self.trace(ExecutionEvent::Ipld { op, cid, size })
+    }
 }
 
 impl<M> DefaultCallManager<M>

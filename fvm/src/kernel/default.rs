@@ -27,6 +27,7 @@ use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
 use crate::machine::{MachineContext, NetworkConfig, BURNT_FUNDS_ACTOR_ID};
 use crate::state_tree::ActorState;
+use crate::trace::IpldOperation;
 use crate::{ipld, syscall_error};
 
 const BLAKE2B_256: u64 = 0xb220;
@@ -409,6 +410,9 @@ where
 
         t.stop();
 
+        self.call_manager
+            .trace_ipld(IpldOperation::Get, *cid, data.len());
+
         // This can fail because we can run out of gas.
         let children = ipld::scan_for_reachable_links(
             cid.codec(),
@@ -483,9 +487,13 @@ where
             // TODO: This is really "super fatal". It means we failed to store state, and should
             // probably abort the entire block.
             .or_fatal()?;
+        let size = block.data().len();
         self.blocks.mark_reachable(&k);
 
         t.stop_with(start);
+
+        self.call_manager.trace_ipld(IpldOperation::Put, k, size);
+
         Ok(k)
     }
 
@@ -880,6 +888,7 @@ where
 
     fn install_actor(&mut self, code_id: Cid) -> Result<()> {
         let start = GasTimer::start();
+
         let size = self
             .call_manager
             .engine()
@@ -891,6 +900,9 @@ where
             .call_manager
             .charge_gas(self.call_manager.price_list().on_install_actor(size))?;
         t.stop_with(start);
+
+        self.call_manager
+            .trace_ipld(IpldOperation::Get, code_id, size);
 
         Ok(())
     }

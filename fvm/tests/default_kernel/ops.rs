@@ -7,6 +7,7 @@ mod ipld {
     use cid::Cid;
     use fvm::kernel::{IpldBlockOps, SupportedHashes};
     use fvm::machine::Machine;
+    use fvm::trace::IpldOperation;
     use fvm_ipld_blockstore::Blockstore;
     use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
     use multihash_codetable::MultihashDigest;
@@ -199,6 +200,22 @@ mod ipld {
                 "gas use creating and linking a block does not match price list"
             )
         }
+
+        assert!(call_manager
+            .ipld_traces
+            .iter()
+            .any(|(op, c, _)| *op == IpldOperation::Put && *c == cid));
+
+        let (call_manager1, _) = kern1.into_inner();
+
+        assert!(call_manager1
+            .ipld_traces
+            .iter()
+            .any(|(op, c, _)| *op == IpldOperation::Put && *c == cid)); // cid1==cid
+        assert!(call_manager1
+            .ipld_traces
+            .iter()
+            .any(|(op, c, _)| *op == IpldOperation::Put && *c == other_cid));
 
         Ok(())
     }
