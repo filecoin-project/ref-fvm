@@ -433,7 +433,7 @@ fn invalid_byte_addresses() {
         StringAddrVec {
             input: [4, 0]
                 .into_iter()
-                .chain(iter::repeat(0xff).take(MAX_SUBADDRESS_LEN + 1))
+                .chain(iter::repeat_n(0xff, MAX_SUBADDRESS_LEN + 1))
                 .collect(),
             expected: Error::InvalidPayloadLength(MAX_SUBADDRESS_LEN + 1),
         },

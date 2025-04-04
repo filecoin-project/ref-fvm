@@ -47,7 +47,7 @@ pub mod strict_bytes {
         {
             struct VecVisitor;
 
-            impl<'de> Visitor<'de> for VecVisitor {
+            impl Visitor<'_> for VecVisitor {
                 type Value = Vec<u8>;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -117,7 +117,7 @@ pub mod strict_bytes {
             D: Deserializer<'de>,
         {
             struct ArrVisitor<const S: usize>;
-            impl<'de, const S: usize> Visitor<'de> for ArrVisitor<S> {
+            impl<const S: usize> Visitor<'_> for ArrVisitor<S> {
                 type Value = [u8; S];
 
                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

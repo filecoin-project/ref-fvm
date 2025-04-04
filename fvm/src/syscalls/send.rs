@@ -24,7 +24,7 @@ pub fn send(
     flags: u64,
 ) -> Result<sys::out::send::Send> {
     let recipient: Address = context.memory.read_address(recipient_off, recipient_len)?;
-    let value = TokenAmount::from_atto((value_hi as u128) << 64 | value_lo as u128);
+    let value = TokenAmount::from_atto(((value_hi as u128) << 64) | value_lo as u128);
 
     // If that gas is u64::MAX, treat it as "all gas". Although really, this doesn't matter. Any gas
     // exceeding the current gas available is treated as "all remaining gas".
