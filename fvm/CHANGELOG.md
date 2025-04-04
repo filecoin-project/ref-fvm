@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.6.1 [2025-04-04]
+
+- Fix Teep pricing for NI-PoRep.
+
 ## 4.6.0 [2025-03-14]
 
 - Update `ipld-core` and `serde_ipld_dagcbor` [#2104](https://github.com/filecoin-project/ref-fvm/pull/2104)
@@ -147,7 +151,7 @@ Other Changes:
 - Refactor: remove `with_transaction` and move the "return" gas charge
   - transaction logic is now entirely in `CallManager::send`
 - Syscalls: fix: Do not assume return pointers are aligned
-- Buffered Blockstore: fixup IPLD flush logic 
+- Buffered Blockstore: fixup IPLD flush logic
   - Make it less generic (performance).
   - Remove blocks from the write buffer as we write them to avoid
     duplicate writes.
@@ -264,7 +268,7 @@ Update proofs. Unfortunately, this is a breaking change in a minor release but w
 - Executor: Always transform embryo to eth_account if executing message
 - Rename embryo -> placeholder
 - Kernel: remove support for non-key addresses from `verify_signature`
-- Gas: Make the block "read" charge more accurate 
+- Gas: Make the block "read" charge more accurate
 - StateTree: Rewrite snapshotting to have O(1) lookups
   - Maintain an undo history instead of true state "layers"
 - Kernel: fix: return `NotFound` from `balance_of`
@@ -304,7 +308,7 @@ Update proofs. Unfortunately, this is a breaking change in a minor release but w
       - PLUS 10gas/byte for hashing.
       - MINUS 0.1 * 2 gas/byte for the reduction in memcpy costs.
   - Randomness now charges for hashing:
-    - 1400 for the "extern" call. 
+    - 1400 for the "extern" call.
     - 10gas/byte of entropy plus 480 gas for hashing the randomness itself.
 - Explicit gas charges for different instruction types
 - feat: charge 0.4gas/byte for memory copy and initialization
@@ -331,9 +335,9 @@ Update proofs. Unfortunately, this is a breaking change in a minor release but w
 - Add charging logic for all memory copy and init operations
 - Refactor: Move `ChainID` out of FVM (and into shared)
 - Compile with `m2-native`
-- Fix: Missing `Engine` getter 
+- Fix: Missing `Engine` getter
 - Feat: Gas timing stats and visualization
-  - Adds gas timing tracing to conformance tests 
+  - Adds gas timing tracing to conformance tests
   - Adds a gas calibration contract to run specific instructions
 - Feat: Implement Ethereum Account Abstraction
   - Remove the f4-as-account feature/hack entirely
@@ -502,17 +506,17 @@ Additionally, this release includes:
 - Requires builtin-actors v7.4.x
 
 ## 0.7.2 [2022-05-09]
- 
+
 - Add `testing` feature to change module visibility; concretely changed
   visibility of `account_actor`, `init_actor` and `system_actor` to `pub`
   to use them in the integration test framework.
 - Propagate gas outputs in ApplyRet.
 - Migrate CBOR serde to [cbor4ii](https://github.com/quininer/cbor4ii).
-- Instrument Wasm bytecode with [filecoin-project/fvm-wasm-instrument](https://github.com/filecoin-project/fvm-wasm-instrument), 
+- Instrument Wasm bytecode with [filecoin-project/fvm-wasm-instrument](https://github.com/filecoin-project/fvm-wasm-instrument),
   a fork of [paritytech/wasm-instrument](https://github.com/paritytech/wasm-instrument)
   for more accurate stack accounting and execution units metering.
 - Abort when aborting fails.
-- Fix syscall binding docs. 
+- Fix syscall binding docs.
 - Fix bugs in Wasm execution units gas accounting.
 - Fix system actor state serialization.
 - Remove unused dependencies from build graph.
