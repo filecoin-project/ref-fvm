@@ -191,9 +191,7 @@ lazy_static! {
                     ]
                 )
             )
-        ].iter()
-        .cloned()
-        .collect(),
+        ].iter().cloned().collect(),
 
         verify_consensus_fault: Gas::new(516422),
 
@@ -316,6 +314,84 @@ lazy_static! {
 
     static ref TEEP_PRICES: PriceList = PriceList {
         verify_seal_base: Gas::new(42_000_000),
+        verify_aggregate_seal_per: [
+            (
+                RegisteredSealProof::StackedDRG32GiBV1P1,
+                Gas::new(449900)
+            ),
+            (
+                RegisteredSealProof::StackedDRG64GiBV1P1,
+                Gas::new(359272)
+            ),
+            (
+                RegisteredSealProof::StackedDRG32GiBV1P2_Feat_NiPoRep,
+                Gas::new(44990 * 126)
+            ),
+            (
+                RegisteredSealProof::StackedDRG64GiBV1P2_Feat_NiPoRep,
+                Gas::new(35928 * 126)
+            )
+        ].iter().copied().collect(),
+        verify_aggregate_seal_steps: [
+            (
+                RegisteredSealProof::StackedDRG32GiBV1P1,
+                StepCost (
+                    vec![
+                        Step{start: 4, cost: Gas::new(103994170)},
+                        Step{start: 7, cost: Gas::new(112356810)},
+                        Step{start: 13, cost: Gas::new(122912610)},
+                        Step{start: 26, cost: Gas::new(137559930)},
+                        Step{start: 52, cost: Gas::new(162039100)},
+                        Step{start: 103, cost: Gas::new(210960780)},
+                        Step{start: 205, cost: Gas::new(318351180)},
+                        Step{start: 410, cost: Gas::new(528274980)},
+                    ]
+                )
+            ),
+            (
+                RegisteredSealProof::StackedDRG64GiBV1P1,
+                StepCost (
+                    vec![
+                        Step{start: 4, cost: Gas::new(102581240)},
+                        Step{start: 7, cost: Gas::new(110803030)},
+                        Step{start: 13, cost: Gas::new(120803700)},
+                        Step{start: 26, cost: Gas::new(134642130)},
+                        Step{start: 52, cost: Gas::new(157357890)},
+                        Step{start: 103, cost: Gas::new(203017690)},
+                        Step{start: 205, cost: Gas::new(304253590)},
+                        Step{start: 410, cost: Gas::new(509880640)},
+                    ]
+                )
+            ),
+            (
+                RegisteredSealProof::StackedDRG32GiBV1P2_Feat_NiPoRep,
+                StepCost (
+                    vec![
+                        Step{start: 1, cost: Gas::new(112356810)}, // 1
+                        Step{start: 2, cost: Gas::new(122912610)}, // 2
+                        Step{start: 3, cost: Gas::new(137559930)}, // ≤ 4
+                        Step{start: 5, cost: Gas::new(162039100)}, // ≤ 8
+                        Step{start: 9, cost: Gas::new(210960780)}, // ≤ 16
+                        Step{start: 17, cost: Gas::new(318351180)}, // ≤ 32
+                        Step{start: 33, cost: Gas::new(528274980)}, // ≤ 65
+                    ]
+                )
+            ),
+            (
+                RegisteredSealProof::StackedDRG64GiBV1P2_Feat_NiPoRep,
+                StepCost (
+                    vec![
+                        Step{start: 1, cost: Gas::new(110803030)}, // 1
+                        Step{start: 2, cost: Gas::new(120803700)}, // 2
+                        Step{start: 3, cost: Gas::new(134642130)}, // ≤ 4
+                        Step{start: 5, cost: Gas::new(157357890)}, // ≤ 8
+                        Step{start: 9, cost: Gas::new(203017690)}, // ≤ 16
+                        Step{start: 17, cost: Gas::new(304253590)}, // ≤ 32
+                        Step{start: 33, cost: Gas::new(509880640)}, // ≤ 65
+                    ]
+                )
+            )
+        ].iter().cloned().collect(),
         ..WATERMELON_PRICES.clone()
     };
 }
@@ -1371,4 +1447,192 @@ fn test_step_cost_zero() {
     }]);
     assert_eq!(costs.lookup(0), Gas::new(1));
     assert_eq!(costs.lookup(10), Gas::new(1));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use fvm_shared::{
+        randomness::Randomness,
+        sector::{
+            AggregateSealVerifyInfo, AggregateSealVerifyProofAndInfos, RegisteredAggregateProof,
+        },
+        EMPTY_ARR_CID,
+    };
+
+    fn create_mock_aggregate(
+        proof_type: RegisteredSealProof,
+        sector_count: usize,
+    ) -> AggregateSealVerifyProofAndInfos {
+        let mut infos = Vec::with_capacity(sector_count);
+        for i in 0..sector_count {
+            infos.push(AggregateSealVerifyInfo {
+                sector_number: i as u64,
+                randomness: Randomness(vec![0u8; 32]),
+                interactive_randomness: Randomness(vec![0u8; 32]),
+                sealed_cid: EMPTY_ARR_CID,
+                unsealed_cid: EMPTY_ARR_CID,
+            });
+        }
+        AggregateSealVerifyProofAndInfos {
+            miner: 101,
+            seal_proof: proof_type,
+            aggregate_proof: RegisteredAggregateProof::SnarkPackV2,
+            proof: vec![],
+            infos,
+        }
+    }
+
+    #[test]
+    fn test_aggregate_porep_gas_charges() {
+        for nv in [
+            NetworkVersion::V24,
+            NetworkVersion::V25,
+            NetworkVersion::V26,
+        ] {
+            let pricelist = price_list_by_network_version(nv);
+
+            let base_cost_32gib = Gas::new(449900);
+            let test_cases = vec![
+                (1, base_cost_32gib),
+                (3, base_cost_32gib * 3u32),
+                (4, base_cost_32gib * 4u32 + Gas::new(103994170)),
+                (7, base_cost_32gib * 7u32 + Gas::new(112356810)),
+                (13, base_cost_32gib * 13u32 + Gas::new(122912610)),
+                (26, base_cost_32gib * 26u32 + Gas::new(137559930)),
+                (52, base_cost_32gib * 52u32 + Gas::new(162039100)),
+                (65, base_cost_32gib * 65u32 + Gas::new(162039100)),
+            ];
+
+            for (sector_count, expected_gas) in test_cases {
+                let aggregate =
+                    create_mock_aggregate(RegisteredSealProof::StackedDRG32GiBV1P1, sector_count);
+                let gas_charge = pricelist.on_verify_aggregate_seals(&aggregate);
+                assert_eq!(
+                    gas_charge.compute_gas, expected_gas,
+                    "Regular PoRep with {} sectors in NV {} should charge {} gas, got {}",
+                    sector_count, nv, expected_gas, gas_charge.compute_gas
+                );
+
+                if nv < NetworkVersion::V25 {
+                    // prior to NV25 we were charging 32GiB interactive prices for all non-interactive
+                    let aggregate = create_mock_aggregate(
+                        RegisteredSealProof::StackedDRG32GiBV1P2_Feat_NiPoRep,
+                        sector_count,
+                    );
+                    let gas_charge = pricelist.on_verify_aggregate_seals(&aggregate);
+                    assert_eq!(
+                        gas_charge.compute_gas, expected_gas,
+                        "32GiB NI-PoRep with {} sectors should charge {} gas, got {}",
+                        sector_count, expected_gas, gas_charge.compute_gas
+                    );
+                    let aggregate = create_mock_aggregate(
+                        RegisteredSealProof::StackedDRG64GiBV1P2_Feat_NiPoRep,
+                        sector_count,
+                    );
+                    let gas_charge = pricelist.on_verify_aggregate_seals(&aggregate);
+                    assert_eq!(
+                        gas_charge.compute_gas, expected_gas,
+                        "64GiB NI-PoRep with {} sectors should charge {} gas, got {}",
+                        sector_count, expected_gas, gas_charge.compute_gas
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_niporep_aggregate_gas_charges() {
+        let pricelist = price_list_by_network_version(NetworkVersion::V25);
+
+        // 32GiB NI-PoRep
+        let per_sector_cost_32gib = Gas::new(44990 * 126);
+        let test_cases_32gib = vec![
+            (1, per_sector_cost_32gib + Gas::new(112356810)),
+            (2, per_sector_cost_32gib * 2u32 + Gas::new(122912610)),
+            (3, per_sector_cost_32gib * 3u32 + Gas::new(137559930)),
+            (4, per_sector_cost_32gib * 4u32 + Gas::new(137559930)),
+            (5, per_sector_cost_32gib * 5u32 + Gas::new(162039100)),
+            (8, per_sector_cost_32gib * 8u32 + Gas::new(162039100)),
+            (9, per_sector_cost_32gib * 9u32 + Gas::new(210960780)),
+            (16, per_sector_cost_32gib * 16u32 + Gas::new(210960780)),
+            (17, per_sector_cost_32gib * 17u32 + Gas::new(318351180)),
+            (32, per_sector_cost_32gib * 32u32 + Gas::new(318351180)),
+            (33, per_sector_cost_32gib * 33u32 + Gas::new(528274980)),
+            (64, per_sector_cost_32gib * 64u32 + Gas::new(528274980)),
+            (65, per_sector_cost_32gib * 65u32 + Gas::new(528274980)),
+        ];
+
+        for (sector_count, expected_gas) in test_cases_32gib {
+            let aggregate = create_mock_aggregate(
+                RegisteredSealProof::StackedDRG32GiBV1P2_Feat_NiPoRep,
+                sector_count,
+            );
+            let gas_charge = pricelist.on_verify_aggregate_seals(&aggregate);
+            assert_eq!(
+                gas_charge.compute_gas, expected_gas,
+                "32GiB NI-PoRep with {} sectors should charge {} gas, got {}",
+                sector_count, expected_gas, gas_charge.compute_gas
+            );
+        }
+
+        // 64GiB NI-PoRep
+        let per_sector_cost_64gib = Gas::new(35928 * 126);
+        let test_cases_64gib = vec![
+            (1, per_sector_cost_64gib + Gas::new(110803030)),
+            (2, per_sector_cost_64gib * 2u32 + Gas::new(120803700)),
+            (3, per_sector_cost_64gib * 3u32 + Gas::new(134642130)),
+            (4, per_sector_cost_64gib * 4u32 + Gas::new(134642130)),
+            (5, per_sector_cost_64gib * 5u32 + Gas::new(157357890)),
+            (8, per_sector_cost_64gib * 8u32 + Gas::new(157357890)),
+            (9, per_sector_cost_64gib * 9u32 + Gas::new(203017690)),
+            (16, per_sector_cost_64gib * 16u32 + Gas::new(203017690)),
+            (17, per_sector_cost_64gib * 17u32 + Gas::new(304253590)),
+            (32, per_sector_cost_64gib * 32u32 + Gas::new(304253590)),
+            (33, per_sector_cost_64gib * 33u32 + Gas::new(509880640)),
+            (64, per_sector_cost_64gib * 64u32 + Gas::new(509880640)),
+            (65, per_sector_cost_64gib * 65u32 + Gas::new(509880640)),
+        ];
+
+        for (sector_count, expected_gas) in test_cases_64gib {
+            let aggregate = create_mock_aggregate(
+                RegisteredSealProof::StackedDRG64GiBV1P2_Feat_NiPoRep,
+                sector_count,
+            );
+            let gas_charge = pricelist.on_verify_aggregate_seals(&aggregate);
+            assert_eq!(
+                gas_charge.compute_gas, expected_gas,
+                "64GiB NI-PoRep with {} sectors should charge {} gas, got {}",
+                sector_count, expected_gas, gas_charge.compute_gas
+            );
+        }
+    }
+
+    #[test]
+    fn test_niporep_single_sector_matches_fip092_formula() {
+        // These result in the same values that are calculated above, but we're being explicit to
+        // match the FIP to calculations here.
+
+        let pricelist = price_list_by_network_version(NetworkVersion::V25);
+
+        // 32GiB NI-PoRep, according to FIP-0092: 44990*126 + 112356810 = 118025550
+        let aggregate_32gib =
+            create_mock_aggregate(RegisteredSealProof::StackedDRG32GiBV1P2_Feat_NiPoRep, 1);
+        let gas_charge_32gib = pricelist.on_verify_aggregate_seals(&aggregate_32gib);
+        assert_eq!(
+            gas_charge_32gib.compute_gas,
+            Gas::new(118025550),
+            "Single 32GiB NI-PoRep sector charge doesn't match expected value"
+        );
+
+        // 64GiB NI-PoRep, according to FIP-0092: 35928*126 + 110803030 = 115329958
+        let aggregate_64gib =
+            create_mock_aggregate(RegisteredSealProof::StackedDRG64GiBV1P2_Feat_NiPoRep, 1);
+        let gas_charge_64gib = pricelist.on_verify_aggregate_seals(&aggregate_64gib);
+        assert_eq!(
+            gas_charge_64gib.compute_gas,
+            Gas::new(115329958),
+            "Single 64GiB NI-PoRep sector charge doesn't match expected value"
+        );
+    }
 }
