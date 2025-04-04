@@ -116,12 +116,7 @@ where
                             conf.max_array_width,
                         )));
                     }
-                    if !kvs.windows(2).all(|window| {
-                        let [a, b] = window else {
-                            panic!("invalid window length")
-                        };
-                        a.key() < b.key()
-                    }) {
+                    if !kvs.is_sorted_by(|a, b| a.key() < b.key()) {
                         return Err(Error::Dynamic(anyhow::anyhow!(
                             "duplicate or unsorted keys in bucket"
                         )));
