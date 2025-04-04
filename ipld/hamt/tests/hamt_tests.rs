@@ -173,6 +173,32 @@ fn test_load(factory: HamtFactory) {
     assert_eq!(c3, c2);
 }
 
+// Make sure we correctly set the root _and_ the cached root cid.
+fn test_set_root(factory: HamtFactory) {
+    let store = MemoryBlockstore::default();
+
+    let mut hamt: Hamt<_, _, usize> = factory.new(&store);
+    hamt.set(1, "world".to_string()).unwrap();
+
+    assert_eq!(hamt.get(&1).unwrap(), Some(&"world".to_string()));
+    let c1 = hamt.flush().unwrap();
+
+    hamt.set(2, "world2".to_string()).unwrap();
+    assert_eq!(hamt.get(&2).unwrap(), Some(&"world2".to_string()));
+
+    let c2 = hamt.flush().unwrap();
+
+    let mut new_hamt: Hamt<_, String, usize> = factory.load(&c1, &store).unwrap();
+    assert_eq!(new_hamt.get(&1).unwrap(), Some(&"world".to_string()));
+    assert_eq!(new_hamt.get(&2).unwrap(), None);
+
+    new_hamt.set_root(&c2).unwrap();
+    assert_eq!(new_hamt.get(&2).unwrap(), Some(&"world2".to_string()));
+
+    let c3 = new_hamt.flush().unwrap();
+    assert_eq!(c2, c3);
+}
+
 fn test_set_if_absent(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
     let mem = MemoryBlockstore::default();
     let store = TrackingBlockstore::new(&mem);
@@ -952,6 +978,11 @@ mod test_default {
     #[test]
     fn test_load() {
         super::test_load(HamtFactory::default())
+    }
+
+    #[test]
+    fn test_set_root() {
+        super::test_set_root(HamtFactory::default())
     }
 
     #[test]
