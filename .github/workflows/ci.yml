@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checking out fvm
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Check Format
       run: cargo fmt -- --check
     - name: Check license headers
@@ -97,17 +97,17 @@ jobs:
     name: ${{matrix.os}} - ${{ matrix.name }}
     steps:
     - name: Checking out fvm
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         submodules: ${{ matrix.submodules }}
     # we don't check the lockfile in; this is needed for cache restoration/saving
     - name: Installing Cargo llvm-cov
       if: ${{ matrix.covname }}
-      uses: taiki-e/install-action@bc0a06a003a8225fe3e896c9ed3a4c3cc2e8416a
+      uses: taiki-e/install-action@f1390fd0d8205ae79e5e57b1d1e300dceeb4163e
       with:
-        tool: cargo-llvm-cov@0.4.5
+        tool: cargo-llvm-cov@0.6.16
     - name: Setting up cache
-      uses: Swatinem/rust-cache@6fd3edff6979b79f87531400ad694fb7f2c84b1f
+      uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6
       with:
         save-if: ${{ matrix.push == true }}
         # change this to invalidate sccache for this job
@@ -116,7 +116,7 @@ jobs:
       run: cargo ${{ matrix.command }} --locked ${{ matrix.args }}
     - name: Upload coverage to Codecov
       if: ${{ matrix.covname }}
-      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
+      uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574
       with:
         files: ${{ matrix.covname }}
         token: ${{ secrets.CODECOV_TOKEN }}
