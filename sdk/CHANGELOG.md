@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 4.6.1 [2025-04-04]
+
+No changes (new FVM release).
+
 ## 4.6.0 [2025-03-14]
 
 - feat: add Tock / nv26 and nv27 TBD [#2107](https://github.com/filecoin-project/ref-fvm/pull/2107)
@@ -167,7 +171,7 @@ Breaking Changes:
 
 ## 3.0.0-alpha.15 [2022-11-29]
 
-- Send: handle non-zero exit return values 
+- Send: handle non-zero exit return values
   - Returned values are read even if the Send had a non-zero exit code
 - Send syscall: add an optional gas limit
 - Add a read-only mode to Sends

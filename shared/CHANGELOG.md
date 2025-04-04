@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-- Rename `window_post_partitions_sectors` on both the `RegisteredPoStProof` and `RegisteredSealProof` types to `window_post_partition_sectors` to match the builtin actors (from @zhinqiangxu). This is a small breaking change.
+## 4.6.1 [2025-04-04]
+
+No changes (new FVM release).
 
 ## 4.6.0 [2025-03-14]
 
@@ -184,7 +186,7 @@ Update proofs. Unfortunately, this is a breaking change in a minor release but w
 
 - Remove deprecated SYS_INVALID_METHOD exit code
 - Add a read-only mode to Sends
-  - Adds ContextFlags to MessageContext, and a special ReadOnly error 
+  - Adds ContextFlags to MessageContext, and a special ReadOnly error
 
 ## 3.0.0-alpha.12 [2022-11-17]
 
@@ -290,7 +292,7 @@ BREAKING: Switch syscall struct alignment: https://github.com/filecoin-project/f
 Actors built against this new version of fvm_shared will be incompatible with prior FVM versions,
 and vice-versa.
 
-- Added `Display` trait to `Type` for error printing. 
+- Added `Display` trait to `Type` for error printing.
 - Added _cfg = "testing"_ on `Default` trait for `Message` structure.
 
 ## 0.5.1  [2022-04-11]
