@@ -101,6 +101,7 @@ where
     /// Sets the root based on the Cid of the root node using the Kamt store
     pub fn set_root(&mut self, cid: &Cid) -> Result<(), Error> {
         self.root = Node::load(&self.conf, &self.store, cid, 0)?;
+        self.flushed_cid = Some(*cid);
 
         Ok(())
     }

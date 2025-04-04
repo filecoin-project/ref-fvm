@@ -111,6 +111,36 @@ fn test_load(factory: KamtFactory) {
     assert_eq!(c3, c2);
 }
 
+// Make sure we correctly set the root _and_ the cached root cid.
+fn test_set_root(factory: KamtFactory) {
+    let store = MemoryBlockstore::default();
+
+    let mut kamt: HKamt<_, _> = factory.new(&store);
+    kamt.set(1, "world".to_string()).unwrap();
+
+    // Record a kamt root with one entry.
+    assert_eq!(kamt.get(&1).unwrap(), Some(&"world".to_string()));
+    let c1 = kamt.flush().unwrap();
+
+    // Record a second kamt root with 2 entries.
+    kamt.set(2, "world2".to_string()).unwrap();
+    assert_eq!(kamt.get(&2).unwrap(), Some(&"world2".to_string()));
+    let c2 = kamt.flush().unwrap();
+
+    // Re-load the original kamt with one entry.
+    let mut new_kamt: HKamt<_, String> = factory.load(&c1, &store).unwrap();
+    assert_eq!(new_kamt.get(&1).unwrap(), Some(&"world".to_string()));
+    assert_eq!(new_kamt.get(&2).unwrap(), None);
+
+    // Try to update it to the new kamt by setting its root manually.
+    new_kamt.set_root(&c2).unwrap();
+    assert_eq!(new_kamt.get(&2).unwrap(), Some(&"world2".to_string()));
+
+    // Flush the new kamt and make sure it matches the root we just set.
+    let c3 = new_kamt.flush().unwrap();
+    assert_eq!(c2, c3);
+}
+
 fn test_set_if_absent(factory: KamtFactory) {
     let store = MemoryBlockstore::default();
 
@@ -368,6 +398,11 @@ macro_rules! test_kamt_mod {
             #[test]
             fn test_load() {
                 super::test_load($factory)
+            }
+
+            #[test]
+            fn test_set_root() {
+                super::test_set_root($factory)
             }
 
             #[test]
