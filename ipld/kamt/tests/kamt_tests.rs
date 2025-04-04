@@ -50,29 +50,74 @@ impl KamtFactory {
 fn test_basics(factory: KamtFactory) {
     let store = MemoryBlockstore::default();
     let mut kamt: HKamt<_, _> = factory.new(&store);
-    kamt.set(1, "world".to_string()).unwrap();
 
+    kamt.set(1, "world".to_string()).unwrap();
     assert_eq!(kamt.get(&1).unwrap(), Some(&"world".to_string()));
+    assert!(kamt.contains_key(&1).unwrap());
+
     kamt.set(1, "world2".to_string()).unwrap();
     assert_eq!(kamt.get(&1).unwrap(), Some(&"world2".to_string()));
+    assert!(kamt.contains_key(&1).unwrap());
+
+    assert_eq!(kamt.get(&2).unwrap(), None);
+    assert!(!kamt.contains_key(&2).unwrap());
 }
 
 fn test_n_keys(factory: KamtFactory) {
+    const KEY_LEN: usize = 32;
     let store = MemoryBlockstore::default();
     // Test increasing numbers of sequential keys.
-    for i in 0u8..=255 {
-        let mut kamt: HKamt<_, _, _> = factory.new(&store);
-        for j in 0..i {
-            let mut k = [0; 32];
-            k[31] = j;
-            kamt.set(k, format!("{i}")).unwrap();
+    fn key(j: u64) -> [u8; KEY_LEN] {
+        let mut k = [0; KEY_LEN];
+        let encoded = j.to_be_bytes();
+        k[(KEY_LEN - encoded.len())..].copy_from_slice(&encoded[..]);
+        k
+    }
+
+    for do_flush in [true, false] {
+        for i in 0..=300 {
+            let mut kamt: HKamt<_, _, _> = factory.new(&store);
+            let k_too_big = key(i + 1);
+            for j in 0..i {
+                // Maybe try flushing/reloading (clearing the cache and/or dirty bits).
+                if do_flush {
+                    if j == i / 3 {
+                        // Flush but don't reload.
+                        kamt.flush().unwrap();
+                    } else if j == (2 * i) / 3 {
+                        // Flush and reload.
+                        let new_root = kamt.flush().unwrap();
+                        kamt.set_root(&new_root).unwrap();
+                    }
+                }
+
+                let k = key(j);
+                kamt.set(k, format!("{j}")).unwrap();
+            }
+
+            // Fail to get an item out of range.
+            assert_eq!(kamt.get(&k_too_big).unwrap(), None);
+
+            // Make sure we get what we expect after reloading.
+            let root = kamt.flush().unwrap();
+            let new_kamt = factory.load(&root, &store).unwrap();
+            assert_eq!(kamt, new_kamt);
+
+            // And the items are the same.
+            let old_items = kamt.iter().collect::<Result<Vec<_>, _>>().unwrap();
+            let new_items = new_kamt.iter().collect::<Result<Vec<_>, _>>().unwrap();
+            assert_eq!(old_items, new_items);
+
+            // And we still fail to get an item out of range.
+            assert_eq!(new_kamt.get(&k_too_big).unwrap(), None);
+
+            // Assert we can independently look up every key when load a fresh hamt.
+            for j in 0..i {
+                let kamt: HKamt<_, _, [u8; KEY_LEN]> = factory.load(&root, &store).unwrap();
+                let k = key(j);
+                assert_eq!(kamt.get(&k).unwrap(), Some(&format!("{j}")));
+            }
         }
-        let root = kamt.flush().unwrap();
-        let new_kamt = factory.load(&root, &store).unwrap();
-        assert_eq!(kamt, new_kamt);
-        let old_items = kamt.iter().collect::<Result<Vec<_>, _>>().unwrap();
-        let new_items = new_kamt.iter().collect::<Result<Vec<_>, _>>().unwrap();
-        assert_eq!(old_items, new_items);
     }
 }
 
@@ -200,12 +245,13 @@ fn for_each(factory: KamtFactory) {
 
     let c = kamt.flush().unwrap();
 
-    let kamt: HKamt<_, i32, u16> = factory.load(&c, &store).unwrap();
+    let mut kamt: HKamt<_, i32, u16> = factory.load(&c, &store).unwrap();
 
     // Iterating through kamt with no cache.
     let mut sum = 0;
     #[allow(deprecated)]
-    kamt.for_each(|_, v| {
+    kamt.for_each(|&k, &v| {
+        assert_eq!(k as i32, v);
         sum += v;
         Ok(())
     })
@@ -215,12 +261,33 @@ fn for_each(factory: KamtFactory) {
     // Iterating through kamt with cached nodes.
     let mut sum = 0;
     #[allow(deprecated)]
-    kamt.for_each(|_, v| {
+    kamt.for_each(|&k, &v| {
+        assert_eq!(k as i32, v);
         sum += v;
         Ok(())
     })
     .unwrap();
     assert_eq!(sum, expected_sum);
+
+    // Iterate with a few modified nodes.
+    kamt.set(10, 11).unwrap();
+    kamt.set(80, 83).unwrap();
+    kamt.set(81, 85).unwrap();
+    assert_eq!(kamt.delete(&30).unwrap(), Some(30));
+
+    // Delete a non-existent value because why not!
+    assert!(kamt.delete(&900).unwrap().is_none());
+
+    #[allow(deprecated)]
+    let mut sum = 0;
+    kamt.for_each(|&k, v| {
+        assert_ne!(k, 30); // should be deleted.
+        sum += v;
+        Ok(())
+    })
+    .unwrap();
+
+    assert_eq!(sum, expected_sum + 1 + 3 + 4 - 30);
 }
 
 /// List of key value pairs with unique keys.
