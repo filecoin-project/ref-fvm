@@ -425,7 +425,7 @@ where
     /// println!("{:?}", results);
     /// assert_eq!(results.len(), 4);
     /// ```
-
+    ///
     /// Iterate over the KAMT starting at the given key. This can be used to implement "ranged" iteration:
     ///
     /// ```rust
@@ -465,7 +465,6 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-
     pub fn iter_from<Q>(&self, key: &Q) -> Result<Iter<BS, V, K, H, N>, Error>
     where
         K: Borrow<Q>,
