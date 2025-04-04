@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.4 [2024-04-03]
+
+- Fix a bug where `set_root` wasn't correctly resetting the recorded `flushed_cid`, causing subsequent calls to flush to return the wrong root.
+
 ## 0.4.3 [2024-12-04]
 
 - Add a `.clear()` method for resetting the KAMT to empty.
