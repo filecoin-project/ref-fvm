@@ -127,7 +127,7 @@ where
     }
 }
 
-impl<'a, K, V, BS, H, const N: usize> FusedIterator for Iter<'a, BS, V, K, H, N>
+impl<K, V, BS, H, const N: usize> FusedIterator for Iter<'_, BS, V, K, H, N>
 where
     K: DeserializeOwned + PartialOrd,
     V: DeserializeOwned,

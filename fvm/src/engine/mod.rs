@@ -656,7 +656,7 @@ impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
         desired: usize,
         maximum: Option<usize>,
     ) -> anyhow::Result<bool> {
-        if maximum.map_or(false, |m| desired > m) {
+        if maximum.is_some_and(|m| desired > m) {
             return Ok(false);
         }
 
@@ -669,7 +669,7 @@ impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
         desired: u32,
         maximum: Option<u32>,
     ) -> anyhow::Result<bool> {
-        if maximum.map_or(false, |m| desired > m) {
+        if maximum.is_some_and(|m| desired > m) {
             return Ok(false);
         }
         Ok(self.0.grow_instance_table(current, desired))

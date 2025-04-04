@@ -46,7 +46,7 @@ struct NodeContext<'bs, BS> {
     pub store: &'bs BS,
 }
 
-impl<'bs, BS> NodeContext<'bs, BS> {
+impl<BS> NodeContext<'_, BS> {
     fn nodes_at_height(&self) -> u64 {
         nodes_for_height(self.bit_width, self.height)
     }
