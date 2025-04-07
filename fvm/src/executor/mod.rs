@@ -126,9 +126,9 @@ impl ApplyRet {
 /// The kind of message being applied:
 ///
 /// 1. Explicit messages may only come from account actors and charge the sending account for gas
-/// consumed.
+///    consumed.
 /// 2. Implicit messages may come from any actor, ignore the nonce, and charge no gas (but still
-/// account for it).
+///    account for it).
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum ApplyKind {
     Explicit,

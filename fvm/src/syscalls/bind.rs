@@ -20,9 +20,9 @@ pub(super) trait BindSyscall<Args, Ret, Func> {
     /// Bind a syscall to the linker.
     ///
     /// 1. The return type will be automatically adjusted to return `Result<u32, Trap>` where
-    /// `u32` is the error code.
+    ///    `u32` is the error code.
     /// 2. If the return type is non-empty (i.e., not `()`), an out-pointer will be prepended to the
-    /// arguments for the return-value.
+    ///    arguments for the return-value.
     ///
     /// By example:
     ///
