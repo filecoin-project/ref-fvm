@@ -150,7 +150,7 @@ impl Neg for TokenAmount {
     }
 }
 
-impl<'a> Neg for &'a TokenAmount {
+impl Neg for &TokenAmount {
     type Output = TokenAmount;
 
     #[inline]
@@ -192,7 +192,7 @@ impl AddAssign<TokenAmount> for TokenAmount {
     }
 }
 
-impl<'a> AddAssign<&'a TokenAmount> for TokenAmount {
+impl AddAssign<&TokenAmount> for TokenAmount {
     #[inline]
     fn add_assign(&mut self, other: &TokenAmount) {
         self.atto += &other.atto;
@@ -229,7 +229,7 @@ impl SubAssign<TokenAmount> for TokenAmount {
     }
 }
 
-impl<'a> SubAssign<&'a TokenAmount> for TokenAmount {
+impl SubAssign<&TokenAmount> for TokenAmount {
     #[inline]
     fn sub_assign(&mut self, other: &TokenAmount) {
         self.atto -= &other.atto;

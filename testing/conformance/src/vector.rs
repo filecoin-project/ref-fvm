@@ -174,7 +174,7 @@ impl MessageVector {
 
     /// Returns true if the vector is supported.
     pub fn is_supported(&self) -> bool {
-        self.selector.as_ref().map_or(true, Selector::supported)
+        self.selector.as_ref().is_none_or(Selector::supported)
     }
 }
 

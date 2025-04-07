@@ -22,7 +22,7 @@ pub struct TokenAmount {
 
 impl From<TokenAmount> for crate::econ::TokenAmount {
     fn from(v: TokenAmount) -> Self {
-        crate::econ::TokenAmount::from_atto((v.hi as u128) << 64 | (v.lo as u128))
+        crate::econ::TokenAmount::from_atto(((v.hi as u128) << 64) | (v.lo as u128))
     }
 }
 

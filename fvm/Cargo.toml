@@ -56,3 +56,6 @@ cuda-supraseal = ["filecoin-proofs-api/cuda-supraseal"]
 testing = []
 arb = ["arbitrary"]
 
+# Allow coverage attribute.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
