@@ -271,7 +271,7 @@ fn id_address() {
             expected: "f0999999",
         },
         IDTestVec {
-            input: std::u64::MAX,
+            input: u64::MAX,
             expected: "f018446744073709551615",
         },
     ];

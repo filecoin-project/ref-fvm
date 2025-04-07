@@ -3,7 +3,6 @@
 
 use std::convert::TryInto;
 use std::hash::Hash;
-use std::u64;
 
 use super::{from_leb_bytes, to_leb_bytes, Error, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN};
 
