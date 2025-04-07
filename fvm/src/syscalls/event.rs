@@ -11,7 +11,7 @@ use crate::kernel::{ClassifyResult, EventOps, Result};
 /// for gas without needing to parse anything inside the FVM.
 /// The buffers are serialized as follows:
 ///  - event_off/event_len: The offset and length tuple of all the event entries
-///       flags:u64,key_len:u32,codec:u64,value_len:u32)
+///    (flags:u64,key_len:u32,codec:u64,value_len:u32)
 ///  - key_off/key_len: The offset and length tuple of all entry keys in the event
 ///  - val_off/val_len: The offset and length tuple of all entry values in the event
 ///

@@ -47,7 +47,7 @@ where
     /// # Arguments
     ///
     /// * `context`: Machine execution [context][`MachineContext`] (system params, epoch, network
-    ///    version, etc.).
+    ///   version, etc.).
     /// * `blockstore`: The underlying [blockstore][`Blockstore`] for reading/writing state.
     /// * `externs`: Client-provided ["external"][`Externs`] methods for accessing chain state.
     pub fn new(context: &MachineContext, blockstore: B, externs: E) -> anyhow::Result<Self> {

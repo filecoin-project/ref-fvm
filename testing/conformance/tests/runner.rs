@@ -226,7 +226,7 @@ async fn run_vector(
         "message" => {
             let v: MessageVector =
                 serde_json::from_str(&vector_json).context("failed to parse message vector")?;
-            let skip = !v.selector.as_ref().map_or(true, Selector::supported);
+            let skip = !v.selector.as_ref().is_none_or(Selector::supported);
             if skip {
                 Ok(either::Either::Left(
                     v.preconditions.variants.into_iter().map(|variant| {

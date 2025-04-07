@@ -126,7 +126,7 @@ where
     }
 }
 
-impl<'a, K, V, BS, H, Ver> FusedIterator for IterImpl<'a, BS, V, K, H, Ver>
+impl<K, V, BS, H, Ver> FusedIterator for IterImpl<'_, BS, V, K, H, Ver>
 where
     K: DeserializeOwned + PartialOrd,
     V: DeserializeOwned,

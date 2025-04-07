@@ -44,9 +44,9 @@ impl<K> Linker<K> {
 /// A [`Syscall`] is a function in the form `fn(Context<'_, K>, I...) -> R` where:
 ///
 /// - `K` is the kernel type. Constrain this to the precise kernel operations you need, or even
-///    a specific kernel implementation.
+///   a specific kernel implementation.
 /// - `I...`, the syscall parameters, are 0-8 types, each one of [`u32`], [`u64`], [`i32`], or
-///    [`i64`].
+///   [`i64`].
 /// - `R` is a type implementing [`IntoControlFlow`]. This is usually one of:
 ///     - [`kernel::Result<T>`] or [`ControlFlow<T>`] where `T`, the return value type, is
 ///       [`SyscallSafe`].

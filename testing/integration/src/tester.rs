@@ -362,11 +362,7 @@ pub struct BasicAccount {
 impl BasicTester {
     pub fn new_basic_tester(bundle_path: String, options: ExecutionOptions) -> Result<BasicTester> {
         let blockstore = MemoryBlockstore::default();
-        let bundle_cid =
-            match crate::bundle::import_bundle_from_path(&blockstore, bundle_path.as_str()) {
-                Ok(cid) => cid,
-                Err(what) => return Err(what),
-            };
+        let bundle_cid = crate::bundle::import_bundle_from_path(&blockstore, bundle_path.as_str())?;
 
         let mut tester = Tester::new(
             NetworkVersion::V20,
