@@ -315,20 +315,16 @@ pub fn common_sizes() -> Vec<usize> {
     sizes
 }
 
-pub fn secp_sign(sk: &libsecp256k1::SecretKey, data: &[u8]) -> [u8; SECP_SIG_LEN] {
-    let hash: [u8; 32] = blake2b_simd::Params::new()
+pub fn secp_sign(sk: &k256::ecdsa::SigningKey, data: &[u8]) -> [u8; SECP_SIG_LEN] {
+    let hash = blake2b_simd::Params::new()
         .hash_length(32)
         .to_state()
         .update(data)
-        .finalize()
-        .as_bytes()
-        .try_into()
-        .unwrap();
-
-    let (sig, recovery_id) = libsecp256k1::sign(&libsecp256k1::Message::parse(&hash), sk);
+        .finalize();
+    let (sig, recovery_id) = sk.sign_prehash_recoverable(hash.as_bytes()).unwrap();
 
     let mut signature = [0u8; SECP_SIG_LEN];
-    signature[..64].copy_from_slice(&sig.serialize());
-    signature[64] = recovery_id.serialize();
+    signature[..64].copy_from_slice(&sig.to_bytes());
+    signature[64] = recovery_id.to_byte();
     signature
 }

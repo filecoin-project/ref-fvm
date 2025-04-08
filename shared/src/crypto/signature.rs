@@ -152,11 +152,9 @@ pub mod ops {
     use bls_signatures::{
         verify_messages, PublicKey as BlsPubKey, Serialize, Signature as BlsSignature,
     };
-    use libsecp256k1::{
-        recover, Error as SecpError, Message, PublicKey, RecoveryId, Signature as EcsdaSignature,
-    };
+    use k256::ecdsa::{RecoveryId, Signature as EcdsaSignature, VerifyingKey};
 
-    use super::{Error, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE};
+    use super::{Error, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE};
     use crate::address::{Address, Protocol};
 
     /// Returns `String` error if a bls signature is invalid.
@@ -264,43 +262,39 @@ pub mod ops {
     pub fn recover_secp_public_key(
         hash: &[u8; SECP_SIG_MESSAGE_HASH_SIZE],
         signature: &[u8; SECP_SIG_LEN],
-    ) -> Result<PublicKey, Error> {
-        // generate types to recover key from
-        let rec_id = RecoveryId::parse(signature[64])?;
-        let message = Message::parse(hash);
+    ) -> Result<[u8; SECP_PUB_LEN], Error> {
+        // Extract recovery ID from the last byte
+        let recovery_id = RecoveryId::try_from(signature[64])
+            .map_err(|e| Error::InvalidRecovery(format!("Invalid recovery ID: {}", e)))?;
 
-        // Signature value without recovery byte
-        let mut s = [0u8; 64];
-        s.clone_from_slice(signature[..64].as_ref());
+        // Create signature from the first 64 bytes
+        let sig_bytes = signature[..64].into();
+        let signature = EcdsaSignature::from_bytes(sig_bytes)
+            .map_err(|e| Error::SigningError(format!("Invalid signature: {}", e)))?;
 
-        // generate Signature
-        let sig = EcsdaSignature::parse_standard(&s)?;
-        Ok(recover(&message, &sig, &rec_id)?)
+        // Recover the verifying key
+        let pk = VerifyingKey::recover_from_prehash(&hash[..], &signature, recovery_id)
+            .map_err(|e| Error::InvalidRecovery(format!("Failed to recover key: {}", e)))?;
+        Ok(pk
+            .to_encoded_point(false)
+            .as_bytes()
+            .try_into()
+            .expect("expected the key to be 65 bytes"))
     }
 
     /// Return Address for a message given it's signing bytes hash and signature.
     pub fn ecrecover(hash: &[u8; 32], signature: &[u8; SECP_SIG_LEN]) -> Result<Address, Error> {
         // recover public key from a message hash and secp signature.
         let key = recover_secp_public_key(hash, signature)?;
-        let ret = key.serialize();
-        let addr = Address::new_secp256k1(&ret)?;
+        let addr = Address::new_secp256k1(&key)?;
         Ok(addr)
-    }
-
-    impl From<SecpError> for Error {
-        fn from(err: SecpError) -> Error {
-            match err {
-                SecpError::InvalidRecoveryId => Error::InvalidRecovery(format!("{:?}", err)),
-                _ => Error::SigningError(format!("{:?}", err)),
-            }
-        }
     }
 }
 
 #[cfg(all(test, feature = "crypto"))]
 mod tests {
     use bls_signatures::{PrivateKey, Serialize, Signature as BlsSignature};
-    use libsecp256k1::{sign, Message, PublicKey, SecretKey};
+    use k256::ecdsa::SigningKey;
     use rand::{Rng, SeedableRng};
     use rand_chacha::ChaCha8Rng;
 
@@ -349,8 +343,9 @@ mod tests {
     fn recover_pubkey() {
         let rng = &mut ChaCha8Rng::seed_from_u64(8);
 
-        let privkey = SecretKey::random(rng);
-        let pubkey = PublicKey::from_secret_key(&privkey);
+        // Create a random signing key
+        let signing_key = SigningKey::random(rng);
+        let verifying_key = signing_key.verifying_key();
 
         let hash: [u8; 32] = blake2b_simd::Params::new()
             .hash_length(32)
@@ -361,22 +356,34 @@ mod tests {
             .try_into()
             .expect("fixed array size");
 
-        // Generate signature
-        let (sig, recovery_id) = sign(&Message::parse(&hash), &privkey);
-        let mut signature = [0; 65];
-        signature[..64].copy_from_slice(&sig.serialize());
-        signature[64] = recovery_id.serialize();
+        // Sign the digest
+        let (signature, recovery_id) = signing_key
+            .sign_prehash_recoverable(&hash)
+            .expect("signing should not fail");
 
-        assert_eq!(pubkey, recover_secp_public_key(&hash, &signature).unwrap());
+        // Create a 65-byte signature with recovery ID
+        let mut sig_bytes = [0u8; 65];
+        sig_bytes[..64].copy_from_slice(&signature.to_bytes());
+        sig_bytes[64] = recovery_id.to_byte();
+
+        // Recover the key and verify it matches
+        let recovered_key = recover_secp_public_key(&hash, &sig_bytes).unwrap();
+        let encoded_point = verifying_key.to_encoded_point(false);
+        let target_key = encoded_point.as_bytes();
+        assert_eq!(target_key, &recovered_key[..]);
     }
 
     #[test]
     fn secp_ecrecover() {
         let rng = &mut ChaCha8Rng::seed_from_u64(8);
 
-        let priv_key = SecretKey::random(rng);
-        let pub_key = PublicKey::from_secret_key(&priv_key);
-        let secp_addr = Address::new_secp256k1(&pub_key.serialize()).unwrap();
+        // Create a random signing key
+        let signing_key = SigningKey::random(rng);
+        let verifying_key = signing_key.verifying_key();
+
+        // Get the encoded public key and create an address
+        let encoded_point = verifying_key.to_encoded_point(false);
+        let secp_addr = Address::new_secp256k1(encoded_point.as_bytes()).unwrap();
 
         let hash: [u8; 32] = blake2b_simd::Params::new()
             .hash_length(32)
@@ -387,15 +394,17 @@ mod tests {
             .try_into()
             .expect("fixed array size");
 
-        let msg = Message::parse(&hash);
+        // Sign the digest
+        let (signature, recovery_id) = signing_key
+            .sign_prehash_recoverable(&hash)
+            .expect("signing should not fail");
 
-        // Generate signature
-        let (sig, recovery_id) = sign(&msg, &priv_key);
-        let mut signature = [0; 65];
-        signature[..64].copy_from_slice(&sig.serialize());
-        signature[64] = recovery_id.serialize();
+        // Create a 65-byte signature with recovery ID
+        let mut sig_bytes = [0u8; 65];
+        sig_bytes[..64].copy_from_slice(&signature.to_bytes());
+        sig_bytes[64] = recovery_id.to_byte();
 
-        assert_eq!(ecrecover(&hash, &signature).unwrap(), secp_addr);
+        assert_eq!(ecrecover(&hash, &sig_bytes).unwrap(), secp_addr);
     }
 }
 
