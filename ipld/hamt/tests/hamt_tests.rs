@@ -166,6 +166,7 @@ fn test_n_keys(factory: HamtFactory) {
                     } else if j == (2 * i) / 3 {
                         // Flush and reload.
                         let new_root = hamt.flush().unwrap();
+                        hamt.set(key(0), "yolo".to_string()).unwrap();
                         hamt.set_root(&new_root).unwrap();
                     }
                 }

@@ -87,6 +87,7 @@ fn test_n_keys(factory: KamtFactory) {
                     } else if j == (2 * i) / 3 {
                         // Flush and reload.
                         let new_root = kamt.flush().unwrap();
+                        kamt.set(key(0), "yolo".to_string()).unwrap();
                         kamt.set_root(&new_root).unwrap();
                     }
                 }
