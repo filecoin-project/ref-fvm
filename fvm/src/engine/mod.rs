@@ -147,6 +147,13 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     alloc_strat_cfg.max_memories_per_module(1);
     alloc_strat_cfg.total_tables(instance_count);
     alloc_strat_cfg.max_tables_per_module(1);
+    alloc_strat_cfg.table_elements(20_000);
+    // we don't use components.
+    alloc_strat_cfg.total_component_instances(0);
+    alloc_strat_cfg.max_component_instance_size(0);
+    alloc_strat_cfg.max_core_instances_per_component(0);
+    alloc_strat_cfg.max_memories_per_component(0);
+    alloc_strat_cfg.max_tables_per_component(0);
 
     // Adjust the maximum amount of host memory that can be committed to an instance to
     // match the static linear memory size we reserve for each slot.
@@ -157,12 +164,12 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.wasm_custom_page_sizes(false);
 
     // wasmtime default: true
-    // We disable this as we always charge for memory regardless and `memory_init_cow` can baloon compiled wasm modules.
+    // We disable this as we always charge for memory regardless and `memory_init_cow` can balloon
+    // compiled wasm modules.
     c.memory_init_cow(false);
 
-    // wasmtime default: 4GB
-    c.static_memory_maximum_size(instance_memory_maximum_size);
-    c.static_memory_forced(true);
+    // wasmtime default: true
+    c.memory_may_move(false);
 
     // Note: Threads are disabled by default.
     // If we add the "wasmtime/threads" feature in the future,
@@ -176,6 +183,13 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.wasm_relaxed_simd(false);
     c.relaxed_simd_deterministic(true);
 
+    // wasmtime default: false
+    // Supports wide instructions (https://github.com/WebAssembly/wide-arithmetic).
+    // We'd like this, but we'll need to (a) update our gas instrumentation logic to support it and
+    // (b) make sure our build pipeline can take advantage of it. We should probably wait for it to
+    // be enabled by default.
+    c.wasm_wide_arithmetic(false);
+
     // wasmtime default: true
     // We don't support the return_call_* functions.
     c.wasm_tail_call(false);
@@ -183,7 +197,7 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // wasmtime default: true
     c.wasm_multi_memory(false);
 
-    // wasmtime default: false
+    // wasmtime default: true
     c.wasm_memory64(false);
 
     // wasmtime default: true
@@ -261,6 +275,12 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // Note: Component model is disabled by default.
     // If we add the "wasmtime/component-model" feature in the future,
     // we would explicitly set c.wasm_component_model(false) here.
+
+    // wasmtime default: true
+    // TODO: Consider disabling this to make performance more deterministic. But we benchmarked with
+    // it on, so we leave it on for now.
+    // https://github.com/filecoin-project/ref-fvm/issues/2129
+    // c.table_lazy_init(false);
 
     Ok(c)
 }
@@ -665,9 +685,9 @@ impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
 
     fn table_growing(
         &mut self,
-        current: u32,
-        desired: u32,
-        maximum: Option<u32>,
+        current: usize,
+        desired: usize,
+        maximum: Option<usize>,
     ) -> anyhow::Result<bool> {
         if maximum.is_some_and(|m| desired > m) {
             return Ok(false);
