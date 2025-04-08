@@ -27,20 +27,20 @@ authors = ["Protocol Labs", "Filecoin Core Devs"]
 
 [workspace.dependencies]
 # common
-serde = { version = "1.0.164", default-features = false, features = ["derive"] }
-thiserror = "1.0.40"
-anyhow = "1.0.71"
+serde = { version = "1.0.219", default-features = false, features = ["derive"] }
+thiserror = "1.0.69"
+anyhow = "1.0.97"
 rand = "0.8.5"
-rand_chacha = "0.3.0"
-serde_json = "1.0.99"
+rand_chacha = "0.3.1"
+serde_json = "1.0.140"
 serde_tuple = "0.5.0"
-byteorder = "1.4.3"
+byteorder = "1.5.0"
 hex = "0.4.3"
-num-traits = { version = "0.2.14", default-features = false }
-num-derive = "0.4.0"
-lazy_static = "1.4.0"
-log = "0.4.19"
-futures = "0.3.28"
+num-traits = { version = "0.2.19", default-features = false }
+num-derive = "0.4.2"
+lazy_static = "1.5.0"
+log = "0.4.27"
+futures = "0.3.31"
 
 # IPLD/Encoding
 cid = { version = "0.11.1", default-features = false }
@@ -49,7 +49,7 @@ multihash-codetable = { version = "0.1.4", default-features = false }
 multihash-derive = { version = "0.9.1", default-features = false }
 
 # crypto
-blake2b_simd = "1.0.1"
+blake2b_simd = "1.0.3"
 k256 = { version = "0.13.4", features = ["ecdsa"], default-features = false }
 bls-signatures = { version = "0.15", default-features = false }
 
@@ -59,18 +59,18 @@ wasmtime-environ = "31.0.0"
 
 # misc
 libfuzzer-sys = "0.4"
-arbitrary = "1.3.0"
+arbitrary = "1.4.1"
 itertools = "0.13.0"
-once_cell = "1.18.0"
+once_cell = "1.21.3"
 unsigned-varint = "0.8.0"
-ambassador = "0.4.0"
+ambassador = "0.4.1"
 
 # dev/tools/tests
 criterion = "0.5.1"
-quickcheck = "1.0.0"
+quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
-minstant = "0.1.3"
-coverage-helper = "0.2.0"
+minstant = "0.1.7"
+coverage-helper = "0.2.4"
 
 # workspace (FVM)
 fvm = { path = "fvm", version = "~4.6.0", default-features = false }
