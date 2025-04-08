@@ -244,7 +244,7 @@ fn min_memory_bytes(module: &Module) -> crate::kernel::Result<usize> {
 /// This relies on a few assumptions:
 ///     * That we use the default value for `InstanceLimits::tables` and only allow 1 table.
 ///     * That `Linker::command` will only allow them to be exported with the name "table".
-fn min_table_elements(module: &Module) -> Option<u32> {
+fn min_table_elements(module: &Module) -> Option<u64> {
     if let Some(ExternType::Table(t)) = module.get_export("table") {
         Some(t.minimum())
     } else {

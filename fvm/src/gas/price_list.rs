@@ -610,7 +610,7 @@ impl WasmGasPrices {
     }
 
     /// Returns the gas required for initializing tables.
-    pub(crate) fn init_table_gas(&self, min_table_elements: u32) -> Gas {
+    pub(crate) fn init_table_gas(&self, min_table_elements: u64) -> Gas {
         self.memory_fill_base_cost
             + self.memory_fill_per_byte_cost * min_table_elements * TABLE_ELEMENT_SIZE
     }
