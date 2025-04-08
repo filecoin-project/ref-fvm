@@ -34,7 +34,7 @@ rand = { workspace = true }
 quickcheck = { workspace = true, optional = true }
 minstant = { workspace = true }
 ambassador = { workspace = true }
-derive_more = { version = "1.0.0", features = ["full"] }
+derive_more = { version = "2.0.1", features = ["full"] }
 replace_with = "0.1.7"
 filecoin-proofs-api = { version = "18", default-features = false }
 rayon = "1"

@@ -348,7 +348,7 @@ dependencies = [
  "byteorder",
  "ff",
  "serde",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -379,7 +379,7 @@ dependencies = [
  "serde",
  "sha2",
  "supraseal-c2",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -495,7 +495,7 @@ dependencies = [
  "pairing",
  "rand_core",
  "subtle",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -677,7 +677,7 @@ checksum = "b823f24e72fa0c68aa14a250ae1c0848e68d4ae188b71c3972343e45b46f8644"
 dependencies = [
  "libc",
  "opencl-sys",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -732,11 +732,10 @@ checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
 name = "colored"
-version = "2.2.0"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
+checksum = "fde0e0ec90c9dfb3b4b1a0891a7dcd0e2bffde2f7efed5fe7c9bb00e5bfb915e"
 dependencies = [
- "lazy_static",
  "windows-sys",
 ]
 
@@ -801,9 +800,9 @@ checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "convert_case"
-version = "0.6.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+checksum = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7"
 dependencies = [
  "unicode-segmentation",
 ]
@@ -1184,18 +1183,18 @@ dependencies = [
 
 [[package]]
 name = "derive_more"
-version = "1.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
+checksum = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678"
 dependencies = [
  "derive_more-impl",
 ]
 
 [[package]]
 name = "derive_more-impl"
-version = "1.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
+checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -1258,7 +1257,7 @@ dependencies = [
  "rayon",
  "rust-gpu-tools",
  "sha2",
- "thiserror",
+ "thiserror 1.0.69",
  "yastl",
 ]
 
@@ -1281,7 +1280,7 @@ dependencies = [
  "rayon",
  "rust-gpu-tools",
  "sha2",
- "thiserror",
+ "thiserror 1.0.69",
  "yastl",
 ]
 
@@ -1639,7 +1638,7 @@ dependencies = [
  "num-traits",
  "serde",
  "substrate-bn",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -1874,7 +1873,7 @@ dependencies = [
  "serde",
  "serde_repr",
  "sha2",
- "thiserror",
+ "thiserror 1.0.69",
  "unsigned-varint",
  "vm_api",
 ]
@@ -1935,7 +1934,7 @@ dependencies = [
  "fvm_shared 4.6.0",
  "num-traits",
  "serde",
- "serde_tuple",
+ "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -1946,7 +1945,7 @@ dependencies = [
  "fvm_sdk 4.6.0",
  "fvm_shared 4.6.0",
  "serde",
- "serde_tuple",
+ "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -1983,7 +1982,7 @@ dependencies = [
  "fvm_shared 4.6.0",
  "log",
  "serde",
- "serde_tuple",
+ "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -2006,7 +2005,7 @@ dependencies = [
  "fvm_shared 4.6.0",
  "multihash-codetable",
  "serde",
- "serde_tuple",
+ "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -2083,7 +2082,7 @@ dependencies = [
  "fvm_sdk 4.6.0",
  "fvm_shared 4.6.0",
  "serde",
- "serde_tuple",
+ "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -2095,7 +2094,7 @@ dependencies = [
  "fvm_sdk 4.6.0",
  "fvm_shared 4.6.0",
  "serde",
- "serde_tuple",
+ "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -2241,7 +2240,7 @@ dependencies = [
  "byte-slice-cast",
  "byteorder",
  "ff",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2255,7 +2254,7 @@ dependencies = [
  "fvm_ipld_encoding 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "fvm_sdk 4.6.1",
  "fvm_shared 4.6.1",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2266,7 +2265,7 @@ checksum = "2c4b838ee726022bc400381bafc22b381ba05a7458312e9a6dad93c9125b352d"
 dependencies = [
  "fvm_sdk 4.6.1",
  "fvm_shared 4.6.1",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2300,8 +2299,8 @@ dependencies = [
  "multihash-codetable",
  "num-traits",
  "serde",
- "serde_tuple",
- "thiserror",
+ "serde_tuple 0.5.0",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2452,9 +2451,9 @@ dependencies = [
  "rayon",
  "replace_with",
  "serde",
- "serde_tuple",
+ "serde_tuple 1.1.0",
  "static_assertions",
- "thiserror",
+ "thiserror 2.0.12",
  "wasmtime",
  "wasmtime-environ",
  "yastl",
@@ -2502,8 +2501,8 @@ dependencies = [
  "multihash-codetable",
  "num-traits",
  "serde",
- "serde_tuple",
- "thiserror",
+ "serde_tuple 0.5.0",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2526,7 +2525,7 @@ dependencies = [
  "fvm_ipld_encoding 0.5.2",
  "fvm_shared 4.6.0",
  "ipld-core",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "ittapi-rs",
  "lazy_static",
  "log",
@@ -2581,8 +2580,8 @@ dependencies = [
  "rand_chacha",
  "serde",
  "serde_json",
- "serde_tuple",
- "thiserror",
+ "serde_tuple 1.1.0",
+ "thiserror 2.0.12",
  "wasmtime",
  "wat",
 ]
@@ -2596,13 +2595,13 @@ dependencies = [
  "criterion",
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_encoding 0.5.2",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "multihash-codetable",
  "once_cell",
  "quickcheck",
  "quickcheck_macros",
  "serde",
- "thiserror",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -2619,7 +2618,7 @@ dependencies = [
  "multihash-codetable",
  "once_cell",
  "serde",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2634,7 +2633,7 @@ dependencies = [
  "rand_xorshift",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.12",
  "unsigned-varint",
 ]
 
@@ -2646,7 +2645,7 @@ checksum = "fdac8841d20e82867c820b949b3759042a4a6b3a9cbf30c044905553fb8b9e12"
 dependencies = [
  "fvm_ipld_encoding 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
- "thiserror",
+ "thiserror 1.0.69",
  "unsigned-varint",
 ]
 
@@ -2682,7 +2681,7 @@ dependencies = [
  "multihash-codetable",
  "multihash-derive",
  "serde",
- "thiserror",
+ "thiserror 2.0.12",
  "unsigned-varint",
 ]
 
@@ -2699,7 +2698,7 @@ dependencies = [
  "multihash-codetable",
  "multihash-derive",
  "serde",
- "thiserror",
+ "thiserror 1.0.69",
  "unsigned-varint",
 ]
 
@@ -2715,8 +2714,8 @@ dependencies = [
  "serde_ipld_dagcbor",
  "serde_json",
  "serde_repr",
- "serde_tuple",
- "thiserror",
+ "serde_tuple 1.1.0",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -2732,8 +2731,8 @@ dependencies = [
  "serde",
  "serde_ipld_dagcbor",
  "serde_repr",
- "serde_tuple",
- "thiserror",
+ "serde_tuple 0.5.0",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2756,7 +2755,7 @@ dependencies = [
  "rand",
  "serde",
  "sha2",
- "thiserror",
+ "thiserror 2.0.12",
  "unsigned-varint",
 ]
 
@@ -2777,7 +2776,7 @@ dependencies = [
  "once_cell",
  "serde",
  "sha2",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2797,7 +2796,7 @@ dependencies = [
  "quickcheck_macros",
  "rand",
  "serde",
- "thiserror",
+ "thiserror 2.0.12",
  "unsigned-varint",
 ]
 
@@ -2815,7 +2814,7 @@ dependencies = [
  "multihash-codetable",
  "once_cell",
  "serde",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2828,7 +2827,7 @@ dependencies = [
  "lazy_static",
  "log",
  "num-traits",
- "thiserror",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -2843,7 +2842,7 @@ dependencies = [
  "lazy_static",
  "log",
  "num-traits",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2875,8 +2874,8 @@ dependencies = [
  "rusty-fork",
  "serde",
  "serde_json",
- "serde_tuple",
- "thiserror",
+ "serde_tuple 1.1.0",
+ "thiserror 2.0.12",
  "unsigned-varint",
 ]
 
@@ -2899,8 +2898,8 @@ dependencies = [
  "num-integer",
  "num-traits",
  "serde",
- "serde_tuple",
- "thiserror",
+ "serde_tuple 0.5.0",
+ "thiserror 1.0.69",
  "unsigned-varint",
 ]
 
@@ -3313,7 +3312,7 @@ dependencies = [
  "cid",
  "fvm_ipld_amt 0.7.3",
  "fvm_ipld_blockstore 0.3.1",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "libfuzzer-sys",
 ]
 
@@ -3386,6 +3385,15 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -4355,7 +4363,7 @@ dependencies = [
  "opencl3",
  "sha2",
  "temp-env",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -4547,7 +4555,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4f025b91216f15a2a32aa39669329a475733590a015835d1783549a56d09427"
 dependencies = [
  "serde",
- "serde_tuple_macros",
+ "serde_tuple_macros 0.5.0",
+]
+
+[[package]]
+name = "serde_tuple"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0f9b739e59a0e07b7a73bc11c3dcd6abf790d0f54042b67a422d4bd1f6cf6c0"
+dependencies = [
+ "serde",
+ "serde_tuple_macros 1.0.1",
 ]
 
 [[package]]
@@ -4555,6 +4573,17 @@ name = "serde_tuple_macros"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4076151d1a2b688e25aaf236997933c66e18b870d0369f8b248b8ab2be630d7e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "serde_tuple_macros"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e87546e85c5047d03b454d12ee25266fc269a461a4029956ca58d246b9aefae"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4710,7 +4739,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -4921,7 +4950,16 @@ version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
 dependencies = [
- "thiserror-impl",
+ "thiserror-impl 1.0.69",
+]
+
+[[package]]
+name = "thiserror"
+version = "2.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "567b8a2dae586314f7be2a752ec7474332959c6460e02bde30d702a66d488708"
+dependencies = [
+ "thiserror-impl 2.0.12",
 ]
 
 [[package]]
@@ -4929,6 +4967,17 @@ name = "thiserror-impl"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "2.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f7cf42b4507d8ea322120659672cf1b9dbb93f8f2d4ecfd6e51350ff5b17a1d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5402,7 +5451,7 @@ dependencies = [
  "pulley-interpreter",
  "smallvec",
  "target-lexicon",
- "thiserror",
+ "thiserror 1.0.69",
  "wasmparser 0.226.0",
  "wasmtime-environ",
  "wasmtime-versioned-export-macros",
