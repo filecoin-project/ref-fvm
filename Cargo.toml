@@ -20,8 +20,8 @@ multihash = { version = "0.19.2", default-features = false }
 multihash-codetable = { version = "0.1.4", default-features = false }
 multihash-derive = { version = "0.9.1", default-features = false }
 ipld-core = { version = "0.4.1", features = ["serde"] }
-wasmtime = { version = "25.0.2", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
-wasmtime-environ = "25.0.2"
+wasmtime = {version = "31.0.0", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
+wasmtime-environ = "31.0.0"
 
 fvm = { path = "fvm", version = "~3.12.0", default-features = false }
 fvm_shared = { path = "shared", version = "~3.12.0", default-features = false }

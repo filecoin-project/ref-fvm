@@ -33,9 +33,9 @@ pub trait MemoryLimiter: Sized {
 
     /// Grows an instance's table from `from` to `to` elements. There's no need to manually
     /// implement this unless you need to track table metrics.
-    fn grow_instance_table(&mut self, from: u32, to: u32) -> bool {
+    fn grow_instance_table(&mut self, from: usize, to: usize) -> bool {
         // we charge 8 bytes per table element
-        self.grow_memory(to.saturating_sub(from).saturating_mul(8) as usize)
+        self.grow_memory(to.saturating_sub(from).saturating_mul(8))
     }
 }
 

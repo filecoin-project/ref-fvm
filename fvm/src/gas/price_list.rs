@@ -915,7 +915,7 @@ impl PriceList {
     }
 
     /// Returns the gas required for initializing tables.
-    pub fn init_table_gas(&self, min_table_elements: u32) -> Gas {
+    pub fn init_table_gas(&self, min_table_elements: u64) -> Gas {
         self.wasm_rules.memory_fill_base_cost
             + self.wasm_rules.memory_fill_per_byte_cost * min_table_elements * TABLE_ELEMENT_SIZE
     }
