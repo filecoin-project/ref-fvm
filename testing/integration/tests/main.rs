@@ -810,7 +810,58 @@ fn backtraces() {
 }
 
 #[test]
-fn test_oom1() {
+fn test_allocate_max() {
+    // Test the not-OOM condition: just enough memory to not run out of memory.
+    let mut tester = new_tester(
+        NV_FOR_TEST,
+        StateTreeVersion::V5,
+        MemoryBlockstore::default(),
+    )
+    .unwrap();
+
+    let sender: [Account; 1] = tester.create_accounts().unwrap();
+
+    let wasm_bin = OOM_ACTOR_BINARY;
+
+    // Set actor state
+    let actor_state = State::default();
+    let state_cid = tester.set_state(&actor_state).unwrap();
+
+    // Set actor
+    let actor_address = Address::new_id(10000);
+
+    tester
+        .set_actor_from_bin(wasm_bin, state_cid, actor_address, TokenAmount::zero())
+        .unwrap();
+
+    // Instantiate machine
+    tester.instantiate_machine(DummyExterns).unwrap();
+
+    // Send message
+    let message = Message {
+        from: sender[0].1,
+        to: actor_address,
+        gas_limit: i64::MAX as u64,
+        method_num: 4,
+        ..Message::default()
+    };
+
+    let res = tester
+        .executor
+        .unwrap()
+        .execute_message(message, ApplyKind::Explicit, 100)
+        .unwrap();
+
+    assert_eq!(
+        res.msg_receipt.exit_code,
+        ExitCode::OK,
+        "{:?}",
+        res.failure_info
+    );
+}
+
+#[test]
+fn test_allocate_max_plus_a_bit() {
     // Test OOM condition 1: one big chunk.
     let mut tester = new_tester(
         NV_FOR_TEST,
@@ -856,7 +907,7 @@ fn test_oom1() {
 }
 
 #[test]
-fn test_oom2() {
+fn test_allocate_many_and_oom() {
     // Test OOM condition 2: many small chunks
     let mut tester = new_tester(
         NV_FOR_TEST,
