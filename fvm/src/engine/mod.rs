@@ -168,11 +168,7 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // compiled wasm modules.
     c.memory_init_cow(false);
 
-    // wasmtime default: 4GB
-    // TODO: we should likely revert this to 4GiB for performance reasons. This doesn't affect
-    // actual memory used, just virtual address-space.
-    // https://github.com/filecoin-project/ref-fvm/issues/2128
-    c.memory_reservation(instance_memory_maximum_size);
+    // wasmtime default: true
     c.memory_may_move(false);
 
     // Note: Threads are disabled by default.
