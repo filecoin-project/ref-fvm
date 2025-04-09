@@ -82,7 +82,8 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     c.wasm_custom_page_sizes(false);
 
     // wasmtime default: true
-    // We disable this as we always charge for memory regardless and `memory_init_cow` can baloon compiled wasm modules.
+    // We disable this as we always charge for memory regardless and `memory_init_cow` can balloon
+    // compiled wasm modules.
     c.memory_init_cow(false);
 
     // Note: Threads are disabled by default.
@@ -97,6 +98,13 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     c.wasm_relaxed_simd(false);
     c.relaxed_simd_deterministic(true);
 
+    // wasmtime default: false
+    // Supports wide instructions (https://github.com/WebAssembly/wide-arithmetic).
+    // We'd like this, but we'll need to (a) update our gas instrumentation logic to support it and
+    // (b) make sure our build pipeline can take advantage of it. We should probably wait for it to
+    // be enabled by default.
+    c.wasm_wide_arithmetic(false);
+
     // wasmtime default: true
     // We don't support the return_call_* functions.
     c.wasm_tail_call(false);
@@ -104,7 +112,7 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // wasmtime default: true
     c.wasm_multi_memory(false);
 
-    // wasmtime default: false
+    // wasmtime default: true
     c.wasm_memory64(false);
 
     // wasmtime default: true
@@ -182,6 +190,12 @@ pub fn default_wasmtime_config() -> wasmtime::Config {
     // Note: Component model is disabled by default.
     // If we add the "wasmtime/component-model" feature in the future,
     // we would explicitly set c.wasm_component_model(false) here.
+
+    // wasmtime default: true
+    // TODO: Consider disabling this to make performance more deterministic. But we benchmarked with
+    // it on, so we leave it on for now.
+    // https://github.com/filecoin-project/ref-fvm/issues/2129
+    // c.table_lazy_init(false);
 
     c
 }
