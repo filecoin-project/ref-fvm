@@ -8,27 +8,27 @@ repository.workspace = true
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 
 [dependencies]
-blake2b_simd = "1.0.0"
-thiserror = "1.0"
+blake2b_simd = "1.0.3"
+thiserror = "2.0"
 num-traits = "0.2"
 num-derive = "0.4"
 num-bigint = "0.4"
 num-integer = "0.1"
-data-encoding = "2.3.2"
-data-encoding-macro = "0.1.12"
-lazy_static = "1.4.0"
-log = "0.4.8"
+data-encoding = "2.8.0"
+data-encoding-macro = "0.1.17"
+lazy_static = "1.5.0"
+log = "0.4.27"
 cid = { workspace = true, features = ["serde-codec", "std"] }
 multihash = { workspace = true }
 unsigned-varint = "0.8.0"
-anyhow = "1.0.51"
+anyhow = "1.0.97"
 fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 serde = { version = "1", default-features = false }
 serde_tuple = "0.5"
 serde_repr = "0.1"
 serde_bytes = { package = "cs_serde_bytes", version = "0.12" }
-arbitrary = { version = "1.1", optional = true, features = ["derive"]}
+arbitrary = { version = "1.4", optional = true, features = ["derive"]}
 
 ## non-wasm dependencies; these dependencies and the respective code is
 ## only activated through non-default features, which the Kernel enables, but
@@ -36,12 +36,12 @@ arbitrary = { version = "1.1", optional = true, features = ["derive"]}
 filecoin-proofs-api = { version = "18", default-features = false, optional = true }
 k256 = { version = "0.13.4", features = ["ecdsa"], default-features = false, optional = true }
 bls-signatures = { version = "0.15", default-features = false, optional = true }
-byteorder = "1.4.3"
+byteorder = "1.5.0"
 
 [dev-dependencies]
-rand = "0.8"
-rand_chacha = "0.3"
-serde_json = "1.0.56"
+rand = "0.8.5"
+rand_chacha = "0.3.1"
+serde_json = "1.0.140"
 multihash = { workspace = true }
 multihash-codetable = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
 

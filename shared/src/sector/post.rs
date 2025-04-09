@@ -3,7 +3,6 @@
 
 use cid::Cid;
 use fvm_ipld_encoding::Cbor;
-use serde_tuple::*;
 
 use super::*;
 use crate::randomness::Randomness;
