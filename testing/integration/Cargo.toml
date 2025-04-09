@@ -25,7 +25,6 @@ k256 = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 serde = { workspace = true }
-serde_tuple = { workspace = true }
 thiserror = { workspace = true }
 ambassador = { workspace = true }
 wasmtime = { workspace = true, default-features = false, features = ["cranelift", "parallel-compilation"] }

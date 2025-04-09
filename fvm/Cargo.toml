@@ -26,7 +26,6 @@ fvm_ipld_encoding = { workspace = true }
 wasmtime = { workspace = true }
 wasmtime-environ = { workspace = true }
 serde = { workspace = true }
-serde_tuple = { workspace = true }
 lazy_static = { workspace = true }
 log = { workspace = true }
 arbitrary = { workspace = true, optional = true, features = ["derive"] }

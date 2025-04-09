@@ -17,7 +17,6 @@ unsigned-varint = { workspace = true }
 anyhow = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 serde = { workspace = true, default-features = false }
-serde_tuple = { workspace = true }
 arbitrary = { workspace = true, optional = true, features = ["derive"] }
 quickcheck = { workspace = true, optional = true }
 

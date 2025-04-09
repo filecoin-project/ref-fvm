@@ -30,14 +30,22 @@ pub const IPLD_RAW: u64 = 0x55;
 
 pub type Multihash = cid::multihash::Multihash<64>;
 
-// TODO: these really don't work all that well in a shared context like this as anyone importing
-// them also need to _explicitly_ import the serde_tuple & serde_repr crates. These are _macros_,
-// not normal items.
-
+/// Re-export of `serde_tuple`. If you import this, you must make sure to import
+/// `tuple::serde_tuple` or the derive macros won't work properly. You should generally import as:
+///
+/// ```rust
+/// use fvm_ipld_encoding::tuple::*
+/// ```
 pub mod tuple {
     pub use serde_tuple::{self, Deserialize_tuple, Serialize_tuple};
 }
 
+/// Re-export of `serde_repr`. If you import this, you must make sure to import `repr::serde_repr`
+/// or the derive macros won't work properly. You should generally import as:
+///
+/// ```rust
+/// use fvm_ipld_encoding::repr::*
+/// ```
 pub mod repr {
     pub use serde_repr::{Deserialize_repr, Serialize_repr};
 }
