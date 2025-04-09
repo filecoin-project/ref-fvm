@@ -480,10 +480,8 @@ where
 
         t.record(
             signature::ops::recover_secp_public_key(hash, signature)
-                .map(|pubkey| pubkey.serialize())
-                .map_err(|e| {
-                    syscall_error!(IllegalArgument; "public key recovery failed: {}", e).into()
-                }),
+                .or_illegal_argument()
+                .context("public key recovery failed"),
         )
     }
 
