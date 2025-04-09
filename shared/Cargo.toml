@@ -31,7 +31,7 @@ bitflags = { version = "2.3.3", features = ["serde"] }
 ## only activated through non-default features, which the Kernel enables, but
 ## not the actors.
 filecoin-proofs-api = { version = "18", default-features = false, optional = true }
-libsecp256k1 = { workspace = true, optional = true }
+k256 = { workspace = true, optional = true }
 bls-signatures = { workspace = true, default-features = false, optional = true }
 
 [dev-dependencies]
@@ -46,9 +46,9 @@ rusty-fork = { version = "0.3.0", default-features = false }
 
 [features]
 default = []
-crypto = ["libsecp256k1", "blst", "proofs"]
+crypto = ["secp256k1", "blst", "proofs"]
 proofs = ["filecoin-proofs-api"]
-secp256k1 = ["libsecp256k1"]
+secp256k1 = ["k256"]
 blst = ["bls-signatures/blst"]
 testing = []
 arb = ["arbitrary", "dep:quickcheck", "num-bigint/quickcheck", "cid/arb"]

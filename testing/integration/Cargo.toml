@@ -21,7 +21,7 @@ futures = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
 num-traits = { workspace = true }
 lazy_static = { workspace = true }
-libsecp256k1 = { workspace = true }
+k256 = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 serde = { workspace = true }

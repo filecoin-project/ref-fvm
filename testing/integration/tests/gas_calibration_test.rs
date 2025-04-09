@@ -298,7 +298,7 @@ fn on_recover_secp_public_key() {
     let mut data = vec![0u8; 100];
     rng.fill_bytes(&mut data);
 
-    let sk = libsecp256k1::SecretKey::random(&mut rng);
+    let sk = k256::ecdsa::SigningKey::random(&mut rng);
     let sig = secp_sign(&sk, &data);
 
     for size in sizes.iter() {
@@ -404,9 +404,9 @@ fn on_verify_signature() {
 
         let (signer, signature) = match sig_type {
             SignatureType::Secp256k1 => {
-                let sk = libsecp256k1::SecretKey::random(&mut rng);
-                let pk = libsecp256k1::PublicKey::from_secret_key(&sk);
-                let addr = Address::new_secp256k1(&pk.serialize()).unwrap();
+                let sk = k256::ecdsa::SigningKey::random(&mut rng);
+                let pk = sk.verifying_key();
+                let addr = Address::new_secp256k1(pk.to_encoded_point(false).as_bytes()).unwrap();
                 let sig = secp_sign(&sk, &data).into();
                 (addr, sig)
             }

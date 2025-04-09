@@ -16,8 +16,9 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IPLD_RAW};
+use k256::elliptic_curve::sec1::ToEncodedPoint;
+use k256::SecretKey;
 use lazy_static::lazy_static;
-use libsecp256k1::{PublicKey, SecretKey};
 use multihash_codetable::Code;
 
 use crate::builtin::{
@@ -322,8 +323,8 @@ where
         priv_key: SecretKey,
         init_balance: TokenAmount,
     ) -> Result<Account> {
-        let pub_key = PublicKey::from_secret_key(&priv_key);
-        let pub_key_addr = Address::new_secp256k1(&pub_key.serialize())?;
+        let pub_key = priv_key.public_key();
+        let pub_key_addr = Address::new_secp256k1(pub_key.to_encoded_point(false).as_bytes())?;
 
         let state_tree = self
             .state_tree
