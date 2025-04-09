@@ -10,5 +10,5 @@ fvm_shared = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 anyhow = { workspace = true }
 hex = { workspace = true }
-clap = { version = "4.3.9", features = ["derive", "std", "help", "usage", "error-context"], default-features = false }
-env_logger = "0.11.5"
+clap = { version = "4.5.35", features = ["derive", "std", "help", "usage", "error-context"], default-features = false }
+env_logger = "0.11.8"

@@ -23,9 +23,9 @@ quickcheck = { workspace = true, optional = true }
 
 num-bigint = "0.4"
 num-integer = "0.1"
-data-encoding = "2.4.0"
-data-encoding-macro = "0.1.13"
-bitflags = { version = "2.3.3", features = ["serde"] }
+data-encoding = "2.8.0"
+data-encoding-macro = "0.1.17"
+bitflags = { version = "2.9.0", features = ["serde"] }
 
 ## non-wasm dependencies; these dependencies and the respective code is
 ## only activated through non-default features, which the Kernel enables, but

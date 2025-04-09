@@ -19,4 +19,4 @@ fvm_ipld_encoding = { workspace = true }
 futures = { workspace = true }
 
 [dev-dependencies]
-async-std = { version = "1.12", features = ["attributes"] }
+async-std = { version = "1.13", features = ["attributes"] }
