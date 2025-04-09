@@ -46,8 +46,8 @@ pub struct TestData {
 pub struct TestStats {
     pub min_instance_memory_bytes: usize,
     pub max_instance_memory_bytes: usize,
-    pub max_table_elements: u32,
-    pub min_table_elements: u32,
+    pub max_table_elements: usize,
+    pub min_table_elements: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -646,7 +646,7 @@ where
         self.inner.grow_instance_memory(from, to)
     }
 
-    fn grow_instance_table(&mut self, from: u32, to: u32) -> bool {
+    fn grow_instance_table(&mut self, from: usize, to: usize) -> bool {
         if self.local_stats.max_table_elements < to {
             self.local_stats.max_table_elements = to;
         }
