@@ -1,13 +1,13 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::ipld_block::IpldBlock;
-use fvm_ipld_encoding::{to_vec, CBOR};
+use fvm_ipld_encoding::{to_vec, tuple::*, CBOR};
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::upgrade::UpgradeInfo;
-use serde_tuple::*;
+
 #[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
 struct SomeStruct {
     value: u64,

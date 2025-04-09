@@ -1934,7 +1934,6 @@ dependencies = [
  "fvm_shared 4.6.0",
  "num-traits",
  "serde",
- "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -1945,7 +1944,6 @@ dependencies = [
  "fvm_sdk 4.6.0",
  "fvm_shared 4.6.0",
  "serde",
- "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -1982,7 +1980,6 @@ dependencies = [
  "fvm_shared 4.6.0",
  "log",
  "serde",
- "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -2005,7 +2002,6 @@ dependencies = [
  "fvm_shared 4.6.0",
  "multihash-codetable",
  "serde",
- "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -2082,7 +2078,6 @@ dependencies = [
  "fvm_sdk 4.6.0",
  "fvm_shared 4.6.0",
  "serde",
- "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -2094,7 +2089,6 @@ dependencies = [
  "fvm_sdk 4.6.0",
  "fvm_shared 4.6.0",
  "serde",
- "serde_tuple 1.1.0",
 ]
 
 [[package]]
@@ -2299,7 +2293,7 @@ dependencies = [
  "multihash-codetable",
  "num-traits",
  "serde",
- "serde_tuple 0.5.0",
+ "serde_tuple",
  "thiserror 1.0.69",
 ]
 
@@ -2451,7 +2445,6 @@ dependencies = [
  "rayon",
  "replace_with",
  "serde",
- "serde_tuple 1.1.0",
  "static_assertions",
  "thiserror 2.0.12",
  "wasmtime",
@@ -2501,7 +2494,7 @@ dependencies = [
  "multihash-codetable",
  "num-traits",
  "serde",
- "serde_tuple 0.5.0",
+ "serde_tuple",
  "thiserror 1.0.69",
 ]
 
@@ -2580,7 +2573,6 @@ dependencies = [
  "rand_chacha",
  "serde",
  "serde_json",
- "serde_tuple 1.1.0",
  "thiserror 2.0.12",
  "wasmtime",
  "wat",
@@ -2714,7 +2706,7 @@ dependencies = [
  "serde_ipld_dagcbor",
  "serde_json",
  "serde_repr",
- "serde_tuple 1.1.0",
+ "serde_tuple",
  "thiserror 2.0.12",
 ]
 
@@ -2731,7 +2723,7 @@ dependencies = [
  "serde",
  "serde_ipld_dagcbor",
  "serde_repr",
- "serde_tuple 0.5.0",
+ "serde_tuple",
  "thiserror 1.0.69",
 ]
 
@@ -2874,7 +2866,6 @@ dependencies = [
  "rusty-fork",
  "serde",
  "serde_json",
- "serde_tuple 1.1.0",
  "thiserror 2.0.12",
  "unsigned-varint",
 ]
@@ -2898,7 +2889,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "serde",
- "serde_tuple 0.5.0",
+ "serde_tuple",
  "thiserror 1.0.69",
  "unsigned-varint",
 ]
@@ -4555,17 +4546,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4f025b91216f15a2a32aa39669329a475733590a015835d1783549a56d09427"
 dependencies = [
  "serde",
- "serde_tuple_macros 0.5.0",
-]
-
-[[package]]
-name = "serde_tuple"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0f9b739e59a0e07b7a73bc11c3dcd6abf790d0f54042b67a422d4bd1f6cf6c0"
-dependencies = [
- "serde",
- "serde_tuple_macros 1.0.1",
+ "serde_tuple_macros",
 ]
 
 [[package]]
@@ -4573,17 +4554,6 @@ name = "serde_tuple_macros"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4076151d1a2b688e25aaf236997933c66e18b870d0369f8b248b8ab2be630d7e"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "serde_tuple_macros"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e87546e85c5047d03b454d12ee25266fc269a461a4029956ca58d246b9aefae"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -1,13 +1,12 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use fvm_ipld_encoding::IPLD_RAW;
+use fvm_ipld_encoding::{tuple::*, IPLD_RAW};
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::event::{Entry, Flags};
-use serde_tuple::*;
 
 #[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
 struct Params {
