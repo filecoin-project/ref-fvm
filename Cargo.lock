@@ -1692,7 +1692,7 @@ dependencies = [
 
 [[package]]
 name = "fvm"
-version = "3.12.0"
+version = "3.13.0"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -1860,7 +1860,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_sdk"
-version = "3.12.0"
+version = "3.13.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding",
@@ -1873,7 +1873,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_shared"
-version = "3.12.0"
+version = "3.13.0"
 dependencies = [
  "anyhow",
  "arbitrary",
