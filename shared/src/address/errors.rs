@@ -20,11 +20,11 @@ pub enum Error {
     InvalidPayload,
     #[error("Invalid address length")]
     InvalidLength,
-    #[error("Invalid payload length, wanted: {} got: {0}", PAYLOAD_HASH_LEN)]
+    #[error("Invalid payload length, wanted: {exp} got: {0}", exp=PAYLOAD_HASH_LEN)]
     InvalidPayloadLength(usize),
-    #[error("Invalid BLS pub key length, wanted: {} got: {0}", BLS_PUB_LEN)]
+    #[error("Invalid BLS pub key length, wanted: {exp} got: {0}", exp=BLS_PUB_LEN)]
     InvalidBLSLength(usize),
-    #[error("Invalid SECP pub key length, wanted: {} got: {0}", SECP_PUB_LEN)]
+    #[error("Invalid SECP pub key length, wanted: {exp} got: {0}", exp=SECP_PUB_LEN)]
     InvalidSECPLength(usize),
     #[error("Invalid address checksum")]
     InvalidChecksum,

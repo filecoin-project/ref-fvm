@@ -12,11 +12,11 @@ keywords = ["filecoin", "web3", "wasm"]
 crate-type = ["lib"]
 
 [dependencies]
-anyhow = { version = "1.0.47", features = ["backtrace"] }
-thiserror = "1.0.30"
+anyhow = { version = "1.0.97", features = ["backtrace"] }
+thiserror = "2.0.12"
 num-traits = "0.2"
-derive_builder = "0.20.1"
-num-derive = "0.4.0"
+derive_builder = "0.20.2"
+num-derive = "0.4.2"
 cid = { workspace = true, features = ["serde-codec"] }
 multihash-codetable = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
 multihash-derive = { workspace = true }
@@ -28,24 +28,24 @@ fvm_ipld_encoding = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "0.5"
 serde_repr = "0.1"
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
 derive-getters = "0.5.0"
-derive_more = { version = "1.0.0", features = ["full"] }
+derive_more = { version = "2.0.1", features = ["full"] }
 replace_with = "0.1.7"
 filecoin-proofs-api = { version = "18", default-features = false }
 rayon = "1"
-num_cpus = "1.13.0"
-log = "0.4.14"
-byteorder = "1.4.3"
-blake2b_simd = "1.0.0"
+num_cpus = "1.16.0"
+log = "0.4.27"
+byteorder = "1.5.0"
+blake2b_simd = "1.0.3"
 fvm-wasm-instrument = { version = "0.2.0", features = ["bulk"] }
 yastl = "0.1.2"
-arbitrary = {version = "1.1.0", optional = true, features = ["derive"]}
+arbitrary = {version = "1.4.1", optional = true, features = ["derive"]}
 rand = "0.8.5"
 wasmtime = { workspace = true }
 
 [dev-dependencies]
-pretty_assertions = "1.2.1"
+pretty_assertions = "1.4.1"
 fvm = { path = ".", features = ["testing"], default-features = false }
 
 [features]
