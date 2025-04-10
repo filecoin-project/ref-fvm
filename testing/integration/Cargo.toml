@@ -17,7 +17,6 @@ fvm_sdk = { workspace = true }
 
 anyhow = { workspace = true }
 cid = { workspace = true }
-futures = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
 num-traits = { workspace = true }
 lazy_static = { workspace = true }

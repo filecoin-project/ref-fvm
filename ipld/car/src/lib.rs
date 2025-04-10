@@ -2,16 +2,20 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+mod block;
 mod error;
 mod util;
 
+use std::io;
+
 use cid::Cid;
-pub use error::*;
-use futures::{AsyncRead, AsyncWrite, Stream, StreamExt};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{from_slice, to_vec};
+use fvm_ipld_encoding::from_slice;
 use serde::{Deserialize, Serialize};
 use util::{ld_read, ld_write, read_node};
+
+pub use block::Block;
+pub use error::Error;
 
 /// CAR file header
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -25,26 +29,48 @@ impl CarHeader {
     pub fn new(roots: Vec<Cid>, version: u64) -> Self {
         Self { roots, version }
     }
+}
 
-    /// Writes header and stream of data to writer in Car format.
-    pub async fn write_stream_async<W, S>(
-        &self,
-        writer: &mut W,
-        stream: &mut S,
-    ) -> Result<(), Error>
-    where
-        W: AsyncWrite + Send + Unpin,
-        S: Stream<Item = (Cid, Vec<u8>)> + Unpin,
-    {
-        // Write header bytes
-        let header_bytes = to_vec(self)?;
-        ld_write(writer, &header_bytes).await?;
+/// A car writer.
+pub struct CarWriter<W> {
+    // We keep a temp buffer here to avoid having to allocate a buffer for every block written.
+    buffer: Vec<u8>,
+    writer: W,
+}
 
-        // Write all key values from the stream
-        while let Some((cid, bytes)) = stream.next().await {
-            ld_write(writer, &[cid.to_bytes(), bytes].concat()).await?;
-        }
+impl<W> CarWriter<W>
+where
+    W: io::Write,
+{
+    /// Create a new CarWriter, starting by writing the car header.
+    pub fn new(header: CarHeader, writer: W) -> Result<CarWriter<W>, Error> {
+        let mut w = Self {
+            buffer: Vec::new(),
+            writer,
+        };
 
+        fvm_ipld_encoding::to_writer(&mut w.buffer, &header)?;
+        ld_write(&mut w.writer, &w.buffer)?;
+        Ok(w)
+    }
+
+    /// Writes a block to the car.
+    pub fn write(&mut self, block: Block) -> Result<(), Error> {
+        // We always clear the buffer before writing, not after, just in case we error out
+        // somewhere. It doesn't really matter much, it mostly makes the code easier to reason
+        // about and it doesn't make a performance difference (we keep the memory anyways).
+        self.buffer.clear();
+
+        block.cid.write_bytes(&mut self.buffer)?;
+        self.buffer.extend_from_slice(&block.data);
+        ld_write(&mut self.writer, &self.buffer)?;
+
+        Ok(())
+    }
+
+    /// Flush the underlying writer.
+    pub fn flush(&mut self) -> Result<(), Error> {
+        self.writer.flush()?;
         Ok(())
     }
 }
@@ -64,12 +90,11 @@ pub struct CarReader<R> {
 
 impl<R> CarReader<R>
 where
-    R: AsyncRead + Send + Unpin,
+    R: io::Read,
 {
     /// Creates a new CarReader and parses the Car
-    pub async fn new(mut reader: R) -> Result<Self, Error> {
-        let buf = ld_read(&mut reader)
-            .await?
+    pub fn new(mut reader: R) -> Result<Self, Error> {
+        let buf = ld_read(&mut reader)?
             .ok_or_else(|| Error::ParsingError("failed to parse uvarint for header".to_string()))?;
         let header: CarHeader = from_slice(&buf).map_err(|e| Error::ParsingError(e.to_string()))?;
         if header.roots.is_empty() {
@@ -86,100 +111,68 @@ where
     }
 
     /// Creates a new CarReader that parses the Car, but doesn't validate the inner CIDs.
-    pub async fn new_unchecked(reader: R) -> Result<Self, Error> {
-        let mut reader = Self::new(reader).await?;
+    pub fn new_unchecked(reader: R) -> Result<Self, Error> {
+        let mut reader = Self::new(reader)?;
         reader.validate = false;
         Ok(reader)
     }
 
-    /// Returns the next IPLD Block in the buffer
-    pub async fn next_block(&mut self) -> Result<Option<Block>, Error> {
-        use multihash_codetable::{Code, MultihashDigest};
-        // Read node -> cid, bytes
-        if let Some((cid, data)) = read_node(&mut self.reader).await? {
-            if self.validate {
-                match cid.hash().code() {
-                    0x0 => {
-                        if cid.hash().digest() != data {
-                            return Err(Error::InvalidFile(
-                                "CAR has an identity CID that doesn't match the corresponding data"
-                                    .into(),
-                            ));
-                        }
-                    }
-                    code => {
-                        let code = Code::try_from(code)?;
-                        let actual = Cid::new_v1(cid.codec(), code.digest(&data));
-                        if actual != cid {
-                            return Err(Error::InvalidFile(format!(
-                                "CAR has an incorrect CID: expected {}, found {}",
-                                cid, actual,
-                            )));
-                        }
-                    }
-                }
-            }
-            Ok(Some(Block { cid, data }))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Loads the CAR file into the given blockstore
-    pub async fn read_into<B: Blockstore>(mut self, s: &B) -> Result<Vec<Cid>, Error> {
-        // Batch write key value pairs from car file
-        // TODO: Stream the data once some of the stream APIs stabilize.
+    /// Loads the CAR file into the given blockstore, returning the roots.
+    pub fn read_into(mut self, s: &impl Blockstore) -> Result<Vec<Cid>, Error> {
         let mut buf = Vec::with_capacity(100);
-        while let Some(block) = self.next_block().await? {
-            buf.push((block.cid, block.data));
+        for block in &mut self {
+            buf.push(block?.into());
             if buf.len() > 1000 {
-                s.put_many_keyed(buf.iter().map(|(k, v)| (*k, v)))
+                s.put_many_keyed(buf.drain(..))
                     .map_err(|e| Error::Other(e.to_string()))?;
-                buf.clear();
             }
         }
-        s.put_many_keyed(buf.iter().map(|(k, v)| (*k, v)))
+        s.put_many_keyed(buf)
             .map_err(|e| Error::Other(e.to_string()))?;
         Ok(self.header.roots)
     }
 }
 
-/// IPLD Block
-#[derive(Clone, Debug)]
-pub struct Block {
-    pub cid: Cid,
-    pub data: Vec<u8>,
+impl<R> Iterator for CarReader<R>
+where
+    R: io::Read,
+{
+    type Item = Result<Block, Error>;
+
+    /// Returns the next IPLD Block in the buffer
+    fn next(&mut self) -> Option<Result<Block, Error>> {
+        // Read node -> cid, bytes
+        match read_node(&mut self.reader) {
+            Ok(Some(block)) => {
+                if self.validate {
+                    if let Err(e) = block.validate() {
+                        return Some(Err(e));
+                    }
+                }
+                Some(Ok(block))
+            }
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
+        }
+    }
 }
 
 /// Loads a CAR buffer into a Blockstore
-pub async fn load_car<R, B>(s: &B, reader: R) -> Result<Vec<Cid>, Error>
-where
-    B: Blockstore,
-    R: AsyncRead + Send + Unpin,
-{
-    let car_reader = CarReader::new(reader).await?;
-    car_reader.read_into(s).await
+pub fn load_car(s: &impl Blockstore, reader: impl io::Read) -> Result<Vec<Cid>, Error> {
+    let car_reader = CarReader::new(reader)?;
+    car_reader.read_into(s)
 }
 
 /// Loads a CAR buffer into a Blockstore without checking the CIDs.
-pub async fn load_car_unchecked<R, B>(s: &B, reader: R) -> Result<Vec<Cid>, Error>
-where
-    B: Blockstore,
-    R: AsyncRead + Send + Unpin,
-{
-    let car_reader = CarReader::new_unchecked(reader).await?;
-    car_reader.read_into(s).await
+pub fn load_car_unchecked(s: &impl Blockstore, reader: impl io::Read) -> Result<Vec<Cid>, Error> {
+    let car_reader = CarReader::new_unchecked(reader)?;
+    car_reader.read_into(s)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use async_std::channel::bounded;
-    use async_std::io::Cursor;
-    use async_std::sync::RwLock;
     use fvm_ipld_blockstore::MemoryBlockstore;
-    use fvm_ipld_encoding::DAG_CBOR;
+    use fvm_ipld_encoding::{to_vec, DAG_CBOR};
     use multihash_codetable::{Code::Blake2b256, MultihashDigest};
 
     use super::*;
@@ -197,9 +190,8 @@ mod tests {
         assert_eq!(from_slice::<CarHeader>(&bytes).unwrap(), header);
     }
 
-    #[async_std::test]
-    async fn car_write_read() {
-        let buffer: Arc<RwLock<Vec<u8>>> = Default::default();
+    #[test]
+    fn car_write_read() {
         let cid = Cid::new_v1(DAG_CBOR, Blake2b256.digest(b"test"));
         let header = CarHeader {
             roots: vec![cid],
@@ -207,25 +199,19 @@ mod tests {
         };
         assert_eq!(to_vec(&header).unwrap().len(), 60);
 
-        let (tx, mut rx) = bounded(10);
+        let mut buffer = Vec::new();
+        let mut writer = CarWriter::new(header, &mut buffer).unwrap();
+        writer
+            .write(Block {
+                cid,
+                data: b"test".to_vec(),
+            })
+            .unwrap();
+        writer.flush().unwrap();
 
-        let buffer_cloned = buffer.clone();
-        let write_task = async_std::task::spawn(async move {
-            header
-                .write_stream_async(&mut *buffer_cloned.write().await, &mut rx)
-                .await
-                .unwrap()
-        });
-
-        tx.send((cid, b"test".to_vec())).await.unwrap();
-        drop(tx);
-        write_task.await;
-
-        let buffer: Vec<_> = buffer.read().await.clone();
-        let reader = Cursor::new(&buffer);
-
+        let mut reader = io::Cursor::new(buffer);
         let bs = MemoryBlockstore::default();
-        load_car(&bs, reader).await.unwrap();
+        load_car(&bs, &mut reader).unwrap();
 
         assert_eq!(bs.get(&cid).unwrap(), Some(b"test".to_vec()));
     }
