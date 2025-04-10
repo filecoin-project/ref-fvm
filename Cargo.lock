@@ -751,7 +751,7 @@ dependencies = [
  "cid",
  "fvm_ipld_bitfield 0.7.2",
  "fvm_ipld_encoding 0.5.3",
- "fvm_shared 4.6.0",
+ "fvm_shared 4.7.0",
  "libfuzzer-sys",
  "rand",
  "serde",
@@ -1883,8 +1883,8 @@ name = "fil_address_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
 ]
 
 [[package]]
@@ -1920,8 +1920,8 @@ name = "fil_create_actor"
 version = "0.1.0"
 dependencies = [
  "fil_actors_runtime",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
 ]
 
 [[package]]
@@ -1930,8 +1930,8 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
  "num-traits",
  "serde",
 ]
@@ -1941,8 +1941,8 @@ name = "fil_events_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
  "serde",
 ]
 
@@ -1951,8 +1951,8 @@ name = "fil_exit_data_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
 ]
 
 [[package]]
@@ -1963,8 +1963,8 @@ dependencies = [
  "cid",
  "fvm_gas_calibration_shared",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
  "ipld-core",
  "num-derive",
  "num-traits",
@@ -1976,8 +1976,8 @@ name = "fil_gaslimit_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
  "log",
  "serde",
 ]
@@ -1986,8 +1986,8 @@ dependencies = [
 name = "fil_hello_world_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
 ]
 
 [[package]]
@@ -1998,8 +1998,8 @@ dependencies = [
  "cid",
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
  "multihash-codetable",
  "serde",
 ]
@@ -2009,24 +2009,24 @@ name = "fil_ipld_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
 ]
 
 [[package]]
 name = "fil_malformed_syscall_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
 ]
 
 [[package]]
 name = "fil_oom_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
 ]
 
 [[package]]
@@ -2035,8 +2035,8 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
 ]
 
 [[package]]
@@ -2045,16 +2045,16 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
 ]
 
 [[package]]
 name = "fil_stack_overflow_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
 ]
 
 [[package]]
@@ -2063,8 +2063,8 @@ version = "0.1.0"
 dependencies = [
  "fil_actors_runtime",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
  "multihash-codetable",
  "multihash-derive",
 ]
@@ -2075,8 +2075,8 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
  "serde",
 ]
 
@@ -2086,8 +2086,8 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
  "serde",
 ]
 
@@ -2417,7 +2417,7 @@ dependencies = [
 
 [[package]]
 name = "fvm"
-version = "4.6.0"
+version = "4.7.0"
 dependencies = [
  "ambassador",
  "anyhow",
@@ -2432,7 +2432,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_encoding 0.5.3",
  "fvm_ipld_hamt 0.10.4",
- "fvm_shared 4.6.0",
+ "fvm_shared 4.7.0",
  "lazy_static",
  "log",
  "minstant",
@@ -2462,7 +2462,7 @@ dependencies = [
  "fvm",
  "fvm_integration_tests",
  "fvm_ipld_encoding 0.5.3",
- "fvm_shared 4.6.0",
+ "fvm_shared 4.7.0",
  "hex",
 ]
 
@@ -2516,7 +2516,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_car 0.8.2",
  "fvm_ipld_encoding 0.5.3",
- "fvm_shared 4.6.0",
+ "fvm_shared 4.7.0",
  "ipld-core",
  "itertools 0.14.0",
  "ittapi-rs",
@@ -2536,7 +2536,7 @@ dependencies = [
 name = "fvm_gas_calibration_shared"
 version = "0.1.0"
 dependencies = [
- "fvm_shared 4.6.0",
+ "fvm_shared 4.7.0",
  "num-derive",
  "num-traits",
  "serde",
@@ -2545,7 +2545,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_integration_tests"
-version = "4.6.0"
+version = "4.7.0"
 dependencies = [
  "ambassador",
  "anyhow",
@@ -2560,8 +2560,8 @@ dependencies = [
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_car 0.8.2",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.6.0",
- "fvm_shared 4.6.0",
+ "fvm_sdk 4.7.0",
+ "fvm_shared 4.7.0",
  "fvm_test_actors",
  "hex",
  "k256",
@@ -2811,19 +2811,6 @@ dependencies = [
 
 [[package]]
 name = "fvm_sdk"
-version = "4.6.0"
-dependencies = [
- "cid",
- "fvm_ipld_encoding 0.5.3",
- "fvm_shared 4.6.0",
- "lazy_static",
- "log",
- "num-traits",
- "thiserror 2.0.12",
-]
-
-[[package]]
-name = "fvm_sdk"
 version = "4.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "101c26fb5addd979d7c88d5e955781725601123d60f0b00eb22daa0b96f42ccf"
@@ -2838,36 +2825,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "fvm_shared"
-version = "4.6.0"
+name = "fvm_sdk"
+version = "4.7.0"
 dependencies = [
- "anyhow",
- "arbitrary",
- "bitflags 2.9.0",
- "blake2b_simd",
- "bls-signatures",
  "cid",
- "coverage-helper",
- "data-encoding",
- "data-encoding-macro",
- "filecoin-proofs-api",
  "fvm_ipld_encoding 0.5.3",
- "fvm_shared 4.6.0",
- "k256",
- "multihash-codetable",
- "num-bigint",
- "num-derive",
- "num-integer",
+ "fvm_shared 4.7.0",
+ "lazy_static",
+ "log",
  "num-traits",
- "quickcheck",
- "quickcheck_macros",
- "rand",
- "rand_chacha",
- "rusty-fork",
- "serde",
- "serde_json",
  "thiserror 2.0.12",
- "unsigned-varint",
 ]
 
 [[package]]
@@ -2891,6 +2858,39 @@ dependencies = [
  "serde",
  "serde_tuple",
  "thiserror 1.0.69",
+ "unsigned-varint",
+]
+
+[[package]]
+name = "fvm_shared"
+version = "4.7.0"
+dependencies = [
+ "anyhow",
+ "arbitrary",
+ "bitflags 2.9.0",
+ "blake2b_simd",
+ "bls-signatures",
+ "cid",
+ "coverage-helper",
+ "data-encoding",
+ "data-encoding-macro",
+ "filecoin-proofs-api",
+ "fvm_ipld_encoding 0.5.3",
+ "fvm_shared 4.7.0",
+ "k256",
+ "multihash-codetable",
+ "num-bigint",
+ "num-derive",
+ "num-integer",
+ "num-traits",
+ "quickcheck",
+ "quickcheck_macros",
+ "rand",
+ "rand_chacha",
+ "rusty-fork",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
  "unsigned-varint",
 ]
 

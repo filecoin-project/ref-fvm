@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 4.7.0 [2025-04-09]
+
+- Update dependencies [#2136](https://github.com/filecoin-project/ref-fvm/pull/2136), [#2145](https://github.com/filecoin-project/ref-fvm/pull/2145), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146)
+- Update to Rust 1.86.0
+
 ## 4.6.0 [2025-03-14]
 
 - feat: add Tock / nv26 and nv27 TBD [#2107](https://github.com/filecoin-project/ref-fvm/pull/2107)
