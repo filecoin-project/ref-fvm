@@ -2,7 +2,21 @@
 
 ## [Unreleased]
 
-- Rename `window_post_partitions_sectors` on both the `RegisteredPoStProof` and `RegisteredSealProof` types to `window_post_partition_sectors` to match the builtin actors (from @zhinqiangxu). This is a small breaking change.
+## 4.7.0 [2025-04-09]
+
+- Swap libsecp256k1 for k256 [#2135](https://github.com/filecoin-project/ref-fvm/pull/2135)
+  - `signature::ops::recover_secp_public_key` now returns a fixed length byte array
+- Update other dependencies [#2136](https://github.com/filecoin-project/ref-fvm/pull/2136), [#2145](https://github.com/filecoin-project/ref-fvm/pull/2145), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146)
+- Update to Rust 1.86.0 [#2121](https://github.com/filecoin-project/ref-fvm/pull/2121)
+- Remove code that is not relevant to the FVM [#1986](https://github.com/filecoin-project/ref-fvm/pull/1986)
+    - `BLOCK_GAS_LIMIT`: Neither the FVM nor the builtin actors care about the block gas limit. And if they did, it would have to be a runtime parameter passed from the client.
+    - `EPOCH_DURATION_SECONDS`: Different networks may have different block times, this constant is useless.
+    - `math`, `reward`, `smooth`: part of the reward actor calculations, not relevant to the FVM itself (moved to the builtin actors).
+    - `TOTAL_FILECOIN`, `TOTAL_FILECOIN_BASE`: Network parameter, not a concern of the FVM.
+    - `BLOCKS_PER_EPOCH`: protocol parameter, moved to the builtin actors.
+    - `MAX_SECTOR_NUMBER`: moved to the builtin actors.
+    - `Spacetime`, `SectorQuality`: moved to the builtin actors.
+    - `ZERO_ADDRESS`, `*_LOOKBACK`, `ALLOWABLE_CLOCK_DRIFT`, `NetworkParams`, `DefaultNetworkParams`: unused.
 
 ## 4.6.0 [2025-03-14]
 

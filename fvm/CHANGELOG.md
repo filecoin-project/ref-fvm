@@ -4,6 +4,21 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.7.0 [2025-04-09]
+
+_This is not a required upgrade for the Teep or Tock network versions._
+
+- Update wasmtime to v31.0.0 [#2130](https://github.com/filecoin-project/ref-fvm/pull/2130)
+- Swap libsecp256k1 for k256 [#2135](https://github.com/filecoin-project/ref-fvm/pull/2135)
+- Update other dependencies [#2136](https://github.com/filecoin-project/ref-fvm/pull/2136), [#2145](https://github.com/filecoin-project/ref-fvm/pull/2145), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146)
+- Update to Rust 1.86.0 [#2121](https://github.com/filecoin-project/ref-fvm/pull/2121)
+- Add `Ipld` to `ExecutionEvent` enum to record Get and Put operations during execution [#2113](https://github.com/filecoin-project/ref-fvm/pull/2113)
+- Add `flush_all_blocks` boolean to `MachineContext` to control whether all blocks created during execution are written to the blockstore or just those reachable from the final state root during `flush()` [#2101](https://github.com/filecoin-project/ref-fvm/pull/2101)
+
+## 4.6.1 [2025-04-04]
+
+- Fix Teep pricing for NI-PoRep.
+
 ## 4.6.0 [2025-03-14]
 
 - Update `ipld-core` and `serde_ipld_dagcbor` [#2104](https://github.com/filecoin-project/ref-fvm/pull/2104)
