@@ -13,10 +13,6 @@ multihash-codetable = { workspace = true }
 multihash-derive = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-unsigned-varint = { workspace = true, features = ["futures"] }
+unsigned-varint = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
-futures = { workspace = true }
-
-[dev-dependencies]
-async-std = { version = "1.13", features = ["attributes"] }
