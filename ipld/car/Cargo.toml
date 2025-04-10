@@ -16,3 +16,6 @@ thiserror = { workspace = true }
 unsigned-varint = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
+
+[dev-dependencies]
+multihash-codetable = { workspace = true, features = ["sha2"] }
