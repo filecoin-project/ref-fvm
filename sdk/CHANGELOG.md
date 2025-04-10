@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 3.13.0 [2025-04-10]
+
+- Swap libsecp256k1 for k256 [#2137](https://github.com/filecoin-project/ref-fvm/pull/2137)
+- Update other dependencies [#2149](https://github.com/filecoin-project/ref-fvm/pull/2149)
+- Update to Rust 1.86.0 [#2125](https://github.com/filecoin-project/ref-fvm/pull/2125)
+
 ## 3.12.0 [2024-11-21]
 
 - Update `cid` to v0.11 and `multihash` to v0.19.
