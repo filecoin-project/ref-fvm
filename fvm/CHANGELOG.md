@@ -4,6 +4,13 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.11.0 (2025-04-10)
+
+- Update wasmtime to v31.0.0 [#2143](https://github.com/filecoin-project/ref-fvm/pull/2143)
+- Swap libsecp256k1 for k256 [#2138](https://github.com/filecoin-project/ref-fvm/pull/2138)
+- Update other dependencies [#2148](https://github.com/filecoin-project/ref-fvm/pull/2148)
+- Update to Rust 1.86.0 [#2126](https://github.com/filecoin-project/ref-fvm/pull/2126)
+
 ## 2.10.0 (2024-11-21)
 
 - Update `cid` to v0.11 and `multihash` to v0.19.
