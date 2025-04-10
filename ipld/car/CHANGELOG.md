@@ -4,6 +4,10 @@ Changes to the FVM's CAR implementation.
 
 ## [Unreleased]
 
+## 0.8.2 [2025-04-09]
+
+- Updates multiple dependencies (semver breaking internally but not exported).
+
 ## 0.8.1 [2024-11-08]
 
 Remove unnecessary features from `multihash-codetable`.

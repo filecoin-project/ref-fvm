@@ -4,6 +4,10 @@ Changes to the reference FVM's HAMT implementation.
 
 ## [Unreleased]
 
+## 0.10.4 [2025-04-09]
+
+- Updates multiple dependencies (semver breaking internally but not exported).
+
 ## 0.10.3 [2024-12-04]
 
 - Add a `.clear()` method for resetting the HAMT to empty.

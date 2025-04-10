@@ -4,6 +4,10 @@ Changes to Filecoin's Bitfield library.
 
 ## [Unreleased]
 
+## 0.3.2 [2025-04-09]
+
+- Updates multiple dependencies (semver breaking internally but not exported).
+
 ## 0.3.1 [2024-11-08]
 
 Remove unnecessary features from `multihash-codetable`.

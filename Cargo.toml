@@ -78,13 +78,13 @@ fvm_sdk = { path = "sdk", version = "~4.6.0" }
 fvm_integration_tests = { path = "testing/integration", version = "~4.6.0" }
 
 # workspace (other)
-fvm_ipld_amt = { path = "ipld/amt", version = "0.7.3" }
-fvm_ipld_hamt = { path = "ipld/hamt", version = "0.10.3" }
-fvm_ipld_kamt = { path = "ipld/kamt", version = "0.4.4" }
-fvm_ipld_car = { path = "ipld/car", version = "0.8.1" }
+fvm_ipld_amt = { path = "ipld/amt", version = "0.7.4" }
+fvm_ipld_hamt = { path = "ipld/hamt", version = "0.10.4" }
+fvm_ipld_kamt = { path = "ipld/kamt", version = "0.4.5" }
+fvm_ipld_car = { path = "ipld/car", version = "0.8.2" }
 fvm_ipld_blockstore = { path = "ipld/blockstore", version = "0.3.1" }
-fvm_ipld_bitfield = { path = "ipld/bitfield", version = "0.7.1" }
-fvm_ipld_encoding = { path = "ipld/encoding", version = "0.5.2" }
+fvm_ipld_bitfield = { path = "ipld/bitfield", version = "0.7.2" }
+fvm_ipld_encoding = { path = "ipld/encoding", version = "0.5.3" }
 fvm_gas_calibration_shared = { path = "testing/calibration/shared" }
 fvm_test_actors = { path = "testing/test_actors" }
 

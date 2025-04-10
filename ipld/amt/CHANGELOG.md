@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.7.4 [2025-04-09]
+
+- Updates multiple dependencies (semver breaking internally but not exported).
+
 ## 0.7.3 [2024-11-20]
 
 - Fix a bug where the new `iter()` method would panic or overflow in some cases when iterating past the end of the AMT when the AMT stored high keys.
