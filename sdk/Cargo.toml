@@ -15,10 +15,10 @@ cid = { workspace = true }
 fvm_shared = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 ## num-traits; disabling default features makes it play nice with no_std.
-num-traits = { version = "0.2.15", default-features = false }
-lazy_static = { version = "1.4.0" }
-log = "0.4.19"
-thiserror = "1.0.40"
+num-traits = { version = "0.2.19", default-features = false }
+lazy_static = { version = "1.5.0" }
+log = "0.4.27"
+thiserror = "2.0.12"
 
 [features]
 default = []
