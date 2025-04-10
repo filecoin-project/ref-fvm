@@ -2554,7 +2554,6 @@ dependencies = [
  "cid",
  "criterion",
  "fil_builtin_actors_bundle",
- "futures",
  "fvm",
  "fvm_gas_calibration_shared",
  "fvm_ipld_blockstore 0.3.1",
