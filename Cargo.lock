@@ -2514,7 +2514,7 @@ dependencies = [
  "futures",
  "fvm",
  "fvm_ipld_blockstore 0.3.1",
- "fvm_ipld_car 0.8.2",
+ "fvm_ipld_car 0.9.0",
  "fvm_ipld_encoding 0.5.3",
  "fvm_shared 4.7.0",
  "ipld-core",
@@ -2557,7 +2557,7 @@ dependencies = [
  "fvm",
  "fvm_gas_calibration_shared",
  "fvm_ipld_blockstore 0.3.1",
- "fvm_ipld_car 0.8.2",
+ "fvm_ipld_car 0.9.0",
  "fvm_ipld_encoding 0.5.3",
  "fvm_sdk 4.7.0",
  "fvm_shared 4.7.0",
@@ -2679,7 +2679,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_ipld_car"
-version = "0.8.2"
+version = "0.9.0"
 dependencies = [
  "cid",
  "fvm_ipld_blockstore 0.3.1",
