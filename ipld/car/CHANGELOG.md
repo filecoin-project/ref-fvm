@@ -4,6 +4,13 @@ Changes to the FVM's CAR implementation.
 
 ## [Unreleased]
 
+## 0.9.0 [2025-04-11]
+
+- Remove async support, it's overkill for our use-case and leaks complexity.
+- Improve the interfaces:
+  - There's now a separate `CarWriter` struct with methods for writing individual blocks. There's no longer a separate "write from stream" method as feeding an iterator into the writer should be simple enough (now that there's no longer any async stream complexity).
+  - `CarReader` now implements the iterator interface instead of an async `next_block` function.
+
 ## 0.8.2 [2025-04-09]
 
 - Updates multiple dependencies (semver breaking internally but not exported).
