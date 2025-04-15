@@ -3,7 +3,6 @@
 use std::io::Read;
 use std::sync::Mutex;
 
-use futures::executor::block_on;
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_car::load_car;
 use lazy_static::lazy_static;
@@ -23,7 +22,7 @@ fn load_bundles(bundles: &[&[u8]]) -> anyhow::Result<MemoryBlockstore> {
             // We need to read it to a vec first as we can't send it between threads (async issues).
             let mut car = Vec::new();
             entry?.read_to_end(&mut car)?;
-            block_on(load_car(&bs, &*car))?;
+            load_car(&bs, &*car)?;
         }
     }
     Ok(bs)
