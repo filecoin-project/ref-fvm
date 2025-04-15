@@ -264,13 +264,21 @@ pub mod ops {
         signature: &[u8; SECP_SIG_LEN],
     ) -> Result<[u8; SECP_PUB_LEN], Error> {
         // Extract recovery ID from the last byte
-        let recovery_id = RecoveryId::try_from(signature[64])
-            .map_err(|e| Error::InvalidRecovery(format!("Invalid recovery ID: {}", e)))?;
+        let mut rec_byte = signature[64];
 
         // Create signature from the first 64 bytes
-        let sig_bytes = signature[..64].into();
-        let signature = EcdsaSignature::from_bytes(sig_bytes)
+        let mut signature = EcdsaSignature::from_slice(&signature[..64])
             .map_err(|e| Error::SigningError(format!("Invalid signature: {}", e)))?;
+
+        // Normalize the signature & recovery byte (required for Ethereum compatibility).
+        if let Some(normalized) = signature.normalize_s() {
+            signature = normalized;
+            rec_byte ^= 1;
+        }
+
+        // Extract recovery ID from the last byte
+        let recovery_id = RecoveryId::try_from(rec_byte)
+            .map_err(|e| Error::InvalidRecovery(format!("Invalid recovery ID: {}", e)))?;
 
         // Recover the verifying key
         let pk = VerifyingKey::recover_from_prehash(&hash[..], &signature, recovery_id)
@@ -295,6 +303,8 @@ pub mod ops {
 mod tests {
     use bls_signatures::{PrivateKey, Serialize, Signature as BlsSignature};
     use k256::ecdsa::SigningKey;
+    use multihash_codetable::Code;
+    use multihash_codetable::MultihashDigest;
     use rand::{Rng, SeedableRng};
     use rand_chacha::ChaCha8Rng;
 
@@ -371,6 +381,31 @@ mod tests {
         let encoded_point = verifying_key.to_encoded_point(false);
         let target_key = encoded_point.as_bytes();
         assert_eq!(target_key, &recovered_key[..]);
+    }
+
+    // Tests malleability.
+    #[test]
+    fn secp_ecrecover_testvector() {
+        let hash: [u8; 32] =
+            hex::decode("18c547e4f7b0f325ad1e56f57e26c745b09a3e503d86e00e5255ff7f715d3d1c")
+                .unwrap()
+                .try_into()
+                .unwrap();
+        let recbyte = 0x1c - 27;
+        let r = hex::decode("73b1693892219d736caba55bdb67216e485557ea6b6af75f37096c9aa6a5a75f")
+            .unwrap();
+        let s = hex::decode("eeb940b1d03b21e36b0e47e79769f095fe2ab855bd91e3a38756b7d75a9c4549")
+            .unwrap();
+        let expected = hex::decode("a94f5374fce5edbc8e2a8697c15331677e6ebf0b").unwrap();
+
+        let mut sig = [0u8; SECP_SIG_LEN];
+        sig[..32].copy_from_slice(&r);
+        sig[32..64].copy_from_slice(&s);
+        sig[64] = recbyte;
+
+        let recovered = recover_secp_public_key(&hash, &sig).unwrap();
+        let hashed = Code::Keccak256.digest(&recovered[1..]);
+        assert_eq!(expected, &hashed.digest()[12..]);
     }
 
     #[test]
