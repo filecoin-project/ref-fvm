@@ -1,23 +1,19 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
-use std::pin::Pin;
-use std::task::{Context, Poll};
-
 use anyhow::{anyhow, Context as _};
 use cid::Cid;
 use flate2::bufread::GzDecoder;
-use futures::AsyncRead;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car;
 use fvm_ipld_encoding::tuple::*;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::receipt::Receipt;
 use serde::{Deserialize, Deserializer};
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::Path;
 
 use crate::actors::load_actors;
 
@@ -186,21 +182,9 @@ impl MessageVector {
         load_actors(&blockstore)?;
 
         let bytes = self.car.as_slice();
-        let decoder = GzipDecoder(GzDecoder::new(bytes));
-        let cid = load_car(&blockstore, decoder).await?;
+        let decoder = GzDecoder::new(bytes);
+        let cid = load_car(&blockstore, decoder)?;
         Ok((blockstore, cid))
-    }
-}
-
-struct GzipDecoder<R>(GzDecoder<R>);
-
-impl<R: std::io::Read + Unpin + std::io::BufRead> AsyncRead for GzipDecoder<R> {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<Result<usize, std::io::Error>> {
-        Poll::Ready(std::io::Read::read(&mut self.0, buf))
     }
 }
 
