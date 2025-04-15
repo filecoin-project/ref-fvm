@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.7.1 [2025-04-15]
+
+- Upgrade to fvm_shared@v4.7.1 to fix: accept malleable secp256k1 signatures (per EVM, etc.) [#2156](https://github.com/filecoin-project/ref-fvm/pull/2156)
+
 ## 4.7.0 [2025-04-09]
 
 _This is not a required upgrade for the Teep or Tock network versions._

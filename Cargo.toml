@@ -19,7 +19,7 @@ members = [
 ]
 
 [workspace.package]
-version = "4.7.0"
+version = "4.7.1"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 repository = "https://github.com/filecoin-project/ref-fvm"

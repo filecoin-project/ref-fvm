@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 4.7.1 [2025-04-15]
+
+This is an important bugfix release as v4.7.0 won't perform correct signature validation in some cases.
+
+- fix: accept malleable secp256k1 signatures (per EVM, etc.) [#2156](https://github.com/filecoin-project/ref-fvm/pull/2156)
+
 ## 4.7.0 [2025-04-09]
 
 - Swap libsecp256k1 for k256 [#2135](https://github.com/filecoin-project/ref-fvm/pull/2135)
