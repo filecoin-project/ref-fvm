@@ -321,7 +321,7 @@ mod tests {
 
         let rng = &mut ChaCha8Rng::seed_from_u64(11);
 
-        let msg = (0..message_length).map(|_| rng.gen()).collect::<Vec<u8>>();
+        let msg = (0..message_length).map(|_| rng.r#gen()).collect::<Vec<u8>>();
         let data: Vec<&[u8]> = (0..num_sigs).map(|x| &msg[x * 64..(x + 1) * 64]).collect();
 
         let private_keys: Vec<PrivateKey> =

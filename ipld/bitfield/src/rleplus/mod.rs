@@ -479,7 +479,7 @@ mod tests {
 
         for _i in 0..1000 {
             let len: u64 = rng.gen_range(0..1000);
-            let bits: Vec<_> = (0..len).filter(|_| rng.gen::<bool>()).collect();
+            let bits: Vec<_> = (0..len).filter(|_| rng.r#gen::<bool>()).collect();
 
             let ranges: Vec<_> = ranges_from_bits(bits.clone()).collect();
             let bf = BitField::from_ranges(ranges_from_bits(bits));

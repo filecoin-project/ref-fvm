@@ -311,8 +311,8 @@ fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, 
 
 fn verify_post(verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
     let WindowPoStVerifyInfo {
-        ref proofs,
-        ref challenged_sectors,
+        proofs,
+        challenged_sectors,
         prover,
         ..
     } = verify_info;

@@ -34,7 +34,7 @@ fn on_block() {
         let params = OnBlockParams {
             size: *size,
             iterations,
-            seed: rng.gen(),
+            seed: rng.r#gen(),
         };
 
         let ret = te.execute_or_die(Method::OnBlock as u64, &params);
@@ -107,7 +107,7 @@ fn on_event_by_value_size() {
                 entries,
                 total_value_size,
                 flags: Flags::FLAG_INDEXED_ALL,
-                seed: rng.gen(),
+                seed: rng.r#gen(),
             };
 
             let ret = te.execute_or_die(METHOD as u64, &params);
@@ -148,7 +148,7 @@ fn on_event_by_entry_count() {
                 entries,
                 total_value_size,
                 flags: Flags::FLAG_INDEXED_ALL,
-                seed: rng.gen(),
+                seed: rng.r#gen(),
             };
 
             let ret = te.execute_or_die(METHOD as u64, &params);
@@ -257,7 +257,7 @@ fn on_hashing() {
                 hasher: *hasher as u64,
                 size: *size,
                 iterations,
-                seed: rng.gen(),
+                seed: rng.r#gen(),
             };
 
             let ret = te.execute_or_die(METHOD as u64, &params);
@@ -306,7 +306,7 @@ fn on_recover_secp_public_key() {
             iterations,
             size: *size,
             signature: sig.to_vec(),
-            seed: rng.gen(),
+            seed: rng.r#gen(),
         };
 
         let ret = te.execute_or_die(METHOD as u64, &params);
@@ -425,7 +425,7 @@ fn on_verify_signature() {
                 size: *size,
                 signer,
                 signature: signature.clone(),
-                seed: rng.gen(),
+                seed: rng.r#gen(),
             };
 
             let ret = te.execute_or_die(METHOD as u64, &params);
@@ -518,7 +518,7 @@ fn on_scan_cbor_fields() {
             cbor_link_count: 0,
             cbor_field_count: fc,
             iterations,
-            seed: rng.gen(),
+            seed: rng.r#gen(),
         };
 
         let ret = te.execute_or_die(Method::OnScanIpldLinks as u64, &params);
@@ -590,7 +590,7 @@ fn on_scan_cbor_links() {
             cbor_link_count: lc,
             cbor_field_count: field_count,
             iterations,
-            seed: rng.gen(),
+            seed: rng.r#gen(),
         };
 
         let ret = te.execute_or_die(Method::OnScanIpldLinks as u64, &params);
