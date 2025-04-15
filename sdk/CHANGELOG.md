@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 4.7.1 [2025-04-15]
+
+- Upgrade to fvm_shared@v4.7.1 to fix: accept malleable secp256k1 signatures (per EVM, etc.) [#2156](https://github.com/filecoin-project/ref-fvm/pull/2156)
+
 ## 4.7.0 [2025-04-09]
 
 - Update dependencies [#2136](https://github.com/filecoin-project/ref-fvm/pull/2136), [#2145](https://github.com/filecoin-project/ref-fvm/pull/2145), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146)
