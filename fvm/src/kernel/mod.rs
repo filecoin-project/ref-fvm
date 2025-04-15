@@ -4,8 +4,8 @@ use ambassador::delegatable_trait;
 use fvm_shared::event::StampedEvent;
 
 use crate::call_manager::CallManager;
-use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
+use crate::machine::limiter::MemoryLimiter;
 use crate::syscalls::Linker;
 
 mod blocks;
@@ -278,7 +278,7 @@ pub trait RandomnessOps {
     /// beacon from a given epoch.
     /// This randomness is not tied to any fork of the chain, and is unbiasable.
     fn get_randomness_from_beacon(&self, rand_epoch: ChainEpoch)
-        -> Result<[u8; RANDOMNESS_LENGTH]>;
+    -> Result<[u8; RANDOMNESS_LENGTH]>;
 }
 
 /// Debugging APIs.
@@ -311,29 +311,29 @@ pub trait EventOps {
 /// use ambassador to delegate the implementation.
 pub mod prelude {
     pub use super::{
+        ActorOps, CryptoOps, DebugOps, EventOps, IpldBlockOps, MessageOps, NetworkOps,
+        RandomnessOps, SelfOps, SendOps, UpgradeOps,
+    };
+    pub use super::{Block, BlockId, BlockRegistry, BlockStat, CallResult, Kernel, SyscallHandler};
+    pub use super::{
         ambassador_impl_ActorOps, ambassador_impl_CryptoOps, ambassador_impl_DebugOps,
         ambassador_impl_EventOps, ambassador_impl_IpldBlockOps, ambassador_impl_MessageOps,
         ambassador_impl_NetworkOps, ambassador_impl_RandomnessOps, ambassador_impl_SelfOps,
         ambassador_impl_SendOps, ambassador_impl_UpgradeOps,
     };
-    pub use super::{
-        ActorOps, CryptoOps, DebugOps, EventOps, IpldBlockOps, MessageOps, NetworkOps,
-        RandomnessOps, SelfOps, SendOps, UpgradeOps,
-    };
-    pub use super::{Block, BlockId, BlockRegistry, BlockStat, CallResult, Kernel, SyscallHandler};
     pub use crate::gas::{Gas, GasTimer, PriceList};
     pub use ambassador::Delegate;
     pub use fvm_shared::address::Address;
     pub use fvm_shared::clock::ChainEpoch;
     pub use fvm_shared::crypto::signature::{
-        SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+        SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE, SignatureType,
     };
     pub use fvm_shared::econ::TokenAmount;
     pub use fvm_shared::error::ExitCode;
     pub use fvm_shared::randomness::RANDOMNESS_LENGTH;
+    pub use fvm_shared::sys::SendFlags;
     pub use fvm_shared::sys::out::network::NetworkContext;
     pub use fvm_shared::sys::out::vm::MessageContext;
-    pub use fvm_shared::sys::SendFlags;
     pub use fvm_shared::version::NetworkVersion;
     pub use fvm_shared::{ActorID, MethodNum};
 

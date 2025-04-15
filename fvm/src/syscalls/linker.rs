@@ -8,7 +8,7 @@ use wasmtime::{Caller, WasmTy};
 
 use super::context::Memory;
 use super::error::Abort;
-use super::{charge_for_exec, charge_syscall_gas, update_gas_available, Context, InvocationData};
+use super::{Context, InvocationData, charge_for_exec, charge_syscall_gas, update_gas_available};
 use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 

@@ -31,8 +31,8 @@ pub mod version;
 
 use cid::multihash::Multihash;
 use crypto::hash::SupportedHashes;
-use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::DAG_CBOR;
+use fvm_ipld_encoding::ipld_block::IpldBlock;
 
 use crate::error::ExitCode;
 

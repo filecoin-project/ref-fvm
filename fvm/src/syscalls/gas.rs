@@ -3,9 +3,9 @@
 use std::str;
 
 use super::Context;
+use crate::Kernel;
 use crate::gas::Gas;
 use crate::kernel::{ClassifyResult, Result};
-use crate::Kernel;
 
 pub fn charge_gas(
     context: Context<'_, impl Kernel>,

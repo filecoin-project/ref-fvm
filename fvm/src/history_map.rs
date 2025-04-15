@@ -1,8 +1,8 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::borrow::Borrow;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::hash::Hash;
 
 /// A map with an "undo" history. All changes to this map are recorded in the history and can be "reverted" by calling `rollback`. Specifically:

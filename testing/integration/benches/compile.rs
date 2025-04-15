@@ -4,7 +4,7 @@ use std::hint::black_box;
 use std::time::Duration;
 
 use cid::Cid;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use fvm::engine::EnginePool;
 use fvm::machine::{Manifest, NetworkConfig};
 

@@ -137,7 +137,7 @@ pub fn scan_for_reachable_links(
 
 #[cfg(test)]
 mod test {
-    use crate::gas::{price_list_by_network_version, Gas, GasTracker};
+    use crate::gas::{Gas, GasTracker, price_list_by_network_version};
 
     use crate::kernel::{ExecutionError, Result};
     use cid::Cid;
@@ -176,9 +176,11 @@ mod test {
 
     #[test]
     fn skip_raw() {
-        assert!(scan_for_links(IPLD_RAW, &[1, 2, 3], 0, 0)
-            .unwrap()
-            .is_empty());
+        assert!(
+            scan_for_links(IPLD_RAW, &[1, 2, 3], 0, 0)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

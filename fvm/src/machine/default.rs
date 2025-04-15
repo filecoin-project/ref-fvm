@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::ops::RangeInclusive;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::{Block, Blockstore, Buffered};
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
@@ -14,8 +14,8 @@ use super::{Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 use crate::kernel::{ClassifyResult, Result};
-use crate::machine::limiter::DefaultMemoryLimiter;
 use crate::machine::Manifest;
+use crate::machine::limiter::DefaultMemoryLimiter;
 use crate::state_tree::StateTree;
 use crate::system_actor::State as SystemActorState;
 

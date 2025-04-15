@@ -2,8 +2,8 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::multihash::Multihash;
 use cid::Cid;
+use cid::multihash::Multihash;
 
 pub const FIL_COMMITMENT_SEALED: u64 = 0xf102;
 pub const FIL_COMMITMENT_UNSEALED: u64 = 0xf101;

@@ -3,7 +3,7 @@
 use std::convert::{TryFrom, TryInto};
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{CBOR, IPLD_RAW};
@@ -19,13 +19,13 @@ use super::error::Result;
 use super::hash::SupportedHashes;
 use super::*;
 use crate::call_manager::{
-    CallManager, Entrypoint, InvocationResult, INVOKE_FUNC_NAME, NO_DATA_BLOCK_ID,
+    CallManager, Entrypoint, INVOKE_FUNC_NAME, InvocationResult, NO_DATA_BLOCK_ID,
     UPGRADE_FUNC_NAME,
 };
 use crate::externs::{Chain, Rand};
 use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
-use crate::machine::{MachineContext, NetworkConfig, BURNT_FUNDS_ACTOR_ID};
+use crate::machine::{BURNT_FUNDS_ACTOR_ID, MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
 use crate::trace::IpldOperation;
 use crate::{ipld, syscall_error};

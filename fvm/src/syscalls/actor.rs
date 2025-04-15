@@ -1,14 +1,14 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use anyhow::{anyhow, Context as _};
-use fvm_shared::{sys, ActorID};
+use anyhow::{Context as _, anyhow};
+use fvm_shared::{ActorID, sys};
 
-use super::error::Abort;
 use super::Context;
 use super::ControlFlow;
+use super::error::Abort;
 use crate::kernel::UpgradeOps;
 use crate::kernel::{ActorOps, CallResult, ClassifyResult, Result};
-use crate::{syscall_error, Kernel};
+use crate::{Kernel, syscall_error};
 
 pub fn resolve_address(
     context: Context<'_, impl ActorOps>,

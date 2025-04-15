@@ -4,7 +4,7 @@
 
 use std::cell::RefCell;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
@@ -67,7 +67,7 @@ where
                 return Err(ExecutionError::Fatal(anyhow!(
                     "unsupported state tree version: {:?}",
                     version
-                )))
+                )));
             }
             StateTreeVersion::V5 => {
                 let cid = store
@@ -106,14 +106,14 @@ where
                 return Err(ExecutionError::Fatal(anyhow!(
                     "failed to find state tree {}",
                     c
-                )))
+                )));
             }
             Err(e) => {
                 return Err(ExecutionError::Fatal(anyhow!(
                     "failed to load state tree {}: {}",
                     c,
                     e
-                )))
+                )));
             }
         };
 

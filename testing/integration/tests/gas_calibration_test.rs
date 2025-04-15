@@ -13,7 +13,7 @@ fn on_block() {
 
     use fvm::trace::ExecutionEvent;
     use fvm_shared::error::ExitCode;
-    use rand::{thread_rng, Rng};
+    use rand::{Rng, thread_rng};
 
     let sizes = common_sizes();
     let iterations = 100;
@@ -86,7 +86,7 @@ fn on_block() {
 #[cfg(feature = "calibration")]
 fn on_event_by_value_size() {
     use fvm_shared::event::Flags;
-    use rand::{thread_rng, Rng};
+    use rand::{Rng, thread_rng};
 
     const CHARGE: &str = "OnActorEvent";
     const METHOD: Method = Method::OnEvent;
@@ -127,7 +127,7 @@ fn on_event_by_value_size() {
 #[cfg(feature = "calibration")]
 fn on_event_by_entry_count() {
     use fvm_shared::event::Flags;
-    use rand::{thread_rng, Rng};
+    use rand::{Rng, thread_rng};
 
     const CHARGE: &str = "OnActorEvent";
     const METHOD: Method = Method::OnEvent;
@@ -169,7 +169,7 @@ fn on_event_by_entry_count() {
 fn utf8_validation() {
     use fvm::gas::price_list_by_network_version;
     use fvm_shared::version::NetworkVersion;
-    use rand::{distributions::Standard, thread_rng, Rng};
+    use rand::{Rng, distributions::Standard, thread_rng};
 
     let mut chars = thread_rng().sample_iter(Standard);
     const CHARGE: &str = "OnUtf8Validate";
@@ -230,7 +230,7 @@ fn utf8_validation() {
 #[cfg(feature = "calibration")]
 fn on_hashing() {
     use fvm_shared::crypto::hash::SupportedHashes;
-    use rand::{thread_rng, Rng};
+    use rand::{Rng, thread_rng};
 
     const CHARGE_NAME: &str = "OnHashing";
     const METHOD: Method = Method::OnHashing;
@@ -281,7 +281,7 @@ fn on_hashing() {
 #[test]
 #[cfg(feature = "calibration")]
 fn on_recover_secp_public_key() {
-    use rand::{thread_rng, Rng, RngCore};
+    use rand::{Rng, RngCore, thread_rng};
 
     const CHARGE_NAME: &str = "OnRecoverSecpPublicKey";
     const METHOD: Method = Method::OnRecoverSecpPublicKey;
@@ -379,7 +379,7 @@ fn on_verify_signature() {
     use bls_signatures::Serialize;
     use fvm_shared::address::Address;
     use fvm_shared::crypto::signature::SignatureType;
-    use rand::{thread_rng, Rng, RngCore};
+    use rand::{Rng, RngCore, thread_rng};
 
     const CHARGE_NAME: &str = "OnVerifySignature";
     const METHOD: Method = Method::OnVerifySignature;
@@ -446,7 +446,7 @@ fn on_verify_signature() {
 #[cfg(feature = "calibration")]
 fn on_verify_bls_aggregate() {
     use bls_signatures::Serialize;
-    use rand::{thread_rng, RngCore};
+    use rand::{RngCore, thread_rng};
 
     const CHARGE_NAME: &str = "OnVerifyBlsAggregateSignature";
     const METHOD: Method = Method::OnVerifyBlsAggregate;
@@ -503,7 +503,7 @@ fn on_scan_cbor_fields() {
 
     use fvm::trace::ExecutionEvent;
     use fvm_shared::error::ExitCode;
-    use rand::{thread_rng, Rng};
+    use rand::{Rng, thread_rng};
 
     let field_counts = [2, 5, 10, 50, 100, 1000, 2500, 5000, 7500, 10_000];
     let iterations = 500;
@@ -574,7 +574,7 @@ fn on_scan_cbor_links() {
 
     use fvm::trace::ExecutionEvent;
     use fvm_shared::error::ExitCode;
-    use rand::{thread_rng, Rng};
+    use rand::{Rng, thread_rng};
 
     let field_count = 10_000;
     let link_counts = [1, 10, 20, 50, 100, 500, 1000, 2500];
