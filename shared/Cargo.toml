@@ -34,6 +34,7 @@ k256 = { workspace = true, optional = true }
 bls-signatures = { workspace = true, default-features = false, optional = true }
 
 [dev-dependencies]
+hex = { workspace = true }
 rand = { workspace = true }
 serde_json = { workspace = true }
 multihash-codetable = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
