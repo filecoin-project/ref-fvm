@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.13.1 [2025-04-15]
+
+- Upgrade to fvm_shared@v3.13.1 to fix: accept malleable secp256k1 signatures (per EVM, etc.) [#2157](https://github.com/filecoin-project/ref-fvm/pull/2157)
+
 ## 3.13.0 [2025-04-10]
 
 - Swap libsecp256k1 for k256 [#2137](https://github.com/filecoin-project/ref-fvm/pull/2137)

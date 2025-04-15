@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 3.13.1 [2025-04-15]
+
+This is an important bugfix release as v3.13.0 won't perform correct signature validation in some cases.
+
+- fix: accept malleable secp256k1 signatures (per EVM, etc.) [#2157](https://github.com/filecoin-project/ref-fvm/pull/2157)
+
 ## 3.13.0 [2025-04-10]
 
 - Update dependencies [#2149](https://github.com/filecoin-project/ref-fvm/pull/2149)
