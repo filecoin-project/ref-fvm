@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.11.1 (2025-04-15)
+
+- Upgrade to fvm_shared@v2.11.1 to fix: accept malleable secp256k1 signatures (per EVM, etc.) [#2158](https://github.com/filecoin-project/ref-fvm/pull/2158)
+
 ## 2.11.0 (2025-04-10)
 
 - Update wasmtime to v31.0.0 [#2143](https://github.com/filecoin-project/ref-fvm/pull/2143)
