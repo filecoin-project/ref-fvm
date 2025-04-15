@@ -42,6 +42,7 @@ serde_json = "1.0.140"
 multihash-codetable = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
 quickcheck_macros = "1"
 fvm_shared = { path = ".", features = ["arb"] }
+hex = "0.4.3"
 
 [features]
 default = []
