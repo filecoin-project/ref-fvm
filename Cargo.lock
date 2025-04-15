@@ -1886,6 +1886,7 @@ dependencies = [
  "filecoin-proofs-api",
  "fvm_ipld_blockstore",
  "fvm_ipld_encoding",
+ "hex",
  "k256",
  "lazy_static",
  "log",
