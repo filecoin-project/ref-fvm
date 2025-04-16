@@ -11,7 +11,7 @@ use num_traits::Zero;
 
 pub use self::charge::GasCharge;
 pub(crate) use self::outputs::GasOutputs;
-pub use self::price_list::{price_list_by_network_version, PriceList, WasmGasPrices};
+pub use self::price_list::{PriceList, WasmGasPrices, price_list_by_network_version};
 pub use self::timer::{GasInstant, GasTimer};
 use crate::kernel::{ClassifyResult, ExecutionError, Result};
 
@@ -302,9 +302,10 @@ mod tests {
         assert_eq!(t.gas_used(), Gas::new(15));
         t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
         assert_eq!(t.gas_used(), Gas::new(20));
-        assert!(t
-            .apply_charge(GasCharge::new("", Gas::new(1), Gas::zero()))
-            .is_err());
+        assert!(
+            t.apply_charge(GasCharge::new("", Gas::new(1), Gas::zero()))
+                .is_err()
+        );
         Ok(())
     }
 

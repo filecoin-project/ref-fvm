@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::error;
 
 use fvm_ipld_encoding::repr::*;
-use fvm_ipld_encoding::{de, ser, strict_bytes, Error as EncodingError};
+use fvm_ipld_encoding::{Error as EncodingError, de, ser, strict_bytes};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use thiserror::Error;
@@ -150,7 +150,7 @@ pub fn verify(
 #[cfg(feature = "crypto")]
 pub mod ops {
     use bls_signatures::{
-        verify_messages, PublicKey as BlsPubKey, Serialize, Signature as BlsSignature,
+        PublicKey as BlsPubKey, Serialize, Signature as BlsSignature, verify_messages,
     };
     use k256::ecdsa::{RecoveryId, Signature as EcdsaSignature, VerifyingKey};
 
@@ -310,8 +310,8 @@ mod tests {
 
     use super::ops::recover_secp_public_key;
     use super::*;
-    use crate::crypto::signature::ops::{ecrecover, verify_bls_aggregate};
     use crate::Address;
+    use crate::crypto::signature::ops::{ecrecover, verify_bls_aggregate};
 
     #[test]
     fn bls_agg_verify() {
@@ -321,7 +321,9 @@ mod tests {
 
         let rng = &mut ChaCha8Rng::seed_from_u64(11);
 
-        let msg = (0..message_length).map(|_| rng.r#gen()).collect::<Vec<u8>>();
+        let msg = (0..message_length)
+            .map(|_| rng.r#gen())
+            .collect::<Vec<u8>>();
         let data: Vec<&[u8]> = (0..num_sigs).map(|x| &msg[x * 64..(x + 1) * 64]).collect();
 
         let private_keys: Vec<PrivateKey> =

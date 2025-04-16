@@ -4,13 +4,13 @@ use core::option::Option;
 use std::ptr; // no_std
 
 use cid::Cid;
-use fvm_shared::address::{Address, Payload, MAX_ADDRESS_LEN};
+use fvm_shared::address::{Address, MAX_ADDRESS_LEN, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::{ActorID, MAX_CID_LEN};
 use log::error;
 
-use crate::{sys, SyscallResult};
+use crate::{SyscallResult, sys};
 
 /// Resolves the ID address of an actor. Returns `None` if the address cannot be resolved.
 /// Successfully resolving an address doesn't necessarily mean the actor exists (e.g., if the
@@ -124,11 +124,7 @@ pub fn get_builtin_actor_type(code_cid: &Cid) -> Option<i32> {
             .expect("failed to determine if CID belongs to builtin actor");
         // The zero value represents "unknown" and is not modelled in the enum,
         // so it'll be converted to a None.
-        if res == 0 {
-            None
-        } else {
-            Some(res)
-        }
+        if res == 0 { None } else { Some(res) }
     }
 }
 

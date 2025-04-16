@@ -4,7 +4,7 @@
 
 use fvm_ipld_encoding::tuple::*;
 
-use crate::bigint::{bigint_ser, BigInt, Integer};
+use crate::bigint::{BigInt, Integer, bigint_ser};
 use crate::clock::ChainEpoch;
 use crate::math::PRECISION;
 

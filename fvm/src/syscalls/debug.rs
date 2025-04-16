@@ -1,8 +1,8 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
+use crate::Kernel;
 use crate::kernel::{ClassifyResult, Result};
 use crate::syscalls::context::Context;
-use crate::Kernel;
 
 pub fn log(context: Context<'_, impl Kernel>, msg_off: u32, msg_len: u32) -> Result<()> {
     // No-op if disabled.

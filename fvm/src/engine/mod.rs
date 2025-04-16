@@ -5,12 +5,12 @@ mod concurrency;
 mod instance_pool;
 
 use std::any::{Any, TypeId};
-use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_shared::error::ExitCode;
@@ -22,15 +22,15 @@ use wasmtime::{
     Val, ValType, WasmBacktraceDetails,
 };
 
+use crate::Kernel;
 use crate::gas::{Gas, GasTimer, WasmGasPrices};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::{Machine, NetworkConfig};
 use crate::syscalls::error::Abort;
 use crate::syscalls::{
-    bind_syscalls, charge_for_exec, charge_for_init, record_init_time, update_gas_available,
-    InvocationData,
+    InvocationData, bind_syscalls, charge_for_exec, charge_for_init, record_init_time,
+    update_gas_available,
 };
-use crate::Kernel;
 
 use self::concurrency::EngineConcurrency;
 use self::instance_pool::InstancePool;

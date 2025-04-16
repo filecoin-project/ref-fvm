@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_shared::event::ActorEvent;
 
-use crate::{sys, SyscallResult};
+use crate::{SyscallResult, sys};
 
 pub fn emit_event(evt: &ActorEvent) -> SyscallResult<()> {
     let encoded = fvm_ipld_encoding::to_vec(evt).expect("failed to marshal actor event");

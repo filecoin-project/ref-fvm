@@ -16,9 +16,9 @@ use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 pub use threaded::ThreadedExecutor;
 
+use crate::Kernel;
 use crate::call_manager::Backtrace;
 use crate::trace::ExecutionTrace;
-use crate::Kernel;
 
 /// An executor executes messages on the underlying machine/kernel. It's responsible for:
 ///

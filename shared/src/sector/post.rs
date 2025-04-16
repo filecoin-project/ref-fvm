@@ -7,8 +7,8 @@ use fvm_ipld_encoding::strict_bytes;
 use serde_tuple::*;
 
 use super::*;
-use crate::randomness::Randomness;
 use crate::ActorID;
+use crate::randomness::Randomness;
 
 /// Randomness type used for generating PoSt proof randomness.
 pub type PoStRandomness = Randomness;

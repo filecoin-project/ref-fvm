@@ -1,14 +1,14 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use num_traits::Zero;
 use wasmtime::{AsContextMut, ExternType, Global, Linker, Memory, Module, Val};
 
+use crate::Kernel;
 use crate::call_manager::backtrace;
 use crate::gas::{Gas, GasInstant, GasTimer};
 use crate::kernel::ExecutionError;
 use crate::machine::limiter::MemoryLimiter;
-use crate::Kernel;
 
 pub(crate) mod error;
 

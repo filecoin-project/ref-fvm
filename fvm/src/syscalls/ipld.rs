@@ -3,8 +3,8 @@
 use fvm_shared::sys;
 
 use super::Context;
-use crate::kernel::Result;
 use crate::Kernel;
+use crate::kernel::Result;
 
 pub fn block_open(context: Context<'_, impl Kernel>, cid: u32) -> Result<sys::out::ipld::IpldOpen> {
     let cid = context.memory.read_cid(cid)?;

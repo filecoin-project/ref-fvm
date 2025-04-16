@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use super::Context;
-use crate::kernel::Result;
 use crate::Kernel;
+use crate::kernel::Result;
 
 /// Emits an actor event. It takes an DAG-CBOR encoded ActorEvent that has been
 /// written to Wasm memory, as an offset and length tuple.

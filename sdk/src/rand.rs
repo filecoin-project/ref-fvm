@@ -3,7 +3,7 @@
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
 
-use crate::{sys, SyscallResult};
+use crate::{SyscallResult, sys};
 
 /// Gets 32 bytes of randomness from the ticket chain.
 /// The supplied output buffer must have at least 32 bytes of capacity.

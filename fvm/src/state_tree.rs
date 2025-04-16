@@ -4,11 +4,11 @@
 
 use std::cell::RefCell;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::CborStore;
+use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
@@ -21,7 +21,7 @@ use quickcheck::Arbitrary;
 use crate::history_map::HistoryMap;
 use crate::init_actor::State as InitActorState;
 use crate::kernel::{ClassifyResult, ExecutionError, Result};
-use crate::{syscall_error, EMPTY_ARR_CID};
+use crate::{EMPTY_ARR_CID, syscall_error};
 
 /// State tree implementation using hamt. This structure is not threadsafe and should only be used
 /// in sync contexts.
@@ -71,7 +71,7 @@ where
                 return Err(ExecutionError::Fatal(anyhow!(
                     "unsupported state tree version: {:?}",
                     version
-                )))
+                )));
             }
             StateTreeVersion::V5 => {
                 let cid = store
@@ -110,14 +110,14 @@ where
                 return Err(ExecutionError::Fatal(anyhow!(
                     "failed to find state tree {}",
                     c
-                )))
+                )));
             }
             Err(e) => {
                 return Err(ExecutionError::Fatal(anyhow!(
                     "failed to load state tree {}: {}",
                     c,
                     e
-                )))
+                )));
             }
         };
 
@@ -458,8 +458,8 @@ impl Arbitrary for ActorState {
 
 #[cfg(test)]
 mod tests {
-    use cid::multihash::Multihash;
     use cid::Cid;
+    use cid::multihash::Multihash;
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::{CborStore, DAG_CBOR};
     use fvm_shared::address::{Address, SECP_PUB_LEN};
