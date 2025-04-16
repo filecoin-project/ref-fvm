@@ -363,7 +363,7 @@ impl Engine {
         let module = match cache.get(k) {
             Some(module) => module.clone(),
             None => {
-                let module = Module::deserialize(&self.0.engine, compiled)?;
+                let module = unsafe { Module::deserialize(&self.0.engine, compiled)? };
                 cache.insert(*k, module.clone());
                 module
             }

@@ -982,8 +982,8 @@ fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
 
 fn verify_post(verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
     let WindowPoStVerifyInfo {
-        ref proofs,
-        ref challenged_sectors,
+        proofs,
+        challenged_sectors,
         prover,
         ..
     } = verify_info;

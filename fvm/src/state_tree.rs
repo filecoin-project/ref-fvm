@@ -464,7 +464,7 @@ where
                 None => {
                     self.hamt.delete(&addr.to_bytes()).or_fatal()?;
                 }
-                Some(ref state) => {
+                Some(state) => {
                     self.hamt
                         .set(addr.to_bytes().into(), state.clone())
                         .or_fatal()?;

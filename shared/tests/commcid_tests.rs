@@ -11,7 +11,7 @@ fn rand_comm() -> Commitment {
 
     let mut comm = Commitment::default();
     for b in comm.iter_mut() {
-        *b = rng.gen();
+        *b = rng.r#gen();
     }
     comm
 }
