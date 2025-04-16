@@ -105,12 +105,12 @@ macro_rules! fvm_syscalls {
         #[allow(clippy::too_many_arguments)]
         $v unsafe fn $name($($args:$args_ty),*) -> Result<(), $crate::sys::ErrorNumber> {
             #[link(wasm_import_module = $module)]
-            extern "C" {
+            unsafe extern "C" {
                 #[link_name = stringify!($name)]
                 fn syscall($($args:$args_ty),*) -> u32;
             }
 
-            let code = syscall($($args),*);
+            let code = unsafe { syscall($($args),*) };
 
             if code == 0 {
                 Ok(())
@@ -118,7 +118,7 @@ macro_rules! fvm_syscalls {
                 Err(num_traits::FromPrimitive::from_u32(code)
                     .expect("syscall returned unrecognized exit code"))
             }
-        }
+}
         $crate::sys::fvm_syscalls! {
             module = $module; $($rest)*
         }
@@ -130,19 +130,21 @@ macro_rules! fvm_syscalls {
         #[allow(clippy::too_many_arguments)]
         $v unsafe fn $name($($args:$args_ty),*) -> Result<$ret, $crate::sys::ErrorNumber> {
             #[link(wasm_import_module = $module)]
-            extern "C" {
+            unsafe extern "C" {
                 #[link_name = stringify!($name)]
                 fn syscall(ret: *mut $ret $(, $args : $args_ty)*) -> u32;
             }
 
-            let mut ret = std::mem::MaybeUninit::<$ret>::uninit();
-            let code = syscall(ret.as_mut_ptr(), $($args),*);
+            unsafe {
+                let mut ret = std::mem::MaybeUninit::<$ret>::uninit();
+                let code = syscall(ret.as_mut_ptr(), $($args),*);
 
-            if code == 0 {
-                Ok(ret.assume_init())
-            } else {
-                Err(num_traits::FromPrimitive::from_u32(code)
-                    .expect("syscall returned unrecognized exit code"))
+                if code == 0 {
+                    Ok(ret.assume_init())
+                } else {
+                    Err(num_traits::FromPrimitive::from_u32(code)
+                        .expect("syscall returned unrecognized exit code"))
+                }
             }
         }
         $crate::sys::fvm_syscalls! {
@@ -157,12 +159,14 @@ macro_rules! fvm_syscalls {
         #[allow(clippy::too_many_arguments)]
         $v unsafe fn $name($($args:$args_ty),*) -> ! {
             #[link(wasm_import_module = $module)]
-            extern "C" {
+            unsafe extern "C" {
                 #[link_name = stringify!($name)]
                 fn syscall($($args : $args_ty),*) -> u32;
             }
 
-            syscall($($args),*);
+            unsafe {
+                syscall($($args),*);
+            }
 
             // This should be unreachable unless the syscall has a bug. We abort instead of panicing
             // to help the compiler optimize. It has no way of _proving_ that the syscall doesn't

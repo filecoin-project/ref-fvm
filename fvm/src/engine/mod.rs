@@ -517,7 +517,7 @@ impl Engine {
         let module = match cache.get(k) {
             Some(m) => m.module.clone(),
             None => {
-                let module = Module::deserialize(&self.inner.engine, compiled)?;
+                let module = unsafe { Module::deserialize(&self.inner.engine, compiled)? };
                 cache.insert(
                     *k,
                     ModuleRecord {
