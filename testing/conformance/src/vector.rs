@@ -181,7 +181,7 @@ impl MessageVector {
 impl MessageVector {
     /// Seeds a new blockstore with the CAR encoded in the test vector and all available bundled
     /// actors. Returns the blockstore and the root CID.
-    pub async fn seed_blockstore(&self) -> anyhow::Result<(MemoryBlockstore, Vec<Cid>)> {
+    pub fn seed_blockstore(&self) -> anyhow::Result<(MemoryBlockstore, Vec<Cid>)> {
         let blockstore = MemoryBlockstore::new();
         load_actors(&blockstore)?;
 
