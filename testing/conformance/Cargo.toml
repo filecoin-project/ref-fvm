@@ -45,6 +45,7 @@ m2-native = []
 [dev-dependencies]
 env_logger = "0.11.8"
 criterion = { workspace = true, features = ["async_std"] }
+rayon = "1.10.0"
 
 [[bin]]
 name = "perf-conformance"
