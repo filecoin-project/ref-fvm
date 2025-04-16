@@ -99,7 +99,7 @@ pub fn bench_vector_file(
     name: &str,
     engines: &MultiEngine,
 ) -> anyhow::Result<()> {
-    let (bs, _) = async_std::task::block_on(vector.seed_blockstore()).unwrap();
+    let (bs, _) = vector.seed_blockstore().unwrap();
 
     for variant in vector.preconditions.variants.iter() {
         let name = format!("{} | {}", name, variant.id);
