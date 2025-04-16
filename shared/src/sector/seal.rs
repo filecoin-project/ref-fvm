@@ -11,7 +11,7 @@ use crate::randomness::Randomness;
 use crate::sector::{
     RegisteredAggregateProof, RegisteredSealProof, RegisteredUpdateProof, SectorID, SectorNumber,
 };
-use crate::{clock, deal, ActorID};
+use crate::{ActorID, clock, deal};
 
 /// Randomness used for Seal proofs.
 pub type SealRandomness = Randomness;

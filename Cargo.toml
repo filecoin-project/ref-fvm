@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [
     "fvm",
     "sdk",
@@ -21,7 +21,7 @@ members = [
 [workspace.package]
 version = "4.7.1"
 license = "MIT OR Apache-2.0"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/filecoin-project/ref-fvm"
 authors = ["Protocol Labs", "Filecoin Core Devs"]
 

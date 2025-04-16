@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Read;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::{Blockstore, Buffered};
 use fvm_ipld_encoding::{CBOR, DAG_CBOR, IPLD_RAW};
@@ -187,7 +187,7 @@ fn take_reachable(cache: &mut HashMap<Cid, Vec<u8>>, root: &Cid) -> Result<Vec<(
             (hash, length) => {
                 return Err(anyhow!(
                     "cid {k} has unexpected multihash (code={hash}, len={length})"
-                ))
+                ));
             }
         }
         if k.hash().code() == IDENTITY {
@@ -259,7 +259,7 @@ where
 mod tests {
     use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
     use fvm_ipld_encoding::CborStore;
-    use fvm_shared::{commcid, IDENTITY_HASH};
+    use fvm_shared::{IDENTITY_HASH, commcid};
     use multihash_codetable::{Code, Multihash};
     use serde::{Deserialize, Serialize};
 

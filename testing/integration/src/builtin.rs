@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use anyhow::{Context, Result};
 use cid::Cid;
-use fvm::machine::{Manifest, BURNT_FUNDS_ACTOR_ID};
+use fvm::machine::{BURNT_FUNDS_ACTOR_ID, Manifest};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-use fvm_shared::address::Address;
 use fvm_shared::ActorID;
+use fvm_shared::address::Address;
 use multihash_codetable::Code;
 
 use crate::error::Error::{FailedToLoadManifest, FailedToSetState};

@@ -14,7 +14,7 @@ use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
 use fvm::trace::IpldOperation;
-use fvm::{kernel, Kernel};
+use fvm::{Kernel, kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
 use fvm_shared::address::Address;

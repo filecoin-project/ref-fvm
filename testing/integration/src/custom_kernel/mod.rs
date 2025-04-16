@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm::call_manager::CallManager;
 use fvm::gas::Gas;
+use fvm::kernel::Result;
 use fvm::kernel::filecoin::{DefaultFilecoinKernel, FilecoinKernel};
 use fvm::kernel::prelude::*;
-use fvm::kernel::Result;
 use fvm::kernel::{
     ActorOps, CryptoOps, DebugOps, EventOps, IpldBlockOps, MessageOps, NetworkOps, RandomnessOps,
     SelfOps, SendOps, SyscallHandler, UpgradeOps,
@@ -19,7 +19,7 @@ use fvm_shared::sector::{
 };
 use fvm_shared::sys::out::network::NetworkContext;
 use fvm_shared::sys::out::vm::MessageContext;
-use fvm_shared::{address::Address, econ::TokenAmount, ActorID, MethodNum};
+use fvm_shared::{ActorID, MethodNum, address::Address, econ::TokenAmount};
 
 use ambassador::Delegate;
 use cid::Cid;

@@ -6,13 +6,13 @@ use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sector::WindowPoStVerifyInfo;
 
-use super::context::Memory;
 use super::Context;
+use super::context::Memory;
 use crate::kernel::ClassifyResult;
-use crate::kernel::{filecoin::FilecoinKernel, Result};
+use crate::kernel::{Result, filecoin::FilecoinKernel};
 use crate::syscall_error;
-use anyhow::anyhow;
 use anyhow::Context as _;
+use anyhow::anyhow;
 use fvm_ipld_encoding::from_slice;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{

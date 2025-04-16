@@ -9,8 +9,8 @@
 //! of your choice during the initialization of the consuming application.
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-pub use kernel::default::DefaultKernel;
 pub use kernel::Kernel;
+pub use kernel::default::DefaultKernel;
 
 pub mod call_manager;
 pub mod engine;
@@ -49,8 +49,8 @@ mod test {
     use cid::Cid;
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::{CborStore, DAG_CBOR};
-    use fvm_shared::state::StateTreeVersion;
     use fvm_shared::IDENTITY_HASH;
+    use fvm_shared::state::StateTreeVersion;
     use multihash_codetable::{Code, Multihash};
 
     use crate::call_manager::DefaultCallManager;

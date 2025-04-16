@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::rc::Rc;
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_amt::Amt;
-use fvm_ipld_encoding::{to_vec, CBOR};
+use fvm_ipld_encoding::{CBOR, to_vec};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -18,16 +18,16 @@ use num_traits::Zero;
 use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
 use super::{Backtrace, CallManager, Entrypoint, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::blockstore::DiscardBlockstore;
-use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
+use crate::call_manager::backtrace::Frame;
 use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::Engine;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{
     Block, BlockRegistry, ClassifyResult, ExecutionError, Kernel, Result, SyscallError,
 };
-use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
+use crate::machine::limiter::MemoryLimiter;
 use crate::state_tree::ActorState;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};

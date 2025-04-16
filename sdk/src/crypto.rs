@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
 use fvm_ipld_encoding::to_vec;
+use fvm_shared::MAX_CID_LEN;
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::{
     hash::SupportedHashes,
     signature::{
-        Signature, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+        BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE, Signature,
     },
 };
 use fvm_shared::error::ErrorNumber;
@@ -16,10 +17,9 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
-use fvm_shared::MAX_CID_LEN;
 use num_traits::FromPrimitive;
 
-use crate::{status_code_to_bool, sys, SyscallResult};
+use crate::{SyscallResult, status_code_to_bool, sys};
 
 #[cfg(feature = "verify-signature")]
 /// Verifies that a signature is valid for an address and plaintext.

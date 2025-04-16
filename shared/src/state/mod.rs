@@ -10,9 +10,9 @@ use num_traits::Zero;
 use quickcheck::Arbitrary;
 use serde::{Deserialize, Serialize};
 
+use crate::EMPTY_ARR_CID;
 use crate::address::Address;
 use crate::econ::TokenAmount;
-use crate::EMPTY_ARR_CID;
 
 /// Specifies the version of the state tree
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Serialize_repr, Deserialize_repr)]

@@ -3,8 +3,8 @@
 use fvm_shared::error::ExitCode;
 use fvm_shared::sys::out::vm::MessageContext;
 
-use super::error::Abort;
 use super::Context;
+use super::error::Abort;
 use crate::kernel::MessageOps;
 
 /// The maximum message length included in the backtrace. Given 1024 levels, this gives us a total

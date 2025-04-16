@@ -7,7 +7,7 @@ use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::IntegrationExecutor;
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
-use fvm_ipld_encoding::{to_vec, IPLD_RAW};
+use fvm_ipld_encoding::{IPLD_RAW, to_vec};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
@@ -84,10 +84,12 @@ fn events_test() {
     // Check the events AMT.
     assert!(res.msg_receipt.events_root.is_some());
     // Check that we haven't inserted the events AMT in the blockstore.
-    assert!(!executor
-        .blockstore()
-        .has(&res.msg_receipt.events_root.unwrap())
-        .unwrap());
+    assert!(
+        !executor
+            .blockstore()
+            .has(&res.msg_receipt.events_root.unwrap())
+            .unwrap()
+    );
 
     // === Emits an improperly formatted event ===
 

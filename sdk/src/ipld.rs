@@ -1,11 +1,11 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use cid::multihash::Multihash;
 use cid::Cid;
-use fvm_shared::error::ErrorNumber;
+use cid::multihash::Multihash;
 use fvm_shared::MAX_CID_LEN;
+use fvm_shared::error::ErrorNumber;
 
-use crate::{sys, SyscallResult};
+use crate::{SyscallResult, sys};
 
 /// The unit/void object.
 pub const UNIT: u32 = sys::ipld::UNIT;

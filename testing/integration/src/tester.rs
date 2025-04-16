@@ -1,6 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
 use fvm::engine::EnginePool;
@@ -10,14 +10,14 @@ use fvm::machine::{DefaultMachine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor};
 use fvm_ipld_blockstore::{Block, Blockstore, MemoryBlockstore};
-use fvm_ipld_encoding::{ser, CborStore};
+use fvm_ipld_encoding::{CborStore, ser};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IPLD_RAW};
-use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::SecretKey;
+use k256::elliptic_curve::sec1::ToEncodedPoint;
 use lazy_static::lazy_static;
 use multihash_codetable::Code;
 

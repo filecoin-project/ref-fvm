@@ -4,9 +4,9 @@ use std::io::Cursor;
 use std::ops::{Deref, DerefMut};
 
 use cid::Cid;
+use fvm_shared::MAX_CID_LEN;
 use fvm_shared::address::Address;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::MAX_CID_LEN;
 
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::syscall_error;

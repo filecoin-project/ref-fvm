@@ -9,7 +9,7 @@ use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId}
 use fvm_ipld_encoding::bytes_32;
 use fvm_shared::commcid;
 use fvm_shared::consensus::ConsensusFault;
-use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize, PieceInfo};
+use fvm_shared::piece::{PaddedPieceSize, PieceInfo, zero_piece_commitment};
 use fvm_shared::randomness::Randomness;
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredPoStProof, RegisteredSealProof, ReplicaUpdateInfo,
@@ -25,7 +25,7 @@ use super::{ClassifyResult, Context};
 use crate::call_manager::CallManager;
 use crate::externs::Consensus;
 use crate::machine::Machine;
-use crate::{syscall_error, DefaultKernel, Kernel};
+use crate::{DefaultKernel, Kernel, syscall_error};
 
 use super::prelude::*;
 
@@ -311,8 +311,8 @@ fn catch_and_log_panic<F: FnOnce() -> Result<R> + UnwindSafe, R>(context: &str, 
 
 fn verify_post(verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
     let WindowPoStVerifyInfo {
-        ref proofs,
-        ref challenged_sectors,
+        proofs,
+        challenged_sectors,
         prover,
         ..
     } = verify_info;

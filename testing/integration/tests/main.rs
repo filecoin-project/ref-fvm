@@ -11,8 +11,8 @@ use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_integration_tests::tester::{Account, IntegrationExecutor, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
-use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::RawBytes;
+use fvm_ipld_encoding::tuple::*;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -29,8 +29,8 @@ use num_traits::Zero;
 
 mod bundles;
 use bundles::*;
-use fvm_shared::chainid::ChainID;
 use fvm_shared::ActorID;
+use fvm_shared::chainid::ChainID;
 
 /// The state object.
 #[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, Default)]

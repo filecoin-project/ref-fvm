@@ -4,9 +4,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 // test target
+use fvm::Kernel;
 use fvm::kernel::default::DefaultKernel;
 use fvm::kernel::{Block, BlockRegistry};
-use fvm::Kernel;
 use multihash_codetable::Code;
 use num_traits::Zero;
 

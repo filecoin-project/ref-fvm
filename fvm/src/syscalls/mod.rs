@@ -1,6 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use num_traits::Zero;
 use wasmtime::{AsContext, AsContextMut, ExternType, Global, Module, Val};
 

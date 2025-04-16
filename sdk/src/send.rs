@@ -9,7 +9,7 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::sys::SendFlags;
 use fvm_shared::{MethodNum, Response};
 
-use crate::{build_response, sys, SyscallResult, NO_DATA_BLOCK_ID};
+use crate::{NO_DATA_BLOCK_ID, SyscallResult, build_response, sys};
 
 /// Sends a message to another actor.
 pub fn send(

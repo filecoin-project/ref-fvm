@@ -10,7 +10,7 @@ use rand_xorshift::XorShiftRng;
 
 fn random_indices(range: u64, seed: u64) -> Vec<u64> {
     let mut rng = XorShiftRng::seed_from_u64(seed);
-    (0..range).filter(|_| rng.gen::<bool>()).collect()
+    (0..range).filter(|_| rng.r#gen::<bool>()).collect()
 }
 
 #[test]

@@ -42,7 +42,7 @@ pub struct MetaData {
     pub description: String,
     #[serde(default)]
     pub comment: String,
-    pub gen: Vec<GenerationData>,
+    pub generation: Vec<GenerationData>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
