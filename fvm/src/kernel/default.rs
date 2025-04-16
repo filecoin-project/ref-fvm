@@ -3,7 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use blake2b_simd::Params;
 use byteorder::{BigEndian, WriteBytesExt};
 use cid::Cid;
@@ -16,10 +16,10 @@ use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
+use fvm_shared::piece::{PaddedPieceSize, zero_piece_commitment};
 use fvm_shared::sector::SectorInfo;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{commcid, ActorID};
+use fvm_shared::{ActorID, commcid};
 use lazy_static::lazy_static;
 use multihash_codetable::{Code, Multihash, MultihashDigest};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -34,7 +34,7 @@ use crate::externs::{Consensus, Rand};
 use crate::gas::GasCharge;
 use crate::state_tree::ActorState;
 use crate::trace::ExecutionEvent;
-use crate::{syscall_error, EMPTY_ARR_CID};
+use crate::{EMPTY_ARR_CID, syscall_error};
 
 lazy_static! {
     static ref NUM_CPUS: usize = num_cpus::get();

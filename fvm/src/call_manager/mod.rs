@@ -3,11 +3,11 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::{ActorID, MethodNum};
 
+use crate::Kernel;
 use crate::gas::{GasCharge, GasTracker, PriceList};
 use crate::kernel::{self, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::StateTree;
-use crate::Kernel;
 
 pub mod backtrace;
 

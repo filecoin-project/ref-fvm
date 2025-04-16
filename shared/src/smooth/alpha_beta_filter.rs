@@ -1,10 +1,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::Cbor;
+use fvm_ipld_encoding::tuple::*;
 
-use crate::bigint::{bigint_ser, BigInt, Integer};
+use crate::bigint::{BigInt, Integer, bigint_ser};
 use crate::clock::ChainEpoch;
 use crate::math::PRECISION;
 

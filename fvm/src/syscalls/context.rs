@@ -3,10 +3,10 @@ use std::ops::{Deref, DerefMut};
 use std::panic;
 
 use cid::Cid;
-use fvm_ipld_encoding::{from_slice, Cbor};
+use fvm_ipld_encoding::{Cbor, from_slice};
+use fvm_shared::MAX_CID_LEN;
 use fvm_shared::address::Address;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::MAX_CID_LEN;
 
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::syscall_error;

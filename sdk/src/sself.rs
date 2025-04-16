@@ -1,8 +1,8 @@
 use cid::Cid;
+use fvm_shared::MAX_CID_LEN;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::MAX_CID_LEN;
 
 use crate::error::{ActorDeleteError, NoStateError};
 use crate::sys;

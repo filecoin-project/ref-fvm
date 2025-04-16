@@ -33,7 +33,10 @@ mod ipld {
 
         // Link
         let expected_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block));
-        assert_eq!(cid, expected_cid, "CID that came from block_link does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec");
+        assert_eq!(
+            cid, expected_cid,
+            "CID that came from block_link does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec"
+        );
 
         // Stat
         assert_eq!(stat.codec, opened_stat.codec);
@@ -154,15 +157,28 @@ mod ipld {
         let expected_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(block));
         let expected_other_cid = Cid::new_v1(DAG_CBOR, Code::Blake2b256.digest(other_block));
 
-        assert_eq!(cid, expected_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(block));
-        assert_eq!(other_cid, expected_other_cid, "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec", String::from_utf8_lossy(other_block));
+        assert_eq!(
+            cid,
+            expected_cid,
+            "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec",
+            String::from_utf8_lossy(block)
+        );
+        assert_eq!(
+            other_cid,
+            expected_other_cid,
+            "CID that came from block_link and {} does not match expected CID: Blake2b256 hash, 32 bytes long, DAG CBOR codec",
+            String::from_utf8_lossy(other_block)
+        );
 
         // Internal CIDs
         assert!(
             call_manager.machine.blockstore().has(&cid)?,
             "block_link was called but CID was not found in the blockstore"
         );
-        assert_eq!(cid, cid1, "calling block_link in 2 different kernels of the same data and state should have the same CID");
+        assert_eq!(
+            cid, cid1,
+            "calling block_link in 2 different kernels of the same data and state should have the same CID"
+        );
         assert_ne!(
             cid, other_cid,
             "calling block_link with different data should make different CIDs"
@@ -262,7 +278,11 @@ mod ipld {
         let buf_i = kern.block_read(id, 0, &mut block_buf)?;
         let buf1_i = kern1.block_read(id1, 0, &mut block1_buf)?;
 
-        assert_eq!(buf_i, 3 - block_buf.len() as i32, "input buffer is larger than bytes to be read, expected value here must be exactly block.len()-buf.len()");
+        assert_eq!(
+            buf_i,
+            3 - block_buf.len() as i32,
+            "input buffer is larger than bytes to be read, expected value here must be exactly block.len()-buf.len()"
+        );
         assert_eq!(
             buf_i, buf1_i,
             "remaining offsets from 2 different kernels of same data are mismatched"
@@ -309,7 +329,10 @@ mod ipld {
             "world!".as_bytes(),
             "bytes read from block with offset is unexpected"
         );
-        assert_eq!(remaining_offset, 0, "number of bytes read here should be exactly the same as the number of bytes in the block");
+        assert_eq!(
+            remaining_offset, 0,
+            "number of bytes read here should be exactly the same as the number of bytes in the block"
+        );
 
         // read with non-empty buffer
         {

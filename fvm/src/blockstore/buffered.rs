@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Cursor, Read, Seek};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use cid::Cid;
 use fvm_ipld_blockstore::{Blockstore, Buffered};
@@ -191,7 +191,7 @@ fn copy_rec<'a>(
         (DAG_CBOR, IDENTITY, _) => {
             return scan_for_links(&mut Cursor::new(root.hash().digest()), |link| {
                 copy_rec(cache, link, buffer)
-            })
+            });
         }
         // Ignore commitments (not even going to check the hash function.
         (FIL_COMMITMENT_UNSEALED | FIL_COMMITMENT_SEALED, _, _) => return Ok(()),
@@ -200,7 +200,7 @@ fn copy_rec<'a>(
         (codec, hash, length) => {
             return Err(anyhow!(
                 "cid {root} has unexpected codec ({codec}), hash ({hash}), or length ({length})"
-            ))
+            ));
         }
     }
 
@@ -270,7 +270,7 @@ where
 mod tests {
     use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
     use fvm_ipld_encoding::CborStore;
-    use fvm_shared::{commcid, IDENTITY_HASH};
+    use fvm_shared::{IDENTITY_HASH, commcid};
     use multihash_codetable::{Code, Multihash};
     use serde::{Deserialize, Serialize};
 

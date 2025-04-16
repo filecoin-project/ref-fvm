@@ -4,7 +4,7 @@
 use cid::Cid;
 use fvm_shared::commcid::*;
 use multihash_codetable::{Code, Multihash, MultihashDigest};
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 
 fn rand_comm() -> Commitment {
     let mut rng = thread_rng();

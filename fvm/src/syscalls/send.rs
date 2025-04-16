@@ -4,8 +4,8 @@ use fvm_shared::error::ExitCode;
 use fvm_shared::sys;
 
 use super::Context;
-use crate::kernel::{Result, SendResult};
 use crate::Kernel;
+use crate::kernel::{Result, SendResult};
 
 /// Send a message to another actor. The result is placed as a CBOR-encoded
 /// receipt in the block registry, and can be retrieved by the returned BlockId.

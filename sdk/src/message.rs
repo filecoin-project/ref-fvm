@@ -4,7 +4,7 @@ use fvm_shared::sys::BlockId;
 use fvm_shared::{ActorID, MethodNum};
 
 use crate::vm::INVOCATION_CONTEXT;
-use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
+use crate::{NO_DATA_BLOCK_ID, SyscallResult, sys};
 
 /// Returns the ID address of the caller.
 #[inline(always)]
