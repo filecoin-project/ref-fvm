@@ -11,7 +11,7 @@ use fvm_shared::sector::{
     SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::{MethodNum, METHOD_SEND};
+use fvm_shared::{METHOD_SEND, MethodNum};
 use fvm_wasm_instrument::gas_metering::{MemoryGrowCost, Rules};
 use fvm_wasm_instrument::parity_wasm::elements::Instruction;
 use lazy_static::lazy_static;

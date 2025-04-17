@@ -4,7 +4,7 @@
 use super::alpha_beta_filter::*;
 use crate::bigint::{BigInt, Integer};
 use crate::clock::ChainEpoch;
-use crate::math::{poly_parse, poly_val, PRECISION};
+use crate::math::{PRECISION, poly_parse, poly_val};
 
 lazy_static! {
     pub static ref NUM: Vec<BigInt> = poly_parse(&[

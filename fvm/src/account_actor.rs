@@ -8,14 +8,14 @@
 //! details.
 
 use cid::Cid;
-use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::Cbor;
+use fvm_ipld_encoding::tuple::*;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use num_traits::Zero;
 
-use crate::state_tree::ActorState;
 use crate::EMPTY_ARR_CID;
+use crate::state_tree::ActorState;
 
 pub const SYSTEM_ACTOR_ID: u64 = 0;
 

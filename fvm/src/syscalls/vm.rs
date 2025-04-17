@@ -1,10 +1,10 @@
 use fvm_shared::error::ExitCode;
-use fvm_shared::sys::out::vm::InvocationContext;
 use fvm_shared::sys::SyscallSafe;
+use fvm_shared::sys::out::vm::InvocationContext;
 use fvm_shared::version::NetworkVersion;
 
-use super::error::Abort;
 use super::Context;
+use super::error::Abort;
 use crate::kernel::{ClassifyResult, Kernel};
 
 /// An uninhabited type. We use this in `abort` to make sure there's no way to return without

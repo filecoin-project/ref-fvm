@@ -7,7 +7,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use criterion::*;
-use fvm::machine::{MultiEngine, BURNT_FUNDS_ACTOR_ADDR};
+use fvm::machine::{BURNT_FUNDS_ACTOR_ADDR, MultiEngine};
 use fvm_conformance_tests::driver::*;
 use fvm_conformance_tests::vector::{ApplyMessage, MessageVector};
 use fvm_ipld_encoding::{Cbor, RawBytes};
@@ -17,7 +17,7 @@ use num_traits::Zero;
 use walkdir::WalkDir;
 
 mod bench_drivers;
-use crate::bench_drivers::{bench_vector_file, CheckStrength};
+use crate::bench_drivers::{CheckStrength, bench_vector_file};
 
 /// benches only machine setup, no messages get sent. This is basically overhead of the benchmarks themselves.
 fn bench_init_only(

@@ -4,13 +4,13 @@
 use cid::Cid;
 use clock::ChainEpoch;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::{serde_bytes, Cbor};
+use fvm_ipld_encoding::{Cbor, serde_bytes};
 
 use crate::randomness::Randomness;
 use crate::sector::{
     RegisteredAggregateProof, RegisteredSealProof, RegisteredUpdateProof, SectorID, SectorNumber,
 };
-use crate::{clock, deal, ActorID};
+use crate::{ActorID, clock, deal};
 
 /// Randomness used for Seal proofs.
 pub type SealRandomness = Randomness;

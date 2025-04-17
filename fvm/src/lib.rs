@@ -9,8 +9,8 @@
 // This is legacy code, so we don't want to have to deal with deprecation warnings.
 #![allow(deprecated)]
 
-pub use kernel::default::DefaultKernel;
 pub use kernel::Kernel;
+pub use kernel::default::DefaultKernel;
 
 pub mod call_manager;
 pub mod executor;
@@ -41,7 +41,7 @@ pub mod system_actor;
 pub mod trace;
 
 use cid::Cid;
-use fvm_ipld_encoding::{to_vec, DAG_CBOR};
+use fvm_ipld_encoding::{DAG_CBOR, to_vec};
 use multihash_codetable::{Code, MultihashDigest};
 
 lazy_static::lazy_static! {
@@ -63,7 +63,7 @@ mod test {
     use crate::externs::{Consensus, Externs, Rand};
     use crate::machine::{DefaultMachine, Engine, Manifest, NetworkConfig};
     use crate::state_tree::StateTree;
-    use crate::{executor, DefaultKernel};
+    use crate::{DefaultKernel, executor};
 
     struct DummyExterns;
 

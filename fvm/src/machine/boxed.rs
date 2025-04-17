@@ -1,7 +1,7 @@
 use cid::Cid;
+use fvm_shared::ActorID;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use fvm_shared::ActorID;
 
 use super::{Engine, Machine, MachineContext, Manifest};
 use crate::kernel::Result;

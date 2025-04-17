@@ -9,7 +9,7 @@ use fvm::gas::{Gas, GasCharge, GasTracker};
 use fvm::machine::{Engine, Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::trace::ExecutionEvent;
-use fvm::{kernel, Kernel};
+use fvm::{Kernel, kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::address::Address;

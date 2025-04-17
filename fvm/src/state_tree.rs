@@ -4,11 +4,11 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::CborStore;
+use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
@@ -204,7 +204,7 @@ where
                 return Err(ExecutionError::Fatal(anyhow!(
                     "unsupported state tree version: {:?}",
                     version
-                )))
+                )));
             }
             StateTreeVersion::V3 | StateTreeVersion::V4 => {
                 let cid = store
@@ -241,14 +241,14 @@ where
                 return Err(ExecutionError::Fatal(anyhow!(
                     "failed to find state tree {}",
                     c
-                )))
+                )));
             }
             Err(e) => {
                 return Err(ExecutionError::Fatal(anyhow!(
                     "failed to load state tree {}: {}",
                     c,
                     e
-                )))
+                )));
             }
         };
 
@@ -464,7 +464,7 @@ where
                 None => {
                     self.hamt.delete(&addr.to_bytes()).or_fatal()?;
                 }
-                Some(ref state) => {
+                Some(state) => {
                     self.hamt
                         .set(addr.to_bytes().into(), state.clone())
                         .or_fatal()?;

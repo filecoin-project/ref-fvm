@@ -2,7 +2,7 @@ use anyhow::anyhow;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Result};
-use crate::{syscall_error, Kernel};
+use crate::{Kernel, syscall_error};
 
 pub fn resolve_address(
     context: Context<'_, impl Kernel>,

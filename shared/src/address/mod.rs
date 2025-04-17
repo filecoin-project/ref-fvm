@@ -12,8 +12,8 @@ use std::str::FromStr;
 
 use data_encoding::Encoding;
 use data_encoding_macro::new_encoding;
-use fvm_ipld_encoding::{serde_bytes, Cbor};
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use fvm_ipld_encoding::{Cbor, serde_bytes};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 pub use self::errors::Error;
 pub use self::network::Network;

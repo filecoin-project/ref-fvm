@@ -1,6 +1,6 @@
 use std::fmt;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use cid::Cid;
 use fmt::Display;
 use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
@@ -239,7 +239,7 @@ pub fn run_variant(
             return Ok(VariantResult::Failed {
                 id,
                 reason: anyhow!("machine poisoned"),
-            })
+            });
         }
     };
     if check_correctness {

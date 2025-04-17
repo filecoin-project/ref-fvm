@@ -1,12 +1,12 @@
 use std::convert::TryInto;
 
 use fvm_ipld_encoding::ipld_block::IpldBlock;
+use fvm_shared::MethodNum;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
-use fvm_shared::MethodNum;
 
-use crate::{sys, SyscallResult, NO_DATA_BLOCK_ID};
+use crate::{NO_DATA_BLOCK_ID, SyscallResult, sys};
 
 /// The outcome of a `Send`, covering its ExitCode and optional return data
 #[derive(Debug, PartialEq, Eq, Clone)]

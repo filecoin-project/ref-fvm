@@ -1,10 +1,10 @@
 use std::any::{Any, TypeId};
-use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
@@ -15,11 +15,11 @@ use wasmtime::{
     WasmBacktraceDetails,
 };
 
+use crate::Kernel;
 use crate::gas::WasmGasPrices;
 use crate::machine::NetworkConfig;
 use crate::syscalls::error::Abort;
-use crate::syscalls::{bind_syscalls, InvocationData};
-use crate::Kernel;
+use crate::syscalls::{InvocationData, bind_syscalls};
 
 /// A caching wasmtime engine.
 #[derive(Clone)]
@@ -363,7 +363,7 @@ impl Engine {
         let module = match cache.get(k) {
             Some(module) => module.clone(),
             None => {
-                let module = Module::deserialize(&self.0.engine, compiled)?;
+                let module = unsafe { Module::deserialize(&self.0.engine, compiled)? };
                 cache.insert(*k, module.clone());
                 module
             }

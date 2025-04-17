@@ -4,7 +4,7 @@
 use std::convert::TryInto;
 use std::hash::Hash;
 
-use super::{from_leb_bytes, to_leb_bytes, Error, Protocol, BLS_PUB_LEN, PAYLOAD_HASH_LEN};
+use super::{BLS_PUB_LEN, Error, PAYLOAD_HASH_LEN, Protocol, from_leb_bytes, to_leb_bytes};
 
 /// Payload is the data of the Address. Variants are the supported Address protocols.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]

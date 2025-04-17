@@ -1,11 +1,11 @@
 use std::mem;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use wasmtime::{AsContextMut, Global, Linker, Memory, Val};
 
+use crate::Kernel;
 use crate::call_manager::backtrace;
 use crate::gas::Gas;
-use crate::Kernel;
 
 pub(crate) mod error;
 
