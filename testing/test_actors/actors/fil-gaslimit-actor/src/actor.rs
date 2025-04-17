@@ -16,7 +16,7 @@ struct Params {
     expect_err: bool,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(params_id: u32) -> u32 {
     sdk::initialize();
 

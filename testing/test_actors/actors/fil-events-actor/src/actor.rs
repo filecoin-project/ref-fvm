@@ -11,7 +11,7 @@ use fvm_shared::error::ErrorNumber::*;
 use fvm_shared::error::ExitCode;
 use fvm_shared::event::{Entry, Flags};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(params: u32) -> u32 {
     sdk::initialize();
 

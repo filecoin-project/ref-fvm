@@ -12,7 +12,7 @@ struct SomeStruct {
     value: u64,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
     sdk::initialize();
 
@@ -65,7 +65,7 @@ pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
     sdk::debug::log("[upgrade-receive-actor] calling vm::exit()".to_string());

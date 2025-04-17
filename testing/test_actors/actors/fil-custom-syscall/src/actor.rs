@@ -5,7 +5,7 @@ fvm_sdk::sys::fvm_syscalls! {
     pub fn my_custom_syscall(doubleme: i32) -> Result<i32>;
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(_: u32) -> u32 {
     fvm_sdk::initialize();
 

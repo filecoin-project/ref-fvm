@@ -7,7 +7,7 @@ use fvm_sdk as sdk;
 use fvm_shared::{crypto::hash::SupportedHashes, econ::TokenAmount};
 use sdk::error::{ActorDeleteError, StateReadError, StateUpdateError};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 

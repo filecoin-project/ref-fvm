@@ -21,7 +21,7 @@ use serde::de::DeserializeOwned;
 const MUTATION_COUNT: usize = 10;
 const NOP_ACTOR_ADDRESS: Address = Address::new_id(10001);
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(params_ptr: u32) -> u32 {
     fvm_sdk::initialize(); // helps with debugging
 

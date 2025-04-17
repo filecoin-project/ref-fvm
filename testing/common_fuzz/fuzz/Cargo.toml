@@ -3,7 +3,7 @@ name = "common_fuzz"
 version = "0.0.0"
 authors = [ "Protocol Labs", "Filecoin Core Devs"]
 publish = false
-edition = "2021"
+edition.workspace = true
 license = "MIT OR Apache-2.0"
 
 [package.metadata]

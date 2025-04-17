@@ -15,7 +15,7 @@ struct SomeStruct {
 
 const UPGRADE_FAILED_EXIT_CODE: u32 = 19;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
     sdk::initialize();
 
@@ -67,7 +67,7 @@ pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 

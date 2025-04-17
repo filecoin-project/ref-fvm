@@ -5,7 +5,7 @@ use fvm_ipld_encoding::CBOR;
 use fvm_sdk as sdk;
 
 /// Placeholder invoke for testing
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[cfg(target_arch = "wasm32")]
 pub fn invoke(blk: u32) -> u32 {
     invoke_method(blk)

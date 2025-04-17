@@ -12,7 +12,7 @@ fn gen_test_bytes(size: i32) -> Vec<u8> {
     .unwrap()
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 

@@ -70,7 +70,7 @@ impl State {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(params_pointer: u32) -> u32 {
     // Conduct method dispatch. Handle input parameters and return data.
     let ret: Option<RawBytes> = match fvm_sdk::message::method_number() {
