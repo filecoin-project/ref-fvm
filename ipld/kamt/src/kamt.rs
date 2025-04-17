@@ -479,7 +479,6 @@ impl<'a, BS, V, K, H, const N: usize> IntoIterator for &'a Kamt<BS, K, V, H, N>
 where
     K: DeserializeOwned + PartialOrd,
     V: DeserializeOwned,
-
     BS: Blockstore,
 {
     type Item = Result<(&'a K, &'a V), Error>;

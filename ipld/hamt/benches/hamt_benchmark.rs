@@ -4,7 +4,7 @@
 
 extern crate serde;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_hamt::Hamt;
 

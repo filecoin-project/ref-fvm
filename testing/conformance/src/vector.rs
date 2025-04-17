@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use cid::Cid;
 use flate2::bufread::GzDecoder;
 use fvm_ipld_blockstore::MemoryBlockstore;

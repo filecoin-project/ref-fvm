@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::convert::TryFrom;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::Block;
 use fvm_sdk as sdk;

@@ -7,14 +7,14 @@ use std::convert::{TryFrom, TryInto};
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{strict_bytes, BytesSer, CborStore};
+use fvm_ipld_encoding::{BytesSer, CborStore, strict_bytes};
 use multihash_codetable::Code;
 use once_cell::unsync::OnceCell;
 use serde::de::{self, DeserializeOwned};
-use serde::{ser, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, ser};
 
 use super::ValueMut;
-use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
+use crate::{Error, bmap_bytes, init_sized_vec, nodes_for_height};
 
 /// This represents a link to another Node
 #[derive(Debug)]
@@ -317,7 +317,7 @@ where
                     Some(Link::Dirty(Box::new(node)))
                 }
                 Some(Link::Dirty(node)) => {
-                    return node.set(bs, height - 1, bit_width, i % nfh, val)
+                    return node.set(bs, height - 1, bit_width, i % nfh, val);
                 }
             };
 

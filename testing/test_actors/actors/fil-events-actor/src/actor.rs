@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::ptr;
 
-use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::IPLD_RAW;
+use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;

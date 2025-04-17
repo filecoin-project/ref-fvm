@@ -5,8 +5,8 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use serde::de::{self, SeqAccess, Visitor};
 use serde::Deserialize;
+use serde::de::{self, SeqAccess, Visitor};
 
 /// Helper visitor to match Go's default behaviour of serializing uninitialized slices as null.
 /// This will be able to deserialize null as empty Vectors of the type.

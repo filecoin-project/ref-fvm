@@ -7,8 +7,8 @@ use std::path::Path;
 use arbitrary::Unstructured;
 use common_fuzz::cbor::Payload;
 use fvm_ipld_encoding as encoding;
-use rand::rngs::ThreadRng;
 use rand::RngCore;
+use rand::rngs::ThreadRng;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut rng = ThreadRng::default();

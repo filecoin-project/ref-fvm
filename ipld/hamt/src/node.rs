@@ -18,8 +18,8 @@ use super::bitfield::Bitfield;
 use super::hash_bits::HashBits;
 use super::pointer::Pointer;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair};
-use crate::pointer::version::{self, Version};
 use crate::Config;
+use crate::pointer::version::{self, Version};
 
 /// Node in Hamt tree which contains bitfield of set indexes and pointers to nodes
 #[derive(Debug)]

@@ -16,7 +16,7 @@ use serde::{Serialize, Serializer};
 use crate::iter::IterImpl;
 use crate::node::Node;
 use crate::pointer::version::Version;
-use crate::{pointer::version, Config, Error, Hash, HashAlgorithm, Sha256};
+use crate::{Config, Error, Hash, HashAlgorithm, Sha256, pointer::version};
 
 /// Implementation of the HAMT data structure for IPLD.
 ///

@@ -172,7 +172,7 @@ pub fn load_car_unchecked(s: &impl Blockstore, reader: impl io::Read) -> Result<
 #[cfg(test)]
 mod tests {
     use fvm_ipld_blockstore::MemoryBlockstore;
-    use fvm_ipld_encoding::{to_vec, DAG_CBOR};
+    use fvm_ipld_encoding::{DAG_CBOR, to_vec};
     use multihash_codetable::{Code::Blake2b256, MultihashDigest};
 
     use super::*;

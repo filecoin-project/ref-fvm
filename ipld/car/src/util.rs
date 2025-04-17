@@ -19,7 +19,7 @@ pub(crate) fn ld_read(reader: &mut impl io::Read) -> Result<Option<Vec<u8>>, Err
                 Ok(None)
             } else {
                 Err(Error::Io(e))
-            }
+            };
         }
         Err(ReadError::Decode(e)) => return Err(Error::ParsingError(e.to_string())),
         Err(e) => return Err(Error::Other(e.to_string())),

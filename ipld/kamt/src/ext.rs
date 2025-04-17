@@ -4,7 +4,7 @@
 
 use std::cmp::min;
 
-use crate::hash_bits::{mkmask, HashBits};
+use crate::hash_bits::{HashBits, mkmask};
 use crate::{Error, HashedKey};
 
 /// An optimization for occasions where we don't use key hashing in the KAMT,

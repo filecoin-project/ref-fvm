@@ -1,6 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::fs::{create_dir_all, File};
+use std::fs::{File, create_dir_all};
 use std::io::{Result as IoResult, Write};
 use std::ops::DerefMut;
 use std::path::PathBuf;

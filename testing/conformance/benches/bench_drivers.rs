@@ -145,7 +145,11 @@ pub fn bench_vector_file(
                 engines,
             );
         } else {
-            return Err(anyhow::anyhow!("a test failed, get the tests passing/running before running benchmarks in {:?} mode: {}", check_strength, name));
+            return Err(anyhow::anyhow!(
+                "a test failed, get the tests passing/running before running benchmarks in {:?} mode: {}",
+                check_strength,
+                name
+            ));
         };
     }
     Ok(())

@@ -1,6 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use cid::Cid;
 use fvm_gas_calibration_shared::*;
 use fvm_ipld_encoding::{DAG_CBOR, IPLD_RAW};
@@ -8,7 +8,7 @@ use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::crypto::hash::SupportedHashes;
-use fvm_shared::crypto::signature::{Signature, SignatureType, SECP_SIG_LEN};
+use fvm_shared::crypto::signature::{SECP_SIG_LEN, Signature, SignatureType};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::event::{ActorEvent, Entry};

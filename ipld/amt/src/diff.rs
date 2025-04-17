@@ -7,7 +7,7 @@ use std::borrow::Borrow;
 use anyhow::Context;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::iter::Iter;
 use crate::node::{CollapsedNode, Link};

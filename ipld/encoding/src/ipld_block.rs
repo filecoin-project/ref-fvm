@@ -5,7 +5,7 @@ use std::fmt::{Debug, Formatter};
 use serde::de::value;
 use {serde, serde_ipld_dagcbor};
 
-use crate::{CodecProtocol, Error, RawBytes, CBOR, DAG_CBOR, IPLD_RAW};
+use crate::{CBOR, CodecProtocol, DAG_CBOR, Error, IPLD_RAW, RawBytes};
 
 #[derive(PartialEq, Eq, Clone, Default)]
 pub struct IpldBlock {
