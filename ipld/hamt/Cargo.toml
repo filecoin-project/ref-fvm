@@ -2,10 +2,10 @@
 name = "fvm_ipld_hamt"
 description = "Sharded IPLD HashMap implementation."
 version = "0.10.4"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition.workspace = true
-repository = "https://github.com/filecoin-project/ref-fvm"
+repository.workspace = true
 
 [dependencies]
 serde = { workspace = true }

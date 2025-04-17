@@ -4,8 +4,8 @@ description = "IPLD CAR handling library"
 version = "0.9.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition.workspace = true
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/filecoin-project/ref-fvm"
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 cid = { workspace = true }
