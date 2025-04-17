@@ -15,10 +15,10 @@ use std::str::FromStr;
 use data_encoding::Encoding;
 use data_encoding_macro::new_encoding;
 use fvm_ipld_encoding::strict_bytes;
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 pub use self::errors::Error;
-pub use self::network::{current_network, set_current_network, Network};
+pub use self::network::{Network, current_network, set_current_network};
 pub use self::payload::{DelegatedAddress, Payload};
 pub use self::protocol::Protocol;
 use crate::ActorID;

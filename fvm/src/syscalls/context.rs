@@ -6,9 +6,9 @@ use std::panic;
 
 use cid::Cid;
 use fvm_ipld_encoding::from_slice;
+use fvm_shared::MAX_CID_LEN;
 use fvm_shared::address::Address;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::MAX_CID_LEN;
 use serde::de::DeserializeOwned;
 
 use crate::kernel::{ClassifyResult, Context as _, Result};

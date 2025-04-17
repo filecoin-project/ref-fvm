@@ -3,8 +3,8 @@
 use fvm_shared::randomness::RANDOMNESS_LENGTH;
 
 use super::Context;
-use crate::kernel::Result;
 use crate::Kernel;
+use crate::kernel::Result;
 
 /// Gets 32 bytes of randomness from the ticket chain.
 /// The supplied output buffer must have at least 32 bytes of capacity.

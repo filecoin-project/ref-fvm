@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::ops::Mul;
 
 use anyhow::Context;
+use fvm_shared::ActorID;
 use fvm_shared::crypto::signature::SignatureType;
 use fvm_shared::event::{ActorEvent, Flags};
 use fvm_shared::piece::PieceInfo;
@@ -14,7 +15,6 @@ use fvm_shared::sector::{
     SealVerifyInfo, WindowPoStVerifyInfo,
 };
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::ActorID;
 use fvm_wasm_instrument::gas_metering::{InstructionCost, Operator, Rules};
 use lazy_static::lazy_static;
 use num_traits::Zero;

@@ -6,9 +6,9 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::sys::{self, SendFlags};
 
 use super::Context;
+use crate::Kernel;
 use crate::gas::Gas;
 use crate::kernel::{ClassifyResult, Result, SendResult};
-use crate::Kernel;
 
 /// Send a message to another actor. The result is placed as a CBOR-encoded
 /// receipt in the block registry, and can be retrieved by the returned BlockId.

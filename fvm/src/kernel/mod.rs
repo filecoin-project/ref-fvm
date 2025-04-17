@@ -6,19 +6,19 @@ use fvm_shared::address::Address;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::signature::{
-    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE, SignatureType,
 };
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::piece::PieceInfo;
-use fvm_shared::randomness::{Randomness, RANDOMNESS_LENGTH};
+use fvm_shared::randomness::{RANDOMNESS_LENGTH, Randomness};
 use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
+use fvm_shared::sys::SendFlags;
 use fvm_shared::sys::out::network::NetworkContext;
 use fvm_shared::sys::out::vm::MessageContext;
-use fvm_shared::sys::SendFlags;
 use fvm_shared::{ActorID, MethodNum};
 
 mod hash;
@@ -35,8 +35,8 @@ pub use hash::SupportedHashes;
 
 use crate::call_manager::CallManager;
 use crate::gas::{Gas, GasTimer, PriceList};
-use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
+use crate::machine::limiter::MemoryLimiter;
 
 pub struct SendResult {
     pub block_id: BlockId,

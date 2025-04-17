@@ -8,8 +8,8 @@
 //! This package emits logs using the log façade. Configure the logging backend
 //! of your choice during the initialization of the consuming application.
 
-pub use kernel::default::DefaultKernel;
 pub use kernel::Kernel;
+pub use kernel::default::DefaultKernel;
 
 pub mod call_manager;
 pub mod engine;
@@ -43,7 +43,7 @@ mod history_map;
 pub mod trace;
 
 use cid::Cid;
-use fvm_ipld_encoding::{to_vec, DAG_CBOR};
+use fvm_ipld_encoding::{DAG_CBOR, to_vec};
 use multihash_codetable::{Code, MultihashDigest};
 
 lazy_static::lazy_static! {
@@ -59,8 +59,8 @@ mod test {
     use cid::Cid;
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::{CborStore, DAG_CBOR};
-    use fvm_shared::state::StateTreeVersion;
     use fvm_shared::IDENTITY_HASH;
+    use fvm_shared::state::StateTreeVersion;
     use multihash_codetable::{Code, Multihash};
 
     use crate::call_manager::DefaultCallManager;
@@ -68,7 +68,7 @@ mod test {
     use crate::externs::{Chain, Consensus, Externs, Rand};
     use crate::machine::{DefaultMachine, Manifest, NetworkConfig};
     use crate::state_tree::StateTree;
-    use crate::{executor, DefaultKernel};
+    use crate::{DefaultKernel, executor};
 
     struct DummyExterns;
 

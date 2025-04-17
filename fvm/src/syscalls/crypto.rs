@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::cmp;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use fvm_shared::crypto::signature::{
-    SignatureType, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+    SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE, SignatureType,
 };
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
@@ -16,7 +16,7 @@ use num_traits::FromPrimitive;
 
 use super::Context;
 use crate::kernel::{ClassifyResult, Result};
-use crate::{syscall_error, Kernel};
+use crate::{Kernel, syscall_error};
 
 /// Verifies that a signature is valid for an address and plaintext.
 ///

@@ -5,14 +5,14 @@ use std::convert::{TryFrom, TryInto};
 use std::panic::{self, UnwindSafe};
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use blake2b_simd::Params;
 use byteorder::WriteBytesExt;
-use cid::multihash::Multihash;
 use cid::Cid;
+use cid::multihash::Multihash;
 use filecoin_proofs_api::{self as proofs, ProverId, PublicReplicaInfo, SectorId};
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{bytes_32, IPLD_RAW};
+use fvm_ipld_encoding::{IPLD_RAW, bytes_32};
 use fvm_shared::address::Payload;
 use fvm_shared::bigint::Zero;
 use fvm_shared::chainid::ChainID;
@@ -21,11 +21,11 @@ use fvm_shared::crypto::signature;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::ActorEvent;
-use fvm_shared::piece::{zero_piece_commitment, PaddedPieceSize};
+use fvm_shared::piece::{PaddedPieceSize, zero_piece_commitment};
 use fvm_shared::sector::RegisteredPoStProof::{StackedDRGWindow32GiBV1, StackedDRGWindow32GiBV1P1};
 use fvm_shared::sector::{RegisteredPoStProof, SectorInfo};
 use fvm_shared::sys::out::vm::ContextFlags;
-use fvm_shared::{commcid, ActorID};
+use fvm_shared::{ActorID, commcid};
 use lazy_static::lazy_static;
 use multihash_codetable::MultihashDigest;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -1206,8 +1206,8 @@ fn verify_seal(vi: &SealVerifyInfo) -> Result<bool> {
 
 fn verify_post(verify_info: &WindowPoStVerifyInfo) -> Result<bool> {
     let WindowPoStVerifyInfo {
-        ref proofs,
-        ref challenged_sectors,
+        proofs,
+        challenged_sectors,
         prover,
         ..
     } = verify_info;

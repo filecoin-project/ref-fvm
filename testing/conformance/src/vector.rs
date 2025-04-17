@@ -41,7 +41,8 @@ pub struct MetaData {
     pub description: String,
     #[serde(default)]
     pub comment: String,
-    pub gen: Vec<GenerationData>,
+    #[serde(rename = "gen")]
+    pub generation: Vec<GenerationData>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

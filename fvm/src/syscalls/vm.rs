@@ -1,11 +1,11 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_shared::error::ExitCode;
-use fvm_shared::sys::out::vm::MessageContext;
 use fvm_shared::sys::SyscallSafe;
+use fvm_shared::sys::out::vm::MessageContext;
 
-use super::error::Abort;
 use super::Context;
+use super::error::Abort;
 use crate::kernel::Kernel;
 
 /// An uninhabited type. We use this in `abort` to make sure there's no way to return without
