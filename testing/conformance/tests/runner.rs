@@ -9,7 +9,7 @@ use std::iter;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use async_std::{stream, sync, task};
 use colored::*;
 use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
