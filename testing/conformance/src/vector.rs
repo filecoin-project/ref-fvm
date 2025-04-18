@@ -2,7 +2,7 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use cid::Cid;
 use flate2::bufread::GzDecoder;
 use fvm_ipld_blockstore::MemoryBlockstore;
