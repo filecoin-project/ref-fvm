@@ -1,13 +1,13 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use cid::multihash::Multihash;
 use cid::Cid;
-use fvm_ipld_encoding::{to_vec, DAG_CBOR};
+use cid::multihash::Multihash;
+use fvm_ipld_encoding::{DAG_CBOR, to_vec};
 use fvm_sdk as sdk;
 use fvm_shared::{crypto::hash::SupportedHashes, econ::TokenAmount};
 use sdk::error::{ActorDeleteError, StateReadError, StateUpdateError};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 

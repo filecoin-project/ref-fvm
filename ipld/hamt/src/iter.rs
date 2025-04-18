@@ -10,7 +10,7 @@ use fvm_ipld_encoding::de::DeserializeOwned;
 use crate::hash_bits::HashBits;
 use crate::node::Node;
 use crate::pointer::version::Version;
-use crate::pointer::{version, Pointer};
+use crate::pointer::{Pointer, version};
 use crate::{Config, Error, Hash, HashAlgorithm, KeyValuePair, Sha256};
 
 #[doc(hidden)]
@@ -76,7 +76,7 @@ where
                                 current: values[offset..].iter(),
                             }),
                             None => Err(Error::StartKeyNotFound),
-                        }
+                        };
                     }
                 },
                 None => continue,

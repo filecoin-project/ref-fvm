@@ -18,7 +18,7 @@ use num_traits::Zero;
 use walkdir::WalkDir;
 
 mod bench_drivers;
-use crate::bench_drivers::{bench_vector_file, CheckStrength};
+use crate::bench_drivers::{CheckStrength, bench_vector_file};
 
 /// benches only machine setup, no messages get sent. This is basically overhead of the benchmarks themselves.
 fn bench_init_only(

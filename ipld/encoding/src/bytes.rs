@@ -188,7 +188,7 @@ pub use strict_bytes as serde_bytes;
 mod test {
     use serde::{Deserialize, Serialize};
 
-    use crate::{from_slice, strict_bytes, to_vec, BytesDe, BytesSer};
+    use crate::{BytesDe, BytesSer, from_slice, strict_bytes, to_vec};
 
     #[test]
     fn round_trip() {

@@ -6,7 +6,7 @@ use std::fs::File;
 use std::io::BufReader;
 
 use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_ipld_car::{load_car, CarReader};
+use fvm_ipld_car::{CarReader, load_car};
 
 #[test]
 fn load_into_blockstore() {

@@ -98,19 +98,19 @@
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::CborStore;
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::serde::Deserialize;
-use fvm_ipld_encoding::CborStore;
 use itertools::sorted;
 use multihash_codetable::Code;
 
 use super::ValueMut;
 use crate::node::{CollapsedNode, Link};
-use crate::root::version::{Version as AmtVersion, V0, V3};
 use crate::root::RootImpl;
+use crate::root::version::{V0, V3, Version as AmtVersion};
 use crate::{
-    init_sized_vec, nodes_for_height, Error, Node, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
+    DEFAULT_BIT_WIDTH, Error, MAX_HEIGHT, MAX_INDEX, Node, init_sized_vec, nodes_for_height,
 };
 
 #[derive(Debug)]

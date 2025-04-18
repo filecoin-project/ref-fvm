@@ -3,7 +3,7 @@
 use std::fmt;
 use std::time::Instant;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use cid::Cid;
 use fmt::Display;
 use fvm::engine::MultiEngine;
@@ -12,7 +12,7 @@ use fvm::kernel::Context;
 use fvm::machine::Machine;
 use fvm::state_tree::{ActorState, StateTree};
 use fvm_ipld_blockstore::MemoryBlockstore;
-use fvm_ipld_encoding::{from_slice, CborStore};
+use fvm_ipld_encoding::{CborStore, from_slice};
 use fvm_shared::address::Protocol;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::message::Message;
@@ -287,7 +287,7 @@ pub fn run_variant(
             return Ok(VariantResult::Failed {
                 id,
                 reason: anyhow!("machine poisoned"),
-            })
+            });
         }
     };
     if check_correctness {

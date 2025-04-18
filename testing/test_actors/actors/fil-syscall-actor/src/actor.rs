@@ -1,11 +1,11 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_sdk as sdk;
-use fvm_sdk::sys::network::{context, NetworkContext};
+use fvm_sdk::sys::network::{NetworkContext, context};
 use fvm_shared::address::Address;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::crypto::hash::SupportedHashes as SharedSupportedHashes;
-use fvm_shared::crypto::signature::{Signature, SECP_SIG_LEN};
+use fvm_shared::crypto::signature::{SECP_SIG_LEN, Signature};
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sector::RegisteredSealProof;
 use multihash_codetable::{Blake2b256, Blake2b512, Keccak256, Ripemd160, Sha2_256};
@@ -28,7 +28,7 @@ pub enum SupportedHashes {
     Ripemd160,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 
@@ -476,7 +476,7 @@ fn test_balance() {
 fn test_unaligned() {
     unsafe {
         #[link(wasm_import_module = "network")]
-        extern "C" {
+        unsafe extern "C" {
             #[link_name = "context"]
             fn context_raw(out: *mut NetworkContext) -> u32;
         }

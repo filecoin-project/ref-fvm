@@ -3,7 +3,7 @@
 #![allow(clippy::slow_vector_initialization)]
 
 /// Placeholder invoke for testing
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[cfg(target_arch = "wasm32")]
 pub fn invoke(_blk: u32) -> u32 {
     use fvm_sdk as sdk;

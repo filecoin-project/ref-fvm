@@ -7,7 +7,7 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::de::DeserializeOwned;
 
 use crate::hash_bits::HashBits;
-use crate::node::{match_extension, ExtensionMatch, Node};
+use crate::node::{ExtensionMatch, Node, match_extension};
 use crate::pointer::Pointer;
 use crate::{AsHashedKey, Config, Error, KeyValuePair};
 
@@ -74,7 +74,7 @@ where
                                 current: values[offset..].iter(),
                             }),
                             None => Err(Error::StartKeyNotFound),
-                        }
+                        };
                     }
                 },
                 None => continue,

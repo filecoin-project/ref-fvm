@@ -7,15 +7,15 @@ use std::fmt::Display;
 
 use cid::Cid;
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
-use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::BytesDe;
 use fvm_ipld_encoding::CborStore;
+use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_kamt::id::Identity;
 use fvm_ipld_kamt::{Config, Error, HashedKey, Kamt};
 use multihash_codetable::Code;
 use quickcheck::Arbitrary;
-use rand::seq::SliceRandom;
 use rand::SeedableRng;
+use rand::seq::SliceRandom;
 use serde::Serialize;
 
 type HKamt<BS, V, K = u32> = Kamt<BS, K, V, Identity, 32>;
@@ -191,25 +191,31 @@ fn test_set_if_absent(factory: KamtFactory) {
     let store = MemoryBlockstore::default();
 
     let mut kamt: HKamt<_, _, HashedKey<32>> = factory.new(&store);
-    assert!(kamt
-        .set_if_absent(kstring("favorite-animal"), tstring("owl bear"))
-        .unwrap());
+    assert!(
+        kamt.set_if_absent(kstring("favorite-animal"), tstring("owl bear"))
+            .unwrap()
+    );
 
     // Next two are negatively asserted, shouldn't change
-    assert!(!kamt
-        .set_if_absent(kstring("favorite-animal"), tstring("bright green bear"))
-        .unwrap());
-    assert!(!kamt
-        .set_if_absent(kstring("favorite-animal"), tstring("owl bear"))
-        .unwrap());
+    assert!(
+        !kamt
+            .set_if_absent(kstring("favorite-animal"), tstring("bright green bear"))
+            .unwrap()
+    );
+    assert!(
+        !kamt
+            .set_if_absent(kstring("favorite-animal"), tstring("owl bear"))
+            .unwrap()
+    );
 
     let c = kamt.flush().unwrap();
 
     let mut h2: HKamt<_, _, HashedKey<32>> = factory.load(&c, &store).unwrap();
     // Reloading should still have same effect
-    assert!(!h2
-        .set_if_absent(kstring("favorite-animal"), tstring("bright green bear"))
-        .unwrap());
+    assert!(
+        !h2.set_if_absent(kstring("favorite-animal"), tstring("bright green bear"))
+            .unwrap()
+    );
 }
 
 fn reload_empty(factory: KamtFactory) {

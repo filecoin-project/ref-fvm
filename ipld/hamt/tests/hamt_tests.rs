@@ -8,16 +8,16 @@ use std::fmt::Display;
 use cid::Cid;
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
+use fvm_ipld_encoding::CborStore;
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::strict_bytes::ByteBuf;
-use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
 use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash};
 use multihash_codetable::Code;
 use quickcheck::Arbitrary;
-use rand::seq::SliceRandom;
 use rand::SeedableRng;
+use rand::seq::SliceRandom;
 use serde::Serialize;
 
 // Redeclaring max array size of Hamt to avoid exposing value
@@ -229,9 +229,11 @@ fn test_load(factory: HamtFactory) {
 
     // loading from an empty store does not work
     let empty_store = MemoryBlockstore::default();
-    assert!(factory
-        .load::<_, usize, BytesKey>(&c2, &empty_store)
-        .is_err());
+    assert!(
+        factory
+            .load::<_, usize, BytesKey>(&c2, &empty_store)
+            .is_err()
+    );
 
     // storing the hamt should produce the same cid as storing the root
     let c3 = hamt.flush().unwrap();
@@ -274,25 +276,31 @@ fn test_set_if_absent(factory: HamtFactory, stats: Option<BSStats>, mut cids: Ci
     let store = TrackingBlockstore::new(&mem);
 
     let mut hamt: Hamt<_, _> = factory.new(&store);
-    assert!(hamt
-        .set_if_absent(tstring("favorite-animal"), tstring("owl bear"))
-        .unwrap());
+    assert!(
+        hamt.set_if_absent(tstring("favorite-animal"), tstring("owl bear"))
+            .unwrap()
+    );
 
     // Next two are negatively asserted, shouldn't change
-    assert!(!hamt
-        .set_if_absent(tstring("favorite-animal"), tstring("bright green bear"))
-        .unwrap());
-    assert!(!hamt
-        .set_if_absent(tstring("favorite-animal"), tstring("owl bear"))
-        .unwrap());
+    assert!(
+        !hamt
+            .set_if_absent(tstring("favorite-animal"), tstring("bright green bear"))
+            .unwrap()
+    );
+    assert!(
+        !hamt
+            .set_if_absent(tstring("favorite-animal"), tstring("owl bear"))
+            .unwrap()
+    );
 
     let c = hamt.flush().unwrap();
 
     let mut h2 = factory.load(&c, &store).unwrap();
     // Reloading should still have same effect
-    assert!(!h2
-        .set_if_absent(tstring("favorite-animal"), tstring("bright green bear"))
-        .unwrap());
+    assert!(
+        !h2.set_if_absent(tstring("favorite-animal"), tstring("bright green bear"))
+            .unwrap()
+    );
 
     cids.check_next(c);
 
@@ -1169,7 +1177,7 @@ fn tstring(v: impl Display) -> BytesKey {
 }
 
 mod test_default {
-    use fvm_ipld_blockstore::{tracking::BSStats, MemoryBlockstore};
+    use fvm_ipld_blockstore::{MemoryBlockstore, tracking::BSStats};
     use fvm_ipld_hamt::{Config, Hamtv0};
     use quickcheck_macros::quickcheck;
 

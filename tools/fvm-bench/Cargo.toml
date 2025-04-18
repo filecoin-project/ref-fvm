@@ -1,7 +1,7 @@
 [package]
 name = "fvm-bench"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 
 [dependencies]
 fvm_integration_tests = { workspace = true }

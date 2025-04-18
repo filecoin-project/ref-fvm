@@ -1,6 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use fvm_ipld_encoding::{tuple::*, IPLD_RAW};
+use fvm_ipld_encoding::{IPLD_RAW, tuple::*};
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
@@ -16,7 +16,7 @@ struct Params {
     expect_err: bool,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(params_id: u32) -> u32 {
     sdk::initialize();
 

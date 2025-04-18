@@ -18,8 +18,8 @@ use fvm_shared::sector::{
 };
 
 // We have glob imports here because delegation doesn't work well without it.
-use fvm::kernel::prelude::*;
 use fvm::kernel::Result;
+use fvm::kernel::prelude::*;
 
 use crate::externs::TestExterns;
 use crate::vector::{MessageVector, Variant};

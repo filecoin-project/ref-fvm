@@ -7,7 +7,7 @@ mod examples;
 use std::fs;
 use std::path::Path;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use examples::{example1, example2};
 use fvm_ipld_bitfield::BitField;
 use gperftools::profiler::PROFILER;

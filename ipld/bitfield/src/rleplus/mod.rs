@@ -69,7 +69,7 @@ mod writer;
 use std::borrow::Cow;
 
 #[cfg(feature = "enable-arbitrary")]
-use arbitrary::{size_hint, Arbitrary, Unstructured};
+use arbitrary::{Arbitrary, Unstructured, size_hint};
 pub use error::Error;
 use fvm_ipld_encoding::strict_bytes;
 pub use reader::BitReader;
@@ -77,7 +77,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use writer::BitWriter;
 
 use super::BitField;
-use crate::{RangeSize, MAX_ENCODED_SIZE};
+use crate::{MAX_ENCODED_SIZE, RangeSize};
 
 impl Serialize for BitField {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>

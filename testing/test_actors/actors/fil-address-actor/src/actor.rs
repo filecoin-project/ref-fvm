@@ -6,7 +6,7 @@ use fvm_shared::bigint::Zero;
 use fvm_shared::error::ExitCode;
 use sdk::sys::ErrorNumber;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(params: u32) -> u32 {
     sdk::initialize();
 

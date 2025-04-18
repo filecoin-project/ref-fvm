@@ -1,21 +1,21 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use cid::multihash::Multihash;
 use cid::Cid;
+use cid::multihash::Multihash;
 use fvm_ipld_encoding::ipld_block::IpldBlock;
-use fvm_ipld_encoding::{to_vec, CBOR, DAG_CBOR, IPLD_RAW};
+use fvm_ipld_encoding::{CBOR, DAG_CBOR, IPLD_RAW, to_vec};
 use fvm_sdk as sdk;
+use fvm_shared::METHOD_SEND;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
 use fvm_shared::crypto::hash::SupportedHashes;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::event::{Entry, Flags};
 use fvm_shared::sys::SendFlags;
-use fvm_shared::METHOD_SEND;
 use sdk::error::{ActorDeleteError, StateUpdateError};
 use sdk::sys::ErrorNumber;
 
 /// Placeholder invoke for testing
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[cfg(target_arch = "wasm32")]
 pub fn invoke(blk: u32) -> u32 {
     invoke_method(blk, sdk::message::method_number())
@@ -39,30 +39,34 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             assert_eq!(resp, Err(ErrorNumber::ReadOnly));
 
             // But can still create them when not read-only.
-            assert!(sdk::send::send(
-                &account,
-                METHOD_SEND,
-                Default::default(),
-                Default::default(),
-                None,
-                Default::default(),
-            )
-            .unwrap()
-            .exit_code
-            .is_success());
+            assert!(
+                sdk::send::send(
+                    &account,
+                    METHOD_SEND,
+                    Default::default(),
+                    Default::default(),
+                    None,
+                    Default::default(),
+                )
+                .unwrap()
+                .exit_code
+                .is_success()
+            );
 
             // Now recurse.
-            assert!(sdk::send::send(
-                &Address::new_id(sdk::message::receiver()),
-                3,
-                Default::default(),
-                Default::default(),
-                None,
-                SendFlags::READ_ONLY,
-            )
-            .unwrap()
-            .exit_code
-            .is_success());
+            assert!(
+                sdk::send::send(
+                    &Address::new_id(sdk::message::receiver()),
+                    3,
+                    Default::default(),
+                    Default::default(),
+                    None,
+                    SendFlags::READ_ONLY,
+                )
+                .unwrap()
+                .exit_code
+                .is_success()
+            );
         }
         3 => {
             // should now be in read-only mode.
@@ -80,17 +84,19 @@ fn invoke_method(blk: u32, method: u64) -> u32 {
             assert_eq!(resp, Err(ErrorNumber::ReadOnly));
 
             // Sending nothing succeeds.
-            assert!(sdk::send::send(
-                &account,
-                0,
-                Default::default(),
-                Default::default(),
-                None,
-                Default::default(),
-            )
-            .unwrap()
-            .exit_code
-            .is_success());
+            assert!(
+                sdk::send::send(
+                    &account,
+                    0,
+                    Default::default(),
+                    Default::default(),
+                    None,
+                    Default::default(),
+                )
+                .unwrap()
+                .exit_code
+                .is_success()
+            );
 
             // Writing should succeed.
             let cid = sdk::ipld::put(0xb220, 32, 0x55, b"foo").unwrap();

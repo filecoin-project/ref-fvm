@@ -5,7 +5,7 @@ use fvm_sdk as sdk;
 use fvm_shared::address::{Address, SECP_PUB_LEN};
 use fvm_shared::error::ErrorNumber;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 

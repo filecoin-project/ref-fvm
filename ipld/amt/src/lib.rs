@@ -17,7 +17,7 @@ mod value_mut;
 
 pub(crate) use self::amt::AmtImpl;
 pub use self::amt::{Amt, Amtv0};
-pub use self::diff::{diff, Change, ChangeType};
+pub use self::diff::{Change, ChangeType, diff};
 pub use self::error::Error;
 pub(crate) use self::node::Node;
 pub use self::value_mut::ValueMut;

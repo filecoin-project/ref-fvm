@@ -1,9 +1,9 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use fvm_ipld_encoding::{to_vec, BytesSer, DAG_CBOR};
+use fvm_ipld_encoding::{BytesSer, DAG_CBOR, to_vec};
 use fvm_sdk as sdk;
-use fvm_shared::error::ErrorNumber;
 use fvm_shared::MAX_CID_LEN;
+use fvm_shared::error::ErrorNumber;
 
 fn gen_test_bytes(size: i32) -> Vec<u8> {
     to_vec(&BytesSer(
@@ -12,7 +12,7 @@ fn gen_test_bytes(size: i32) -> Vec<u8> {
     .unwrap()
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 
