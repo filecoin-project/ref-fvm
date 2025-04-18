@@ -7,7 +7,7 @@ edition.workspace = true
 exclude = ["/test-vectors"]
 publish = false
 license.workspace = true
-repository = "https://github.com/filecoin-project/ref-fvm"
+repository.workspace = true
 
 [dependencies]
 fvm = { workspace = true, default-features = false, features = ["testing"] }

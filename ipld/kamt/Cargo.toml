@@ -2,10 +2,10 @@
 name = "fvm_ipld_kamt"
 description = "Sharded IPLD Map implementation with level skipping."
 version = "0.4.5"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 edition.workspace = true
-repository = "https://github.com/filecoin-project/ref-fvm"
+repository.workspace = true
 
 [dependencies]
 serde = { workspace = true }
