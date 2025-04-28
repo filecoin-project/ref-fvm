@@ -51,9 +51,9 @@ where
     /// * `blockstore`: The underlying [blockstore][`Blockstore`] for reading/writing state.
     /// * `externs`: Client-provided ["external"][`Externs`] methods for accessing chain state.
     pub fn new(context: &MachineContext, blockstore: B, externs: E) -> anyhow::Result<Self> {
-        const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
-            #[cfg(not(feature = "nv27-dev"))]
-            NetworkVersion::V21..=NetworkVersion::V26;
+            #[cfg(not(feature = "nv27-dev"))]    
+            const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
+               NetworkVersion::V21..=NetworkVersion::V26;
             
 	    #[cfg(feature = "nv27-dev")]
 	    const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =

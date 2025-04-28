@@ -1087,7 +1087,7 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
         }
         #[cfg(feature = "nv27-dev")]
         NetworkVersion::V27 => &WATERMELON_PRICES,
-        * => panic!("network version {nv} not supported", nv = network_version),
+        _ => panic!("network version {nv} not supported", nv = network_version),
     }
 }
 
