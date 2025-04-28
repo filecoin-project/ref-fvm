@@ -1085,11 +1085,11 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
         NetworkVersion::V21
         | NetworkVersion::V22
         | NetworkVersion::V23
-        | NetworkVersion::V24
-        | NetworkVersion::V25
-        | NetworkVersion::V26 => &WATERMELON_PRICES,
+        | NetworkVersion::V24 => &WATERMELON_PRICES,
+        NetworkVersion::V25
+        | NetworkVersion::V26 => &TEEP_PRICES,
         #[cfg(feature = "nv27-dev")]
-        NetworkVersion::V27 => &WATERMELON_PRICES,
+        NetworkVersion::V27 => &TEEP_PRICES,
         _ => panic!("network version {nv} not supported", nv = network_version),
     }
 }
