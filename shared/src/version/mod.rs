@@ -67,7 +67,7 @@ impl NetworkVersion {
     pub const V25: Self = Self(25);
     /// Tock (builtin-actors v16)
     pub const V26: Self = Self(26);
-    /// TBD
+    /// TBD (TBD builtin-actor v17)
     pub const V27: Self = Self(27);
 
     pub const MAX: Self = Self(u32::MAX);
