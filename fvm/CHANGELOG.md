@@ -6,7 +6,11 @@ Changes to the reference FVM implementation.
 
 ## 4.7.2 [2025-05-01]
 
-- feat: add `nv27-dev` feature flag [#2175](https://github.com/filecoin-project/ref-fvm/pull/2175)
+- feat: add nv27-skeleton [#2175](https://github.com/filecoin-project/ref-fvm/pull/2175)
+- chore: use workspace fields for license & repository url [#2172](https://github.com/filecoin-project/ref-fvm/pull/2172)
+- Update to 2024 edition everywhere else [#2170](https://github.com/filecoin-project/ref-fvm/pull/2170)
+- fix: correctly deserialize test vectors [#2168](https://github.com/filecoin-project/ref-fvm/pull/2168)
+- Switch to rust 2024 edition [#2162](https://github.com/filecoin-project/ref-fvm/pull/2162)
 
 ## 4.7.1 [2025-04-15]
 
