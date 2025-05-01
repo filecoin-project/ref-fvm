@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.7.2 [2025-05-01]
+
+- feat: add `nv27-dev` feature flag [#2175](https://github.com/filecoin-project/ref-fvm/pull/2175)
+
 ## 4.7.1 [2025-04-15]
 
 - Upgrade to fvm_shared@v4.7.1 to fix: accept malleable secp256k1 signatures (per EVM, etc.) [#2156](https://github.com/filecoin-project/ref-fvm/pull/2156)

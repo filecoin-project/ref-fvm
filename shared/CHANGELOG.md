@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 4.7.2 [2025-05-01]
+
+- feat: add `nv27-dev` feature flag [#2175](https://github.com/filecoin-project/ref-fvm/pull/2175)
+
 ## 4.7.1 [2025-04-15]
 
 This is an important bugfix release as v4.7.0 won't perform correct signature validation in some cases.
