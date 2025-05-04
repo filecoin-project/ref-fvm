@@ -9,6 +9,7 @@ use fvm_ipld_encoding::BytesDe;
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::ser::Serialize;
 use std::fmt::Debug;
+use std::ops::DerefMut;
 
 fn assert_get<V, BS>(a: &Amt<V, BS>, i: u64, v: &V)
 where
@@ -577,6 +578,46 @@ fn for_each_mutate() {
             Ok(())
         })
         .unwrap();
+
+    assert_eq!(
+        c.to_string().as_str(),
+        "bafy2bzaced44wtasbcukqjqicvxzcyn5up6sorr5khzbdkl6zjeo736f377ew"
+    );
+
+    #[rustfmt::skip]
+    assert_eq!(*db.stats.borrow(), BSStats {r: 12, w: 12, br: 573, bw: 573});
+}
+
+#[test]
+fn iter_mutable() {
+    let mem = MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
+    let mut a = Amt::new(&db);
+
+    let indexes = [1, 9, 66, 74, 82, 515];
+
+    // Set all indices in the Amt
+    for &i in indexes.iter() {
+        a.set(i, tbytes(b"value")).unwrap();
+    }
+    // Flush and regenerate amt
+    let c = a.flush().unwrap();
+    drop(a);
+    let mut new_amt: fvm_ipld_amt::Amt<BytesDe, _> = Amt::load(&c, &db).unwrap();
+    assert_eq!(new_amt.count(), indexes.len() as u64);
+
+    let mut f = |i: u64, v: &mut fvm_ipld_amt::ValueMut<'_, BytesDe>| -> Result<(), Error> {
+        if matches!(i, 1 | 74) {
+            **v = v.clone()
+        }
+
+        Ok(())
+    };
+    for ptr in new_amt.iter_mut() {
+        let current_idx = ptr.0;
+        let mut val = ptr.1;
+        f(current_idx, val.deref_mut()).unwrap();
+    }
 
     assert_eq!(
         c.to_string().as_str(),

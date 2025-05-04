@@ -95,6 +95,13 @@
 //! the CIDs are only regenerated when the AMT is flushed, which empties the data
 //! in the cache.
 
+use super::ValueMut;
+use crate::node::{CollapsedNode, Link};
+use crate::root::RootImpl;
+use crate::root::version::{V0, V3, Version as AmtVersion};
+use crate::{
+    DEFAULT_BIT_WIDTH, Error, MAX_HEIGHT, MAX_INDEX, Node, init_sized_vec, nodes_for_height,
+};
 use anyhow::anyhow;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
@@ -104,14 +111,9 @@ use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::serde::Deserialize;
 use itertools::sorted;
 use multihash_codetable::Code;
-
-use super::ValueMut;
-use crate::node::{CollapsedNode, Link};
-use crate::root::RootImpl;
-use crate::root::version::{V0, V3, Version as AmtVersion};
-use crate::{
-    DEFAULT_BIT_WIDTH, Error, MAX_HEIGHT, MAX_INDEX, Node, init_sized_vec, nodes_for_height,
-};
+use std::cell::{Ref, RefCell, RefMut};
+use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
 #[derive(Debug)]
 #[doc(hidden)]
@@ -120,6 +122,43 @@ pub struct AmtImpl<V, BS, Ver> {
     pub(crate) block_store: BS,
     /// Remember the last flushed CID until it changes.
     flushed_cid: Option<Cid>,
+}
+
+pub struct Amtptr<'a, T> {
+    value: RefCell<ValueMut<'a, T>>,
+    changed: RefCell<bool>,
+}
+
+impl<'a, T> Amtptr<'a, T> {
+    fn new(value: &'a mut T) -> Self {
+        Self {
+            value: RefCell::new(ValueMut::new(value)),
+            changed: RefCell::new(false),
+        }
+    }
+    pub fn borrow(&self) -> Ref<'_, T> {
+        Ref::map(self.value.borrow(), |v| &**v)
+    }
+
+    pub fn borrow_mut(&self) -> RefMut<'_, T> {
+        *self.changed.borrow_mut() = true;
+        RefMut::map(self.value.borrow_mut(), |v| &mut **v)
+    }
+}
+
+impl<'a, T> Deref for Amtptr<'a, T> {
+    type Target = ValueMut<'a, T>;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.value.as_ptr() }
+    }
+}
+
+impl<'a, T> DerefMut for Amtptr<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        *self.changed.get_mut() = true;
+        self.value.get_mut()
+    }
 }
 
 /// Array Mapped Trie allows for the insertion and persistence of data, serializable to a CID.
@@ -568,6 +607,27 @@ where
             f(i, x)?;
             Ok(true)
         })
+    }
+
+    pub fn iter_mut<'a>(&mut self) -> impl Iterator<Item = (u64, Amtptr<'a, V>)>
+    where
+        V: 'a + Clone,
+    {
+        let mut handles = Vec::new();
+        let mut iterable = Vec::new();
+
+        self.for_each_while_mut(|idx, val| {
+            let val2 = val.clone();
+            handles.push((idx, val2));
+
+            Ok(true)
+        });
+
+        for i in handles {
+            let tempval = Box::leak(Box::new(i.1));
+            iterable.push((i.0, Amtptr::new(tempval)));
+        }
+        iterable.into_iter()
     }
 
     /// Iterates over each value in the Amt and runs a function on the values that allows modifying
