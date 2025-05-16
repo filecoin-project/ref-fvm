@@ -111,7 +111,7 @@ use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::serde::Deserialize;
 use itertools::sorted;
 use multihash_codetable::Code;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{RefMut, RefCell};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
@@ -129,20 +129,41 @@ pub struct Amtptr<'a, T> {
     changed: RefCell<bool>,
 }
 
+pub struct Amtptr2<T> {
+    value: Rc<RefCell<T>>,
+    changed: bool,
+}
+
+impl<T> Amtptr2<T> {
+    fn new(value: T) -> Self {
+        Self {
+            value: Rc::new(RefCell::new(value)),
+            changed: false,
+        }
+    }
+    pub 
+    fn get_mut(&mut self) -> RefMut<'_, T> {
+        self.changed = true;
+        self.value.borrow_mut()
+    }
+}
+
+impl<T> Deref for Amtptr2<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.value.as_ptr() }
+    }
+}
+
+
+
 impl<'a, T> Amtptr<'a, T> {
     fn new(value: &'a mut T) -> Self {
         Self {
             value: RefCell::new(ValueMut::new(value)),
             changed: RefCell::new(false),
         }
-    }
-    pub fn borrow(&self) -> Ref<'_, T> {
-        Ref::map(self.value.borrow(), |v| &**v)
-    }
-
-    pub fn borrow_mut(&self) -> RefMut<'_, T> {
-        *self.changed.borrow_mut() = true;
-        RefMut::map(self.value.borrow_mut(), |v| &mut **v)
     }
 }
 
@@ -616,7 +637,7 @@ where
         let mut handles = Vec::new();
         let mut iterable = Vec::new();
 
-        self.for_each_while_mut(|idx, val| {
+        let _result = self.for_each_while_mut(|idx, val| {
             let val2 = val.clone();
             handles.push((idx, val2));
 
@@ -628,6 +649,21 @@ where
             iterable.push((i.0, Amtptr::new(tempval)));
         }
         iterable.into_iter()
+    }
+
+    pub fn iter_mut2(&mut self) -> impl Iterator<Item = (u64, Amtptr2<V>)>
+    where
+        V: Clone,
+    {
+        let mut ptrs = Vec::new();
+        let _result = self.for_each_while_mut(|idx, val| {
+            let val2 = val.clone();
+            ptrs.push((idx, Amtptr2::new(val2)));
+
+            Ok(true)
+        });
+
+        ptrs.into_iter()
     }
 
     /// Iterates over each value in the Amt and runs a function on the values that allows modifying

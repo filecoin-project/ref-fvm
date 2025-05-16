@@ -2,7 +2,7 @@
 // Copyright 2019-2023 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_ipld_amt::{Amt, Amtv0, Error, MAX_INDEX};
+use fvm_ipld_amt::{Amt, Amtv0, Error, ValueMut, MAX_INDEX};
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::BytesDe;
@@ -606,17 +606,19 @@ fn iter_mutable() {
     let mut new_amt: fvm_ipld_amt::Amt<BytesDe, _> = Amt::load(&c, &db).unwrap();
     assert_eq!(new_amt.count(), indexes.len() as u64);
 
-    let mut f = |i: u64, v: &mut fvm_ipld_amt::ValueMut<'_, BytesDe>| -> Result<(), Error> {
+    let f = |i: u64, v: &mut fvm_ipld_amt::ValueMut<'_, BytesDe>| -> Result<(), Error> {
         if matches!(i, 1 | 74) {
             **v = v.clone()
         }
 
         Ok(())
     };
-    for ptr in new_amt.iter_mut() {
+    for ptr in new_amt.iter_mut2() {
         let current_idx = ptr.0;
         let mut val = ptr.1;
-        f(current_idx, val.deref_mut()).unwrap();
+        let mut val_ref = val.get_mut();
+        let mut vale = ValueMut::new(&mut *val_ref);
+        f(current_idx, &mut vale).unwrap();
     }
 
     assert_eq!(
