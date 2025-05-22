@@ -2,7 +2,7 @@
 // Copyright 2019-2023 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fvm_ipld_amt::{Amt, Amtv0, Error, ValueMut, MAX_INDEX};
+use fvm_ipld_amt::{Amt, Amtv0, Error, MAX_INDEX, ValueMut};
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::BytesDe;
@@ -613,7 +613,7 @@ fn iter_mutable() {
 
         Ok(())
     };
-    for ptr in new_amt.iter_mut2() {
+    for ptr in new_amt.iter_mut() {
         let current_idx = ptr.0;
         let mut val = ptr.1;
         let mut val_ref = val.get_mut();

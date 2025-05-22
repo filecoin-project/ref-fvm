@@ -124,61 +124,34 @@ pub struct AmtImpl<V, BS, Ver> {
     flushed_cid: Option<Cid>,
 }
 
-pub struct Amtptr<'a, T> {
-    value: RefCell<ValueMut<'a, T>>,
-    changed: RefCell<bool>,
-}
-
-pub struct Amtptr2<T> {
+/// Custom Smart Pointer that allows modifications on Values of the AMT
+/// Using Rc avoids the Lifetime Complexities
+pub struct Amtptr<T> {
     value: Rc<RefCell<T>>,
     changed: bool,
 }
 
-impl<T> Amtptr2<T> {
-    fn new(value: T) -> Self {
+impl<T> Amtptr<T> {
+    pub fn new(value: T) -> Self {
         Self {
             value: Rc::new(RefCell::new(value)),
             changed: false,
         }
     }
-    pub 
-    fn get_mut(&mut self) -> RefMut<'_, T> {
+    /// can be used instead of Dereferencing Mutably
+    pub fn get_mut(&mut self) -> RefMut<'_, T> {
         self.changed = true;
         self.value.borrow_mut()
     }
+
+    pub fn delete(){}
 }
 
-impl<T> Deref for Amtptr2<T> {
+impl<T> Deref for Amtptr<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         unsafe { &*self.value.as_ptr() }
-    }
-}
-
-
-
-impl<'a, T> Amtptr<'a, T> {
-    fn new(value: &'a mut T) -> Self {
-        Self {
-            value: RefCell::new(ValueMut::new(value)),
-            changed: RefCell::new(false),
-        }
-    }
-}
-
-impl<'a, T> Deref for Amtptr<'a, T> {
-    type Target = ValueMut<'a, T>;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.value.as_ptr() }
-    }
-}
-
-impl<'a, T> DerefMut for Amtptr<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        *self.changed.get_mut() = true;
-        self.value.get_mut()
     }
 }
 
@@ -630,35 +603,17 @@ where
         })
     }
 
-    pub fn iter_mut<'a>(&mut self) -> impl Iterator<Item = (u64, Amtptr<'a, V>)>
-    where
-        V: 'a + Clone,
-    {
-        let mut handles = Vec::new();
-        let mut iterable = Vec::new();
-
-        let _result = self.for_each_while_mut(|idx, val| {
-            let val2 = val.clone();
-            handles.push((idx, val2));
-
-            Ok(true)
-        });
-
-        for i in handles {
-            let tempval = Box::leak(Box::new(i.1));
-            iterable.push((i.0, Amtptr::new(tempval)));
-        }
-        iterable.into_iter()
-    }
-
-    pub fn iter_mut2(&mut self) -> impl Iterator<Item = (u64, Amtptr2<V>)>
+    /// can be used as a replacement for for_each_mut function above
+    /// Creates an External Iterator over each value in the Amt
+    /// and the custom function can be run on them and the values can be changed
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (u64, Amtptr<V>)>
     where
         V: Clone,
     {
         let mut ptrs = Vec::new();
         let _result = self.for_each_while_mut(|idx, val| {
             let val2 = val.clone();
-            ptrs.push((idx, Amtptr2::new(val2)));
+            ptrs.push((idx, Amtptr::new(val2)));
 
             Ok(true)
         });
