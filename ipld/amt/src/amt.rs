@@ -111,7 +111,7 @@ use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::serde::Deserialize;
 use itertools::sorted;
 use multihash_codetable::Code;
-use std::cell::{RefMut, RefCell};
+use std::cell::{Ref, RefCell, RefMut};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
@@ -143,8 +143,10 @@ impl<T> Amtptr<T> {
         self.changed = true;
         self.value.borrow_mut()
     }
-
-    pub fn delete(){}
+    
+    pub fn delete(&self) -> Ref<'_, T> {
+        self.value.borrow()
+    }
 }
 
 impl<T> Deref for Amtptr<T> {

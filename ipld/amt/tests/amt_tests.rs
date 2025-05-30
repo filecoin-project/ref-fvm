@@ -617,8 +617,7 @@ fn iter_mutable() {
         let current_idx = ptr.0;
         let mut val = ptr.1;
         let mut val_ref = val.get_mut();
-        let mut vale = ValueMut::new(&mut *val_ref);
-        f(current_idx, &mut vale).unwrap();
+        f(current_idx, &mut ValueMut::new(&mut *val_ref)).unwrap();
     }
 
     assert_eq!(
