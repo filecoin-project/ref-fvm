@@ -34,7 +34,7 @@ pub type Multihash = cid::multihash::Multihash<64>;
 /// `tuple::serde_tuple` or the derive macros won't work properly. You should generally import as:
 ///
 /// ```rust
-/// use fvm_ipld_encoding::tuple::*
+/// use fvm_ipld_encoding::tuple::*;
 /// ```
 pub mod tuple {
     pub use serde_tuple::{self, Deserialize_tuple, Serialize_tuple};
@@ -44,7 +44,7 @@ pub mod tuple {
 /// or the derive macros won't work properly. You should generally import as:
 ///
 /// ```rust
-/// use fvm_ipld_encoding::repr::*
+/// use fvm_ipld_encoding::repr::*;
 /// ```
 pub mod repr {
     pub use serde_repr::{Deserialize_repr, Serialize_repr};
