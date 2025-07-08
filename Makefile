@@ -14,3 +14,6 @@ lint:
 
 license:
 	./scripts/add_license.sh
+
+doctest:
+	cargo test --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --doc
