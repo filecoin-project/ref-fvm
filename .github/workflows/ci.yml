@@ -81,7 +81,7 @@ jobs:
           - name: doctest
             key: v3
             command: test
-            args: --all --exclude fvm --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --doc
+            args: --all --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --doc
         exclude:
           - os: macos-latest
             name: check-m2-native
