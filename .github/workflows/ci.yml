@@ -81,7 +81,8 @@ jobs:
           - name: doctest
             key: v3
             command: test
-            # we disable default features because rust will otherwise unify them and turn on opencl in CI.
+            # we disable default features because Rust will otherwise unify them and turn on opencl in CI.
+            # we also disable test packages, given they are unlikely to contain any doctests and would double the compilation duration
             args: --all --no-default-features --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --doc
         exclude:
           - os: macos-latest
