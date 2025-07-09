@@ -28,7 +28,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        name: [build, check-m2-native, check-clippy, check-clippy-verify-signature, test-fvm, test, integration, conformance, calibration]
+        name: [build, check-m2-native, check-clippy, check-clippy-verify-signature, test-fvm, test, integration, conformance, calibration, doctest]
         include:
           - name: build
             key: v3
@@ -78,6 +78,12 @@ jobs:
             command: test
             # we disable default features because rust will otherwise unify them and turn on opencl in CI.
             args: --release --test gas_calibration_test --features calibration --no-default-features
+          - name: doctest
+            key: v3
+            command: test
+            # we disable default features because Rust will otherwise unify them and turn on opencl in CI.
+            # we also disable test packages, given they are unlikely to contain any doctests and would double the compilation duration
+            args: --all --no-default-features --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --doc
         exclude:
           - os: macos-latest
             name: check-m2-native
@@ -91,6 +97,8 @@ jobs:
             name: test-fvm
           - os: macos-latest
             name: calibration
+          - os: macos-latest
+            name: doctest
     env:
       CARGO_INCREMENTAL: 0
       CARGO_TERM_COLOR: always
