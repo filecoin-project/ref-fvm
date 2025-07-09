@@ -81,7 +81,8 @@ jobs:
           - name: doctest
             key: v3
             command: test
-            args: --all --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --doc
+            # we disable default features because rust will otherwise unify them and turn on opencl in CI.
+            args: --all --no-default-features --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --doc
         exclude:
           - os: macos-latest
             name: check-m2-native
