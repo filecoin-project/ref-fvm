@@ -16,4 +16,5 @@ license:
 	./scripts/add_license.sh
 
 doctest:
+        # We disable test packages, given they are unlikely to contain any doctests and would double the compilation duration.
 	cargo test --all --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --doc
