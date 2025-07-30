@@ -590,4 +590,17 @@ where
 
         Ok(())
     }
+
+    pub fn for_each_cacheless<F>(&self, mut f: F) -> Result<(), Error>
+    where
+        F: FnMut(u64, &V) -> anyhow::Result<()>,
+    {
+        self.root.node.for_each_cacheless(
+            &self.block_store,
+            self.height(),
+            self.bit_width(),
+            0,
+            &mut f,
+        )
+    }
 }
