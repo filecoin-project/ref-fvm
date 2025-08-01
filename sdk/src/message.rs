@@ -57,7 +57,7 @@ pub fn gas_premium() -> TokenAmount {
     MESSAGE_CONTEXT.gas_premium.into()
 }
 
-/// Returns the message parameters as an Option<IpldBlock>.
+/// Returns the message parameters as an [`Option<IpldBlock>`].
 pub fn params_raw(id: BlockId) -> SyscallResult<Option<IpldBlock>> {
     if id == NO_DATA_BLOCK_ID {
         return Ok(None);
