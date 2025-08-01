@@ -420,6 +420,52 @@ where
         }
     }
 
+    /// Non-caching iteration over the values in the node.
+    pub(super) fn for_each_cacheless<S, F>(
+        &self,
+        bs: &S,
+        height: u32,
+        bit_width: u32,
+        offset: u64,
+        f: &mut F,
+    ) -> Result<(), Error>
+    where
+        F: FnMut(u64, &V) -> anyhow::Result<()>,
+        S: Blockstore,
+    {
+        match self {
+            Node::Leaf { vals } => {
+                for (i, v) in (0..).zip(vals.iter()) {
+                    if let Some(v) = v {
+                        let _ = f(offset + i, v);
+                    }
+                }
+            }
+            Node::Link { links } => {
+                for (i, l) in (0..).zip(links.iter()) {
+                    if let Some(link) = l {
+                        let offs = offset + (i * nodes_for_height(bit_width, height));
+                        match link {
+                            Link::Dirty(sub) => {
+                                sub.for_each_cacheless(bs, height - 1, bit_width, offs, f)?;
+                            }
+                            Link::Cid { cid, cache: _ } => {
+                                let node = bs
+                                    .get_cbor::<CollapsedNode<V>>(cid)?
+                                    .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                    .expand(bit_width)?;
+
+                                node.for_each_cacheless(bs, height - 1, bit_width, offs, f)?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Returns a `(keep_going, did_mutate)` pair. `keep_going` will be `false` iff
     /// a closure call returned `Ok(false)`, indicating that a `break` has happened.
     /// `did_mutate` will be `true` iff any of the values in the node was actually
