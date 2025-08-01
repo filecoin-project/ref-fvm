@@ -20,7 +20,7 @@
 //!
 //! ## Kind 1: Divergent
 //!
-//! Syscalls that return `!` (e.g. [`vm::abort`]) have the signature:
+//! Syscalls that return `!` (e.g. [`crate::vm::abort`]) have the signature:
 //!
 //! ```wat
 //! (func $name (param ...) ... (result i32))

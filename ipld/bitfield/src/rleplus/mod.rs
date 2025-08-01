@@ -4,7 +4,7 @@
 
 //! # RLE+ Bitset Encoding
 //!
-//! (from https://github.com/filecoin-project/specs/blob/master/src/listings/data_structures.md)
+//! (from <https://github.com/filecoin-project/specs/blob/master/src/listings/data_structures.md>)
 //!
 //! RLE+ is a lossless compression format based on [RLE](https://en.wikipedia.org/wiki/Run-length_encoding).
 //! Its primary goal is to reduce the size in the case of many individual bits, where RLE breaks down quickly,
