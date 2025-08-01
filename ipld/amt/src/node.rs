@@ -420,6 +420,7 @@ where
         }
     }
 
+    /// Non-caching iteration over the values in the node.
     pub(super) fn for_each_cacheless<S, F>(
         &self,
         bs: &S,

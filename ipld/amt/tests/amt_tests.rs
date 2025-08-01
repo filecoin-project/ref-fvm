@@ -415,14 +415,15 @@ fn for_each_cacheless() {
 
     assert_eq!(a.count(), indexes.len() as u64);
 
-    // Iterate over amt with dirty cache
+    // Iterate over amt with dirty cache. This should not touch the database at all.
     let mut x = 0;
     a.for_each_cacheless(|_, _: &BytesDe| {
         x += 1;
         Ok(())
     })
     .unwrap();
-
+    #[rustfmt::skip]
+    assert_eq!(*db.stats.borrow(), BSStats {r: 0, w: 0, br: 0, bw: 0});
     assert_eq!(x, indexes.len());
 
     // Flush and regenerate amt
@@ -445,12 +446,17 @@ fn for_each_cacheless() {
         .unwrap();
     assert_eq!(x, indexes.len());
 
+    // After 1st pass, the amount of block reads should be the same as in the caching iteration.
+    #[rustfmt::skip]
+    assert_eq!(*db.stats.borrow(), BSStats {r: 1431, w: 1431, br: 88649, bw: 88649});
+
     new_amt.for_each_cacheless(|_, _: &BytesDe| Ok(())).unwrap();
     assert_eq!(
         c.to_string().as_str(),
         "bafy2bzaceanqxtbsuyhqgxubiq6vshtbhktmzp2if4g6kxzttxmzkdxmtipcm"
     );
 
+    // 2nd pass, no caching so block reads roughly doubled.
     #[rustfmt::skip]
     assert_eq!(*db.stats.borrow(), BSStats {r: 2861, w: 1431, br: 177158, bw: 88649});
 }
