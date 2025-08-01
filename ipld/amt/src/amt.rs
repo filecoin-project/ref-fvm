@@ -595,9 +595,6 @@ where
     /// non-caching version of [`Self::for_each`]. It can potentially be more efficient, especially memory-wise,
     /// for large AMTs or when the iteration occurs only once.
     ///
-    /// Any non-flushed changes to the AMT will not be visible in the iteration. Use
-    /// [`Self::flush`] to ensure all changes are persisted before calling this method.
-    ///
     /// # Examples
     ///
     /// ```
