@@ -22,7 +22,7 @@ pub enum Abort {
     OutOfGas,
     /// The system failed with a fatal error indicating a bug in the FVM. This will abort the entire
     /// top-level message and record a
-    /// [`SYS_ASSERTION_FAILED`][fvm_shared::ExitCode::SYS_ASSERTION_FAILED] exit code on-chain.
+    /// [`SYS_ASSERTION_FAILED`][fvm_shared::error::ExitCode::SYS_ASSERTION_FAILED] exit code on-chain.
     #[error("fatal error: {0}")]
     Fatal(anyhow::Error),
 }

@@ -65,7 +65,7 @@ struct GasTimerInner {
 impl GasTimer {
     /// Convenience method to start measuring time before the charge is made.
     ///
-    /// Use the return value with [GasTimer::finish_with] to override the internal
+    /// Use the return value with [GasTimer::stop_with] to override the internal
     /// instant that the timer was started with.
     pub fn start() -> GasInstant {
         GasInstant::now()
