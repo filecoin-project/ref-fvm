@@ -590,4 +590,39 @@ where
 
         Ok(())
     }
+
+    /// Iterates over each value in the Amt and runs a function on the values. This is a
+    /// non-caching version of [`Self::for_each`]. It can potentially be more efficient, especially memory-wise,
+    /// for large AMTs or when the iteration occurs only once.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fvm_ipld_amt::Amt;
+    ///
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
+    ///
+    /// let mut map: Amt<String, _> = Amt::new(&store);
+    /// map.set(1, "One".to_owned()).unwrap();
+    /// map.set(4, "Four".to_owned()).unwrap();
+    ///
+    /// let mut values: Vec<(u64, String)> = Vec::new();
+    /// map.for_each_cacheless(|i, v| {
+    ///    values.push((i, v.clone()));
+    ///    Ok(())
+    /// }).unwrap();
+    /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
+    /// ```
+    pub fn for_each_cacheless<F>(&self, mut f: F) -> Result<(), Error>
+    where
+        F: FnMut(u64, &V) -> anyhow::Result<()>,
+    {
+        self.root.node.for_each_cacheless(
+            &self.block_store,
+            self.height(),
+            self.bit_width(),
+            0,
+            &mut f,
+        )
+    }
 }

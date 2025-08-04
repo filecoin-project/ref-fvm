@@ -391,6 +391,77 @@ fn for_each() {
 }
 
 #[test]
+fn for_each_cacheless() {
+    let mem = MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
+    let mut a = Amt::new(&db);
+
+    let mut indexes = Vec::new();
+    for i in 0..10000 {
+        if (i + 1) % 3 == 0 {
+            indexes.push(i);
+        }
+    }
+
+    // Set all indices in the Amt
+    for i in indexes.iter() {
+        a.set(*i, tbytes(b"value")).unwrap();
+    }
+
+    // Ensure all values were added into the amt
+    for i in indexes.iter() {
+        assert_eq!(a.get(*i).unwrap(), Some(&tbytes(b"value")));
+    }
+
+    assert_eq!(a.count(), indexes.len() as u64);
+
+    // Iterate over amt with dirty cache. This should not touch the database at all.
+    let mut x = 0;
+    a.for_each_cacheless(|_, _: &BytesDe| {
+        x += 1;
+        Ok(())
+    })
+    .unwrap();
+    #[rustfmt::skip]
+    assert_eq!(*db.stats.borrow(), BSStats {r: 0, w: 0, br: 0, bw: 0});
+    assert_eq!(x, indexes.len());
+
+    // Flush and regenerate amt
+    let c = a.flush().unwrap();
+    let new_amt = Amt::load(&c, &db).unwrap();
+    assert_eq!(new_amt.count(), indexes.len() as u64);
+
+    let mut x = 0;
+    new_amt
+        .for_each_cacheless(|i, _: &BytesDe| {
+            if i != indexes[x] {
+                panic!(
+                    "for each cacheless found wrong index: expected {} got {}",
+                    indexes[x], i
+                );
+            }
+            x += 1;
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(x, indexes.len());
+
+    // After 1st pass, the amount of block reads should be the same as in the caching iteration.
+    #[rustfmt::skip]
+    assert_eq!(*db.stats.borrow(), BSStats {r: 1431, w: 1431, br: 88649, bw: 88649});
+
+    new_amt.for_each_cacheless(|_, _: &BytesDe| Ok(())).unwrap();
+    assert_eq!(
+        c.to_string().as_str(),
+        "bafy2bzaceanqxtbsuyhqgxubiq6vshtbhktmzp2if4g6kxzttxmzkdxmtipcm"
+    );
+
+    // 2nd pass, no caching so block reads roughly doubled.
+    #[rustfmt::skip]
+    assert_eq!(*db.stats.borrow(), BSStats {r: 2861, w: 1431, br: 177158, bw: 88649});
+}
+
+#[test]
 fn for_each_ranged() {
     let mem = MemoryBlockstore::default();
     let db = TrackingBlockstore::new(&mem);
