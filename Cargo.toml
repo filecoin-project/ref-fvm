@@ -78,7 +78,7 @@ fvm_sdk = { path = "sdk", version = "~4.7.2" }
 fvm_integration_tests = { path = "testing/integration", version = "~4.7.2" }
 
 # workspace (other)
-fvm_ipld_amt = { path = "ipld/amt", version = "0.7.4" }
+fvm_ipld_amt = { path = "ipld/amt", version = "0.7.5" }
 fvm_ipld_hamt = { path = "ipld/hamt", version = "0.10.4" }
 fvm_ipld_kamt = { path = "ipld/kamt", version = "0.4.5" }
 fvm_ipld_car = { path = "ipld/car", version = "0.9.0" }
