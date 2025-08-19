@@ -26,7 +26,7 @@ To propose a new release, open a pull request with the following changes:
 1. Update the version in [`Cargo.toml`](https://github.com/filecoin-project/ref-fvm/blob/master/Cargo.toml): `workspace.package→version`.
 2. Update the version of the coupled workspace dependencies in `Cargo.toml` to match the new version
    (leaving semver range specifier `~` intact):
-   1. `wokspace.dependencies→fvm→version`
+   1. `workspace.dependencies→fvm→version`
    2. `wokspace.dependencies→fvm_shared→version`
    3. `wokspace.dependencies→fvm_sdk→version`
    4. `wokspace.dependencies→fvm_integration_tests→version`
