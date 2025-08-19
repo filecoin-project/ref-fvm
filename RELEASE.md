@@ -29,7 +29,10 @@ To propose a new release, open a pull request with the following changes:
    1. `workspace.dependencies→fvm→version`
    2. `wokspace.dependencies→fvm_shared→version`
    3. `wokspace.dependencies→fvm_sdk→version`
-   4. `wokspace.dependencies→fvm_integration_tests→version`
+   1. `workspace.dependencies→fvm→version`
+   2. `workspace.dependencies→fvm_shared→version`
+   3. `workspace.dependencies→fvm_sdk→version`
+   4. `workspace.dependencies→fvm_integration_tests→version`
 3. Update the lockfile with a rebuild: `cargo check --all`.
 4. Make sure the `CHANGELOG.md` files in each of `fvm`, `sdk`, and `shared` are all up-to-date (look
    through `git log -- path/to/crate`), set the release date & version, and add a new "Unreleased"
