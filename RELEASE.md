@@ -85,7 +85,13 @@ for crate_name in "${!crates[@]}"; do
    crate_directory = ${crates[$key]}     
    pushd $crate_directory
    cargo publish
-   git_tag = "$crate_name@v$workspace_package_version"
+workspace_package_version=`tomlq '.workspace.package.version' Cargo.toml`
+
+for crate_name in "${!my_map[@]}"; do
+   crate_directory=${crates[$key]}     
+   pushd $crate_directory
+   cargo publish
+   git_tag="$crate_name@v$workspace_package_version"
    git tag $git_tag
    popd
 done
