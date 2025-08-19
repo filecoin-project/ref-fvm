@@ -81,7 +81,7 @@ crates["fvm_integration_tests"]="testing/integration"
 
 workspace_package_version = `tomlq '.workspace.package.version' Cargo.toml`
 
-for crate_name in "${!my_map[@]}"; do
+for crate_name in "${!crates[@]}"; do
    crate_directory = ${crates[$key]}     
    pushd $crate_directory
    cargo publish
