@@ -76,7 +76,7 @@ Example steps for an FVM "owner" to release `MINOR` and `PATCH` crates:
 declare -A crates
 crates["fvm"]="fvm"
 crates["fvm_shared"]="shared"
-crates["sdk"]="fvm_sdk"
+crates["fvm_sdk"]="fvm_sdk"
 crates["fvm_integration_tests"]="testing/integration"
 
 workspace_package_version = `tomlq '.workspace.package.version' Cargo.toml`
