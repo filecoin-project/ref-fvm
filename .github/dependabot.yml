@@ -6,3 +6,4 @@ updates:
       interval: "weekly"
     allow:
       - dependency-name: "wasmtime"
+      - dependency-name: "wasmtime-environ"
