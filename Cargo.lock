@@ -229,17 +229,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b75356056920673b02621b35afd0f7dda9306d03c79a30f5c56c44cf256e3de"
 
 [[package]]
-name = "async-trait"
-version = "0.1.88"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e539d3fca749fcee5236ab05e93a52867dd549cc157c8cb7f99595f3cedffdb5"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.100",
-]
-
-[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -667,12 +656,10 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "0.12.0"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54ad70579325f1a38ea4c13412b82241c5900700a69785d73e2736bd65a33f86"
+checksum = "68578f196d2a33ff61b27fae256c3164f65e36382648e30666dde05b8cc9dfdf"
 dependencies = [
- "async-trait",
- "lazy_static",
  "nom",
  "pathdiff",
  "serde",
@@ -1395,11 +1382,12 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "fdlimit"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c4c9e43643f5a3be4ca5b67d26b98031ff9db6806c3440ae32e02e3ceac3f1b"
+checksum = "e182f7dbc2ef73d9ef67351c5fbbea084729c48362d3ce9dd44c28e32e277fe5"
 dependencies = [
  "libc",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -1427,9 +1415,9 @@ dependencies = [
 
 [[package]]
 name = "filecoin-hashers"
-version = "13.1.0"
+version = "14.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85413176cea16bfe171caafab023044820c0033b243b535b19116776ffd3f285"
+checksum = "35146fe3c46db098607ca7decb0349236a90592d6fee0c2eea7301dd1f5733ac"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1447,9 +1435,9 @@ dependencies = [
 
 [[package]]
 name = "filecoin-proofs"
-version = "18.1.0"
+version = "19.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "096b8b483f6ed5823150daf6cd22ee8e32b3dabcb4fd70dab70044e73bcab107"
+checksum = "47ba6651d5fb07c62163c8ddb4e3274e1a4101b91c86b358769a2c561b284fcb"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1481,9 +1469,9 @@ dependencies = [
 
 [[package]]
 name = "filecoin-proofs-api"
-version = "18.1.0"
+version = "19.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3aea8140d1e2d2ac18347e6121ee24d0e903f9cfdc2eb2ee507932e352c9e7b8"
+checksum = "d50610f79df0975b54461fd65820183b99326fda4f24223d507c1b75cb303b14"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1550,16 +1538,16 @@ dependencies = [
 
 [[package]]
 name = "fr32"
-version = "11.1.0"
+version = "12.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "627a3f3108ee3287759a45f6d5aafe48b3017509df9b677115f88266d61e0815"
+checksum = "421ea28e99936741d874ac1718a79d5cfdb1a4f3ad6c26950b2386ac94aa3b1a"
 dependencies = [
  "anyhow",
  "blstrs",
  "byte-slice-cast",
  "byteorder",
  "ff",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -2164,6 +2152,15 @@ name = "itertools"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
@@ -3160,6 +3157,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_spanned"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf41e0cfaf7226dca15e8197172c295a782857fcb97fad1808a166870dee75a3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_tuple"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3203,9 +3209,9 @@ dependencies = [
 
 [[package]]
 name = "sha2raw"
-version = "13.1.0"
+version = "14.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73744f6a373edfc5624f452ec705a762e1154bb88c6699242bf37c56d99a6ebb"
+checksum = "90007d4997c15161e16bda035b950af95dd6ddd597c13ec676bc4aef519b466f"
 dependencies = [
  "byteorder",
  "cpufeatures",
@@ -3213,7 +3219,6 @@ dependencies = [
  "fake-simd",
  "lazy_static",
  "opaque-debug",
- "sha2-asm",
 ]
 
 [[package]]
@@ -3299,9 +3304,9 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage-proofs-core"
-version = "18.1.0"
+version = "19.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "390385ae6787ad5d4312f3b6f0462c9f6615d9a7863376f8636604e6e43f3d28"
+checksum = "e2a6f583102c3faa65e7aad3d1cf3ffe5e9c9699e7265141a020c2d45c937d66"
 dependencies = [
  "aes",
  "anyhow",
@@ -3316,7 +3321,7 @@ dependencies = [
  "fr32",
  "fs2",
  "generic-array 0.14.7",
- "itertools 0.10.5",
+ "itertools 0.13.0",
  "lazy_static",
  "log",
  "memmap2",
@@ -3329,14 +3334,14 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
 name = "storage-proofs-porep"
-version = "18.1.0"
+version = "19.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dd8c6bbeb00933edb41152fdabf28d2519d6a1b6ea176a793e3198a07bb9acd"
+checksum = "b4a21ea69adc933398389c36be5b35865dc3fac8b064bb95c7104dc7bc8426e0"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3376,9 +3381,9 @@ dependencies = [
 
 [[package]]
 name = "storage-proofs-post"
-version = "18.1.0"
+version = "19.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "779fbfe1455a57d2a7fd655ce1b2e97bf9f238b65c71919e92aa9df8f2ced8b1"
+checksum = "b040787160b2381f1f86ac08f8789283da753e97df25e6be4ea3cc8615d5497c"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3396,9 +3401,9 @@ dependencies = [
 
 [[package]]
 name = "storage-proofs-update"
-version = "18.1.0"
+version = "19.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee4b391917dbcffa2297295971a02cc54aa19aa8b5378d539a435e78f8050153"
+checksum = "1118e3f9dff7c93a68d06a17ae89bf051321278be810e4c3c24a1a88bbc0c3e7"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3588,11 +3593,14 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.5.11"
+version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
+checksum = "cd87a5cdd6ffab733b2f74bc4fd7ee5fff6634124999ac278c35fc78c6120148"
 dependencies = [
  "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_edit",
 ]
 
 [[package]]
@@ -3600,6 +3608,9 @@ name = "toml_datetime"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dd7358ecb8fc2f8d014bf86f6f638ce72ba252a2c3a2572f2a795f1d23efb41"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "toml_edit"
@@ -3608,6 +3619,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17b4795ff5edd201c7cd6dca065ae59972ce77d1b80fa0a84d94950ece7d1474"
 dependencies = [
  "indexmap",
+ "serde",
+ "serde_spanned",
  "toml_datetime",
  "winnow",
 ]
