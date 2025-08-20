@@ -29,7 +29,7 @@ bitflags = { version = "2.9.0", features = ["serde"] }
 ## non-wasm dependencies; these dependencies and the respective code is
 ## only activated through non-default features, which the Kernel enables, but
 ## not the actors.
-filecoin-proofs-api = { version = "18", default-features = false, optional = true }
+filecoin-proofs-api = { version = "19", default-features = false, optional = true }
 k256 = { workspace = true, optional = true }
 bls-signatures = { workspace = true, default-features = false, optional = true }
 
