@@ -3,7 +3,32 @@ updates:
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     allow:
+      # Critical wasmtime dependencies - require careful review for security and performance
       - dependency-name: "wasmtime"
       - dependency-name: "wasmtime-environ"
+
+      # Core serialization and encoding dependencies
+      - dependency-name: "serde"
+      - dependency-name: "cid"
+      - dependency-name: "ipld-core"
+      - dependency-name: "multihash-codetable"
+      - dependency-name: "multihash-derive"
+
+      # Cryptographic dependencies - important for security updates
+      - dependency-name: "blake2b_simd"
+      - dependency-name: "k256"
+      - dependency-name: "bls-signatures"
+
+      # Protocol and utilities
+      - dependency-name: "unsigned-varint"
+
+      # Filecoin-specific dependencies
+      - dependency-name: "filecoin-proofs-api"
+      - dependency-name: "fvm-wasm-instrument"
+
+      # IPLD encoding dependencies
+      - dependency-name: "serde_ipld_dagcbor"
+      - dependency-name: "serde_repr"
+      - dependency-name: "serde_tuple"
