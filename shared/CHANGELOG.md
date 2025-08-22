@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 4.7.3 [2025-08-22]
+
+- chore(deps): update replace_with and slab transitive dependencies [#2197](https://github.com/filecoin-project/ref-fvm/pull/2197)
+- chore(deps): bump filecoin-proofs-api from 18.1.0 to 19.0.0 [#2200](https://github.com/filecoin-project/ref-fvm/pull/2200)
+- chore(deps): bump serde_ipld_dagcbor from 0.6.2 to 0.6.3 [#2201](https://github.com/filecoin-project/ref-fvm/pull/2201)
+- chore: remove the nv27-dev feature flag [#2202](https://github.com/filecoin-project/ref-fvm/pull/2202)
+
 ## 4.7.2 [2025-05-01]
 
 - feat: add nv27-skeleton [#2175](https://github.com/filecoin-project/ref-fvm/pull/2175)
