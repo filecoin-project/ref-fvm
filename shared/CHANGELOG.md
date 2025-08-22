@@ -4,8 +4,6 @@
 
 ## 4.7.3 [2025-08-22]
 
-- chore: suppress RUSTSEC-2025-0046 [#2187](https://github.com/filecoin-project/ref-fvm/pull/2187)
-- feat: cacheless amt iteration [#2189](https://github.com/filecoin-project/ref-fvm/pull/2189)
 - chore(deps): update replace_with and slab transitive dependencies [#2197](https://github.com/filecoin-project/ref-fvm/pull/2197)
 - chore(deps): bump filecoin-proofs-api from 18.1.0 to 19.0.0 [#2200](https://github.com/filecoin-project/ref-fvm/pull/2200)
 - chore(deps): bump serde_ipld_dagcbor from 0.6.2 to 0.6.3 [#2201](https://github.com/filecoin-project/ref-fvm/pull/2201)
