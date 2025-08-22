@@ -4,7 +4,7 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-- chore: remove the nv25-dev feature flag [#2202](https://github.com/filecoin-project/ref-fvm/pull/2202)
+- chore: remove the nv27-dev feature flag [#2202](https://github.com/filecoin-project/ref-fvm/pull/2202)
 
 ## 4.7.2 [2025-05-01]
 
