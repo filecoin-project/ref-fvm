@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- chore(deps): bump filecoin-proofs-api from 18.1.0 to 19.0.0 [#2200](https://github.com/filecoin-project/ref-fvm/pull/2200)
+
 ## 2.11.1 (2025-04-15)
 
 This is an important bugfix release as v2.11.0 won't perform correct signature validation in some cases.
