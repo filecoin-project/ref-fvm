@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+## 2.11.2 (2025-08-25)
+
+- chore(deps): bump filecoin-proofs-api from 18.1.0 to 19.0.0 [#2200](https://github.com/filecoin-project/ref-fvm/pull/2200)
+
 ## 2.11.1 (2025-04-15)
 
 - Upgrade to fvm_shared@v2.11.1 to fix: accept malleable secp256k1 signatures (per EVM, etc.) [#2158](https://github.com/filecoin-project/ref-fvm/pull/2158)

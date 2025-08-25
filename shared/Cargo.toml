@@ -33,7 +33,7 @@ arbitrary = { version = "1.4", optional = true, features = ["derive"]}
 ## non-wasm dependencies; these dependencies and the respective code is
 ## only activated through non-default features, which the Kernel enables, but
 ## not the actors.
-filecoin-proofs-api = { version = "18", default-features = false, optional = true }
+filecoin-proofs-api = { version = "19", default-features = false, optional = true }
 k256 = { version = "0.13.4", features = ["ecdsa"], default-features = false, optional = true }
 bls-signatures = { version = "0.15", default-features = false, optional = true }
 byteorder = "1.5.0"
