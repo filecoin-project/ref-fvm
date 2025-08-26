@@ -28,7 +28,7 @@ serde_tuple = "0.5"
 lazy_static = "1.5.0"
 derive_more = { version = "2.0.1", features = ["full"] }
 replace_with = "0.1.7"
-filecoin-proofs-api = { version = "18", default-features = false }
+filecoin-proofs-api = { version = "19", default-features = false }
 rayon = "1"
 num_cpus = "1.16.0"
 log = "0.4.27"
