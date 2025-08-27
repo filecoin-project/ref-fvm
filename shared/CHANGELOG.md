@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Update `filecoin-proofs-api` to v19
+
 ## 3.13.1 [2025-04-15]
 
 This is an important bugfix release as v3.13.0 won't perform correct signature validation in some cases.

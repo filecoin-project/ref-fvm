@@ -4,6 +4,8 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+- Update `filecoin-proofs-api` to v19
+
 ## 3.13.1 [2025-04-15]
 
 - Upgrade to fvm_shared@v3.13.1 to fix: accept malleable secp256k1 signatures (per EVM, etc.) [#2157](https://github.com/filecoin-project/ref-fvm/pull/2157)
