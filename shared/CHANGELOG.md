@@ -2,8 +2,6 @@
 
 ## [Unreleased]
 
-## 3.13.2 [2025-08-27]
-
 - Update `filecoin-proofs-api` to v19
 
 ## 3.13.1 [2025-04-15]
