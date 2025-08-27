@@ -4,9 +4,9 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-## 2.11.2 (2025-08-25)
+## 2.11.2 (2025-08-27)
 
-- chore(deps): bump filecoin-proofs-api from 18.1.0 to 19.0.0 [#2200](https://github.com/filecoin-project/ref-fvm/pull/2200)
+- chore(deps): bump filecoin-proofs-api from 18.1.0 to 19.0.0 [#2208](https://github.com/filecoin-project/ref-fvm/pull/2208)
 
 ## 2.11.1 (2025-04-15)
 
