@@ -1670,7 +1670,7 @@ dependencies = [
 
 [[package]]
 name = "fvm"
-version = "2.11.1"
+version = "2.11.2"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -1718,7 +1718,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_conformance_tests"
-version = "2.11.1"
+version = "2.11.2"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1846,7 +1846,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_sdk"
-version = "2.11.1"
+version = "2.11.2"
 dependencies = [
  "cid",
  "fvm_ipld_encoding",
@@ -1859,7 +1859,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_shared"
-version = "2.11.1"
+version = "2.11.2"
 dependencies = [
  "anyhow",
  "arbitrary",
