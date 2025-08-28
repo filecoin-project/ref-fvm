@@ -32,3 +32,6 @@ updates:
       - dependency-name: "serde_ipld_dagcbor"
       - dependency-name: "serde_repr"
       - dependency-name: "serde_tuple"
+
+      # Testing utilities
+      - dependency-name: "fil_builtin_actors_bundle"
