@@ -8,6 +8,12 @@ The FVM is a workspace of crates which have different release schedules:
 * The rest of the crates are for local testing and are not released.
 
 ## Primary Crates
+
+> [!IMPORTANT]
+> Some changes need to be backported to older versions of the FVM, namely the [v2](https://github.com/filecoin-project/ref-fvm/tree/release/v2) and [v3](https://github.com/filecoin-project/ref-fvm/tree/release/v3) tracks. These **must not** break compatibility with the older network versions.
+> When releasing a new version of the FVM, make sure to check if any backports are needed and do them in separate PRs targeting the appropriate branches. Afterwards, make sure to create a new release for the backported changes.
+> Note that the v2 and v3 tracks no longer contain the `fvm_integration_tests` crate so there is no need to backport and release it.
+
 The primary crates are `fvm`, `fvm_shared`, `fvm_sdk`, and the integration testing framework `fvm_integration_tests`.  These are the crates that have [`version.workspace = true`](https://github.com/search?q=repo%3Afilecoin-project%2Fref-fvm%20version.workspace%20%3D%20true&type=code).
 
 ## Versioning
