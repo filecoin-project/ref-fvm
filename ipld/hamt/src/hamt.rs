@@ -13,7 +13,7 @@ use multihash_codetable::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
-use crate::iter::IterImpl;
+use crate::iter::{IterImpl, IterItem};
 use crate::node::Node;
 use crate::pointer::version::Version;
 use crate::{Config, Error, Hash, HashAlgorithm, Sha256, pointer::version};
@@ -372,12 +372,13 @@ where
     #[inline]
     pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
     where
-        V: DeserializeOwned,
+        K: Clone,
+        V: DeserializeOwned + Clone,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
         for res in self {
             let (k, v) = res?;
-            (f)(k, v)?;
+            (f)(k.as_ref(), v.as_ref())?;
         }
         Ok(())
     }
@@ -430,7 +431,7 @@ where
     where
         K: Borrow<Q> + Clone,
         Q: Eq + Hash + ?Sized,
-        V: DeserializeOwned,
+        V: DeserializeOwned + Clone,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
         let mut iter = match &starting_key {
@@ -441,10 +442,10 @@ where
         let mut traversed = 0usize;
         for res in iter.by_ref().take(max.unwrap_or(usize::MAX)) {
             let (k, v) = res?;
-            (f)(k, v)?;
+            (f)(k.as_ref(), v.as_ref())?;
             traversed += 1;
         }
-        let next = iter.next().transpose()?.map(|kv| kv.0).cloned();
+        let next = iter.next().transpose()?.map(|kv| kv.0.as_ref().clone());
         Ok((traversed, next))
     }
 
@@ -456,8 +457,8 @@ where
 
 impl<BS, V, K, H, Ver> HamtImpl<BS, V, K, H, Ver>
 where
-    K: DeserializeOwned + PartialOrd,
-    V: DeserializeOwned,
+    K: DeserializeOwned + PartialOrd + Clone,
+    V: DeserializeOwned + Clone,
     Ver: Version,
     BS: Blockstore,
 {
@@ -513,10 +514,10 @@ where
     /// for res in hamt.iter_from(results.last().unwrap().0)?.skip(1) {
     ///     results.push((res?));
     /// }
-    /// results.sort_by_key(|kv| kv.1);
+    /// results.sort_by_key(|kv| kv.1.clone());
     ///
     /// // Assert that we got out what we put in.
-    /// let results: Vec<_> = results.into_iter().map(|(k, v)|(k.clone(), v.clone())).collect();
+    /// let results: Vec<_> = results.into_iter().map(|(k, v)|(k.clone(), v.as_ref().clone())).collect();
     /// assert_eq!(kvs, results);
     ///
     /// # anyhow::Ok(())
@@ -533,12 +534,12 @@ where
 
 impl<'a, BS, V, K, H, Ver> IntoIterator for &'a HamtImpl<BS, V, K, H, Ver>
 where
-    K: DeserializeOwned + PartialOrd,
-    V: DeserializeOwned,
+    K: DeserializeOwned + PartialOrd + Clone,
+    V: DeserializeOwned + Clone,
     Ver: Version,
     BS: Blockstore,
 {
-    type Item = Result<(&'a K, &'a V), Error>;
+    type Item = Result<(IterItem<'a, K>, IterItem<'a, V>), Error>;
     type IntoIter = IterImpl<'a, BS, V, K, H, Ver>;
 
     fn into_iter(self) -> Self::IntoIter {

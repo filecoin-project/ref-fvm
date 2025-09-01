@@ -29,6 +29,20 @@ pub(crate) struct Node<K, V, H, Ver = version::V3> {
     hash: PhantomData<H>,
 }
 
+impl<K, V, H, Ver> Clone for Node<K, V, H, Ver>
+where
+    K: Clone,
+    V: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            bitfield: self.bitfield.clone(),
+            pointers: self.pointers.clone(),
+            hash: Default::default(),
+        }
+    }
+}
+
 impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Node<K, V, H, Ver> {
     fn eq(&self, other: &Self) -> bool {
         (self.bitfield == other.bitfield) && (self.pointers == other.pointers)
