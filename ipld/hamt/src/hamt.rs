@@ -477,7 +477,7 @@ where
     ///
     /// for kv in &hamt {
     ///     let (k, v) = kv?;
-    ///     println!("{k:?}: {v}");
+    ///     println!("{:?}: {}", k.as_ref(), v.as_ref());
     /// }
     ///
     /// # anyhow::Ok(())

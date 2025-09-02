@@ -36,7 +36,7 @@ where
 {
     fn clone(&self) -> Self {
         Self {
-            bitfield: self.bitfield.clone(),
+            bitfield: self.bitfield,
             pointers: self.pointers.clone(),
             hash: Default::default(),
         }

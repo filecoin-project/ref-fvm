@@ -1,7 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::borrow::Borrow;
-use std::fmt::Display;
 use std::iter::FusedIterator;
 
 use forest_hash_utils::BytesKey;
@@ -39,7 +38,7 @@ impl<'a, V> From<std::slice::Iter<'a, V>> for StackItem<'a, V> {
     }
 }
 
-impl<'a, V> From<std::vec::IntoIter<V>> for StackItem<'a, V> {
+impl<V> From<std::vec::IntoIter<V>> for StackItem<'_, V> {
     fn from(value: std::vec::IntoIter<V>) -> Self {
         Self::IntoIter(value)
     }
@@ -62,12 +61,6 @@ pub enum IterItem<'a, V> {
     Owned(V),
 }
 
-impl<V: Display> Display for IterItem<'_, V> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.as_ref().fmt(f)
-    }
-}
-
 impl<V> AsRef<V> for IterItem<'_, V> {
     fn as_ref(&self) -> &V {
         match self {
@@ -77,17 +70,7 @@ impl<V> AsRef<V> for IterItem<'_, V> {
     }
 }
 
-impl<V: PartialEq> PartialEq<V> for IterItem<'_, V> {
-    fn eq(&self, other: &V) -> bool {
-        self.as_ref().eq(other)
-    }
-
-    fn ne(&self, other: &V) -> bool {
-        self.as_ref().ne(other)
-    }
-}
-
-impl<'a, V> From<V> for IterItem<'a, V> {
+impl<V> From<V> for IterItem<'_, V> {
     fn from(value: V) -> Self {
         Self::Owned(value)
     }
@@ -140,6 +123,7 @@ where
                 }
                 IterItem::Owned(node) => {
                     stack.push(StackItem::from(
+                        #[allow(clippy::unnecessary_to_owned)]
                         node.pointers[node.index_for_bit_pos(idx)..]
                             .to_vec()
                             .into_iter(),
@@ -173,6 +157,7 @@ where
                                 conf,
                                 store,
                                 stack,
+                                #[allow(clippy::unnecessary_to_owned)]
                                 current: values[offset..].to_vec().into_iter().into(),
                             }),
                             None => Err(Error::StartKeyNotFound),
