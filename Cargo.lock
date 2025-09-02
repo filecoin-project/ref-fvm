@@ -2527,6 +2527,7 @@ dependencies = [
  "fvm_ipld_encoding 0.5.3",
  "hex",
  "ipld-core",
+ "itertools 0.14.0",
  "multihash-codetable",
  "once_cell",
  "quickcheck",

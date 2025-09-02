@@ -28,6 +28,7 @@ identity = []
 [dev-dependencies]
 hex =  { workspace = true }
 criterion = { workspace = true }
+itertools = { workspace = true}
 unsigned-varint = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }

@@ -511,13 +511,13 @@ where
     /// assert_eq!(results.len(), 2);
     ///
     /// // Read the rest then sort.
-    /// for res in hamt.iter_from(results.last().unwrap().0)?.skip(1) {
+    /// for res in hamt.iter_from(results.last().unwrap().0.as_ref())?.skip(1) {
     ///     results.push((res?));
     /// }
     /// results.sort_by_key(|kv| kv.1.clone());
     ///
     /// // Assert that we got out what we put in.
-    /// let results: Vec<_> = results.into_iter().map(|(k, v)|(k.clone(), v.as_ref().clone())).collect();
+    /// let results: Vec<_> = results.into_iter().map(|(k, v)|(k.as_ref().clone(), v.as_ref().clone())).collect();
     /// assert_eq!(kvs, results);
     ///
     /// # anyhow::Ok(())
