@@ -2,9 +2,9 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-extern crate serde;
+use std::hint::black_box;
 
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_hamt::Hamt;
 
