@@ -252,7 +252,7 @@ where
             for pointer in pointers.as_ref() {
                 match pointer {
                     Pointer::Link { cid, cache: _ } => {
-                        let node = Node::load(conf, bs, cid, stack.len() as u32)?;
+                        let node = Node::load(conf, bs, cid, (stack.len() + 1) as u32)?;
                         stack.push(StackItem::Owned(node.pointers))
                     }
                     Pointer::Dirty(node) => stack.push(StackItem::Owned(node.pointers.clone())),

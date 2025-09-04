@@ -608,20 +608,39 @@ fn for_each_cacheless(
     let store = TrackingBlockstore::new(&mem);
 
     let mut hamt: Hamt<_, BytesKey> = factory.new_with_bit_width(&store, 5);
+    let store2 = MemoryBlockstore::default();
+    let mut hamt2: Hamt<_, BytesKey> = factory.new_with_bit_width(&store2, 5);
 
     for i in 0..size_factor {
         hamt.set(tstring(i), tstring(i)).unwrap();
+        hamt2.set(tstring(i), tstring(i)).unwrap();
     }
 
     // Iterating through hamt with dirty caches.
     let mut count = 0;
+    let mut keys = Vec::with_capacity(size_factor);
     hamt.for_each_cacheless(|k, v| {
         assert_eq!(k, v);
+        keys.push(k.0.clone());
         count += 1;
         Ok(())
     })
     .unwrap();
     assert_eq!(count, size_factor);
+    keys.sort();
+
+    // Ensure parity between `for_each_cacheless` and `for_each`
+    let mut expected_keys = Vec::with_capacity(size_factor);
+    hamt2
+        .for_each(|k, v| {
+            assert_eq!(k, v);
+            expected_keys.push(k.0.clone());
+            Ok(())
+        })
+        .unwrap();
+    expected_keys.sort();
+
+    assert_eq!(keys, expected_keys);
 
     let c = hamt.flush().unwrap();
     cids.check_next(&c);
