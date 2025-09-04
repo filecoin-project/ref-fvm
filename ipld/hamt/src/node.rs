@@ -29,6 +29,20 @@ pub(crate) struct Node<K, V, H, Ver = version::V3> {
     hash: PhantomData<H>,
 }
 
+impl<K, V, H, Ver> Clone for Node<K, V, H, Ver>
+where
+    K: Clone,
+    V: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            bitfield: self.bitfield,
+            pointers: self.pointers.clone(),
+            hash: Default::default(),
+        }
+    }
+}
+
 impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Node<K, V, H, Ver> {
     fn eq(&self, other: &Self) -> bool {
         (self.bitfield == other.bitfield) && (self.pointers == other.pointers)
@@ -204,6 +218,56 @@ where
 
     pub fn is_empty(&self) -> bool {
         self.pointers.is_empty()
+    }
+
+    /// Non-caching iteration over the values in the node.
+    pub(super) fn for_each_cacheless<S, F>(
+        &self,
+        bs: &S,
+        conf: &Config,
+        f: &mut F,
+    ) -> Result<(), Error>
+    where
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
+        S: Blockstore,
+        K: Clone,
+        V: Clone,
+    {
+        enum StackItem<'a, T> {
+            Borrowed(&'a T),
+            Owned(T),
+        }
+
+        impl<T> AsRef<T> for StackItem<'_, T> {
+            fn as_ref(&self) -> &T {
+                match self {
+                    Self::Borrowed(i) => i,
+                    Self::Owned(i) => i,
+                }
+            }
+        }
+
+        let mut stack = vec![StackItem::Borrowed(&self.pointers)];
+        loop {
+            let Some(stack_last_item) = stack.pop() else {
+                // Terminate here since both `current` and `stack` reach the end
+                return Ok(());
+            };
+            for pointer in stack_last_item.as_ref() {
+                match pointer {
+                    Pointer::Link { cid, cache: _ } => {
+                        let node = Node::load(conf, bs, cid, stack.len() as u32)?;
+                        stack.push(StackItem::Owned(node.pointers))
+                    }
+                    Pointer::Dirty(node) => stack.push(StackItem::Owned(node.pointers.clone())),
+                    Pointer::Values(kvs) => {
+                        for kv in kvs.iter() {
+                            f(kv.key(), kv.value())?;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Search for a key.
