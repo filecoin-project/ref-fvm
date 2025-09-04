@@ -248,12 +248,8 @@ where
         }
 
         let mut stack = vec![StackItem::Borrowed(&self.pointers)];
-        loop {
-            let Some(stack_last_item) = stack.pop() else {
-                // Terminate here since both `current` and `stack` reach the end
-                return Ok(());
-            };
-            for pointer in stack_last_item.as_ref() {
+        while let Some(pointers) = stack.pop() {
+            for pointer in pointers.as_ref() {
                 match pointer {
                     Pointer::Link { cid, cache: _ } => {
                         let node = Node::load(conf, bs, cid, stack.len() as u32)?;
@@ -268,6 +264,7 @@ where
                 }
             }
         }
+        Ok(())
     }
 
     /// Search for a key.
