@@ -233,38 +233,73 @@ where
         K: Clone,
         V: Clone,
     {
-        enum StackItem<'a, T> {
+        enum IterItem<'a, T> {
             Borrowed(&'a T),
             Owned(T),
         }
 
-        impl<T> AsRef<T> for StackItem<'_, T> {
-            fn as_ref(&self) -> &T {
+        enum StackItem<'a, T> {
+            Iter(std::slice::Iter<'a, T>),
+            IntoIter(std::vec::IntoIter<T>),
+        }
+
+        impl<'a, V> From<std::slice::Iter<'a, V>> for StackItem<'a, V> {
+            fn from(value: std::slice::Iter<'a, V>) -> Self {
+                Self::Iter(value)
+            }
+        }
+
+        impl<V> From<std::vec::IntoIter<V>> for StackItem<'_, V> {
+            fn from(value: std::vec::IntoIter<V>) -> Self {
+                Self::IntoIter(value)
+            }
+        }
+
+        impl<'a, V> Iterator for StackItem<'a, V> {
+            type Item = IterItem<'a, V>;
+
+            fn next(&mut self) -> Option<Self::Item> {
                 match self {
-                    Self::Borrowed(i) => i,
-                    Self::Owned(i) => i,
+                    Self::Iter(it) => it.next().map(IterItem::Borrowed),
+                    Self::IntoIter(it) => it.next().map(IterItem::Owned),
                 }
             }
         }
 
-        let mut stack = vec![StackItem::Borrowed(&self.pointers)];
-        while let Some(pointers) = stack.pop() {
-            for pointer in pointers.as_ref() {
-                match pointer {
-                    Pointer::Link { cid, cache: _ } => {
-                        let node = Node::load(conf, bs, cid, (stack.len() + 1) as u32)?;
-                        stack.push(StackItem::Owned(node.pointers))
+        let mut stack: Vec<StackItem<_>> = vec![self.pointers.iter().into()];
+        loop {
+            let Some(pointers) = stack.last_mut() else {
+                return Ok(());
+            };
+            let Some(pointer) = pointers.next() else {
+                stack.pop();
+                continue;
+            };
+            match pointer {
+                IterItem::Borrowed(Pointer::Link { cid, cache: _ }) => {
+                    let node = Node::load(conf, bs, cid, stack.len() as u32)?;
+                    stack.push(node.pointers.into_iter().into())
+                }
+                IterItem::Owned(Pointer::Link { cid, cache: _ }) => {
+                    let node = Node::load(conf, bs, &cid, stack.len() as u32)?;
+                    stack.push(node.pointers.into_iter().into())
+                }
+                IterItem::Borrowed(Pointer::Dirty(node)) => stack.push(node.pointers.iter().into()),
+                IterItem::Owned(Pointer::Dirty(node)) => {
+                    stack.push(node.pointers.clone().into_iter().into())
+                }
+                IterItem::Borrowed(Pointer::Values(kvs)) => {
+                    for kv in kvs.iter() {
+                        f(kv.key(), kv.value())?;
                     }
-                    Pointer::Dirty(node) => stack.push(StackItem::Owned(node.pointers.clone())),
-                    Pointer::Values(kvs) => {
-                        for kv in kvs.iter() {
-                            f(kv.key(), kv.value())?;
-                        }
+                }
+                IterItem::Owned(Pointer::Values(kvs)) => {
+                    for kv in kvs.iter() {
+                        f(kv.key(), kv.value())?;
                     }
                 }
             }
         }
-        Ok(())
     }
 
     /// Search for a key.

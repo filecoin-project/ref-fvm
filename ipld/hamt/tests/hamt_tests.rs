@@ -627,7 +627,6 @@ fn for_each_cacheless(
     })
     .unwrap();
     assert_eq!(count, size_factor);
-    keys.sort();
 
     // Ensure parity between `for_each_cacheless` and `for_each`
     let mut expected_keys = Vec::with_capacity(size_factor);
@@ -638,7 +637,6 @@ fn for_each_cacheless(
             Ok(())
         })
         .unwrap();
-    expected_keys.sort();
 
     assert_eq!(keys, expected_keys);
 
@@ -1574,6 +1572,13 @@ macro_rules! test_hamt_mod {
             fn for_each() {
                 for s in super::SIZE_FACTORS {
                     super::for_each(*s, $factory, None, CidChecker::empty())
+                }
+            }
+
+            #[test]
+            fn for_each_cacheless() {
+                for s in super::SIZE_FACTORS {
+                    super::for_each_cacheless(*s, $factory, None, CidChecker::empty())
                 }
             }
 
