@@ -459,6 +459,11 @@ fn for_each_cacheless() {
     // 2nd pass, no caching so block reads roughly doubled.
     #[rustfmt::skip]
     assert_eq!(*db.stats.borrow(), BSStats {r: 2861, w: 1431, br: 177158, bw: 88649});
+
+    // errorr during iteration is propagated
+    let res = new_amt.for_each_cacheless(|_, _: &BytesDe| anyhow::bail!("cthulhu fhtagn"));
+    let err = res.unwrap_err();
+    assert_eq!(err.to_string(), "cthulhu fhtagn");
 }
 
 #[test]

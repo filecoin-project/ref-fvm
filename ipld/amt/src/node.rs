@@ -437,7 +437,7 @@ where
             Node::Leaf { vals } => {
                 for (i, v) in (0..).zip(vals.iter()) {
                     if let Some(v) = v {
-                        let _ = f(offset + i, v);
+                        f(offset + i, v)?;
                     }
                 }
             }
