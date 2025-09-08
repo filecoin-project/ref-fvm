@@ -593,7 +593,8 @@ where
 
     /// Iterates over each value in the Amt and runs a function on the values. This is a
     /// non-caching version of [`Self::for_each`]. It can potentially be more efficient, especially memory-wise,
-    /// for large AMTs or when the iteration occurs only once.
+    /// for large AMTs or when the iteration occurs only once. An error during iteration stops the
+    /// iteration and is returned.
     ///
     /// # Examples
     ///
