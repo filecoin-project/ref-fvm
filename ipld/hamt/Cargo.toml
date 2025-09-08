@@ -32,6 +32,7 @@ unsigned-varint = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 rand = { workspace = true }
+itertools = { workspace = true }
 
 [[bench]]
 name = "hamt_beckmark"

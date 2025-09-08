@@ -29,6 +29,20 @@ pub(crate) struct Node<K, V, H, Ver = version::V3> {
     hash: PhantomData<H>,
 }
 
+impl<K, V, H, Ver> Clone for Node<K, V, H, Ver>
+where
+    K: Clone,
+    V: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            bitfield: self.bitfield,
+            pointers: self.pointers.clone(),
+            hash: Default::default(),
+        }
+    }
+}
+
 impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Node<K, V, H, Ver> {
     fn eq(&self, other: &Self) -> bool {
         (self.bitfield == other.bitfield) && (self.pointers == other.pointers)
@@ -204,6 +218,88 @@ where
 
     pub fn is_empty(&self) -> bool {
         self.pointers.is_empty()
+    }
+
+    /// Non-caching iteration over the values in the node.
+    pub(super) fn for_each_cacheless<S, F>(
+        &self,
+        bs: &S,
+        conf: &Config,
+        f: &mut F,
+    ) -> Result<(), Error>
+    where
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
+        S: Blockstore,
+        K: Clone,
+        V: Clone,
+    {
+        enum IterItem<'a, T> {
+            Borrowed(&'a T),
+            Owned(T),
+        }
+
+        enum StackItem<'a, T> {
+            Iter(std::slice::Iter<'a, T>),
+            IntoIter(std::vec::IntoIter<T>),
+        }
+
+        impl<'a, V> From<std::slice::Iter<'a, V>> for StackItem<'a, V> {
+            fn from(value: std::slice::Iter<'a, V>) -> Self {
+                Self::Iter(value)
+            }
+        }
+
+        impl<V> From<std::vec::IntoIter<V>> for StackItem<'_, V> {
+            fn from(value: std::vec::IntoIter<V>) -> Self {
+                Self::IntoIter(value)
+            }
+        }
+
+        impl<'a, V> Iterator for StackItem<'a, V> {
+            type Item = IterItem<'a, V>;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                match self {
+                    Self::Iter(it) => it.next().map(IterItem::Borrowed),
+                    Self::IntoIter(it) => it.next().map(IterItem::Owned),
+                }
+            }
+        }
+
+        let mut stack: Vec<StackItem<_>> = vec![self.pointers.iter().into()];
+        loop {
+            let Some(pointers) = stack.last_mut() else {
+                return Ok(());
+            };
+            let Some(pointer) = pointers.next() else {
+                stack.pop();
+                continue;
+            };
+            match pointer {
+                IterItem::Borrowed(Pointer::Link { cid, cache: _ }) => {
+                    let node = Node::load(conf, bs, cid, stack.len() as u32)?;
+                    stack.push(node.pointers.into_iter().into())
+                }
+                IterItem::Owned(Pointer::Link { cid, cache: _ }) => {
+                    let node = Node::load(conf, bs, &cid, stack.len() as u32)?;
+                    stack.push(node.pointers.into_iter().into())
+                }
+                IterItem::Borrowed(Pointer::Dirty(node)) => stack.push(node.pointers.iter().into()),
+                IterItem::Owned(Pointer::Dirty(node)) => {
+                    stack.push(node.pointers.clone().into_iter().into())
+                }
+                IterItem::Borrowed(Pointer::Values(kvs)) => {
+                    for kv in kvs.iter() {
+                        f(kv.key(), kv.value())?;
+                    }
+                }
+                IterItem::Owned(Pointer::Values(kvs)) => {
+                    for kv in kvs.iter() {
+                        f(kv.key(), kv.value())?;
+                    }
+                }
+            }
+        }
     }
 
     /// Search for a key.
