@@ -65,7 +65,7 @@ unsigned-varint = "0.8.0"
 ambassador = "0.4.1"
 
 # dev/tools/tests
-criterion = "0.5.1"
+criterion = "0.7"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 minstant = "0.1.7"
