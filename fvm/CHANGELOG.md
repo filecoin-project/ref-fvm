@@ -4,6 +4,14 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.7.4 [2025-10-06]
+
+- feat: nv28 skeleton [#2220](https://github.com/filecoin-project/ref-fvm/pull/2220)
+- fix: propagate errors in Amt::for_each_cacheless [#2218](https://github.com/filecoin-project/ref-fvm/pull/2218)
+- chore(deps): bump serde_ipld_dagcbor from 0.6.3 to 0.6.4 [#2222](https://github.com/filecoin-project/ref-fvm/pull/2222)
+- chore(deps): bump serde_tuple from 0.5.0 to 1.1.2 [#2199](https://github.com/filecoin-project/ref-fvm/pull/2199)
+- chore(deps): bump criterion [#2217](https://github.com/filecoin-project/ref-fvm/pull/2217)
+
 ## 4.7.3 [2025-08-22]
 
 - chore(deps): update replace_with and slab transitive dependencies [#2197](https://github.com/filecoin-project/ref-fvm/pull/2197)
