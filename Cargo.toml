@@ -53,8 +53,8 @@ k256 = { version = "0.13.4", features = ["ecdsa"], default-features = false }
 bls-signatures = { version = "0.15", default-features = false }
 
 # wasmtime
-wasmtime = {version = "31.0.0", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
-wasmtime-environ = "31.0.0"
+wasmtime = {version = "36", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
+wasmtime-environ = "36"
 
 # misc
 libfuzzer-sys = "0.4"
