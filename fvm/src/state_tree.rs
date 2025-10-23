@@ -364,6 +364,7 @@ where
         self.hamt.into_store()
     }
 
+    /// Iterates over each KV in the Hamt and runs a function on the values with cache.
     pub fn for_each<F>(&self, mut f: F) -> anyhow::Result<()>
     where
         F: FnMut(Address, &ActorState) -> anyhow::Result<()>,
@@ -375,6 +376,7 @@ where
         Ok(())
     }
 
+    /// Iterates over each KV in the Hamt and runs a function on the values without cache.
     pub fn for_each_cacheless<F>(&self, mut f: F) -> anyhow::Result<()>
     where
         F: FnMut(Address, &ActorState) -> anyhow::Result<()>,
