@@ -286,7 +286,7 @@ where
                 }
                 IterItem::Borrowed(Pointer::Dirty(node)) => stack.push(node.pointers.iter().into()),
                 IterItem::Owned(Pointer::Dirty(node)) => {
-                    stack.push(node.pointers.clone().into_iter().into())
+                    stack.push(node.pointers.into_iter().into())
                 }
                 IterItem::Borrowed(Pointer::Values(kvs)) => {
                     for kv in kvs.iter() {

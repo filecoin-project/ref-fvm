@@ -363,7 +363,7 @@ where
     /// map.set(4, 2).unwrap();
     ///
     /// let mut total = 0;
-    /// map.for_each(|_, v: &u64| {
+    /// map.for_each(|_, v| {
     ///    total += v;
     ///    Ok(())
     /// }).unwrap();
@@ -398,7 +398,7 @@ where
     /// map.set(4, 2).unwrap();
     ///
     /// let mut total = 0;
-    /// map.for_each_cacheless(|_, v: &u64| {
+    /// map.for_each_cacheless(|_, v| {
     ///    total += v;
     ///    Ok(())
     /// }).unwrap();
