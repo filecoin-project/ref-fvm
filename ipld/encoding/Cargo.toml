@@ -14,9 +14,9 @@ thiserror = { workspace = true }
 anyhow = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
-serde_ipld_dagcbor = "0.6.3"
+serde_ipld_dagcbor = "0.6.4"
 serde_repr = "0.1"
-serde_tuple = "0.5.0"
+serde_tuple = "1.1.2"
 
 [features]
 default = []
