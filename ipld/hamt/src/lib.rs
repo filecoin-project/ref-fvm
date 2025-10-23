@@ -75,7 +75,7 @@ impl Default for Config {
 
 type HashedKey = [u8; 32];
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct KeyValuePair<K, V>(K, V);
 
 impl<K, V> KeyValuePair<K, V> {

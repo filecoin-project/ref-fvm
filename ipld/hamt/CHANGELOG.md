@@ -4,6 +4,8 @@ Changes to the reference FVM's HAMT implementation.
 
 ## [Unreleased]
 
+- Added `for_each_cacheless` method to iterate over the HAMT without caching the values. This is lowers memory requirements usage and is useful for single-pass, read-only operations over large HAMTs.
+
 ## 0.10.4 [2025-04-09]
 
 - Updates multiple dependencies (semver breaking internally but not exported).

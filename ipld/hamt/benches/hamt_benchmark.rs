@@ -5,9 +5,11 @@
 use std::hint::black_box;
 
 use criterion::{Criterion, criterion_group, criterion_main};
+use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_hamt::Hamt;
 
+const BIT_WIDTH: u32 = 5;
 const ITEM_COUNT: u8 = 40;
 
 // Struct to simulate a reasonable amount of data per value into the amt
@@ -37,8 +39,8 @@ impl BenchData {
 fn insert(c: &mut Criterion) {
     c.bench_function("HAMT bulk insert (no flush)", |b| {
         b.iter(|| {
-            let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-            let mut a = Hamt::<_, _>::new_with_bit_width(&db, 5);
+            let db = MemoryBlockstore::default();
+            let mut a = Hamt::<_, _>::new_with_bit_width(&db, BIT_WIDTH);
 
             for i in 0..black_box(ITEM_COUNT) {
                 a.set(black_box(vec![i; 20].into()), black_box(BenchData::new(i)))
@@ -51,12 +53,12 @@ fn insert(c: &mut Criterion) {
 fn insert_load_flush(c: &mut Criterion) {
     c.bench_function("HAMT bulk insert with flushing and loading", |b| {
         b.iter(|| {
-            let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-            let mut empt = Hamt::<_, ()>::new_with_bit_width(&db, 5);
+            let db = MemoryBlockstore::default();
+            let mut empt = Hamt::<_, ()>::new_with_bit_width(&db, BIT_WIDTH);
             let mut cid = empt.flush().unwrap();
 
             for i in 0..black_box(ITEM_COUNT) {
-                let mut a = Hamt::<_, _>::load_with_bit_width(&cid, &db, 5).unwrap();
+                let mut a = Hamt::<_, _>::load_with_bit_width(&cid, &db, BIT_WIDTH).unwrap();
                 a.set(black_box(vec![i; 20].into()), black_box(BenchData::new(i)))
                     .unwrap();
                 cid = a.flush().unwrap();
@@ -66,16 +68,13 @@ fn insert_load_flush(c: &mut Criterion) {
 }
 
 fn delete(c: &mut Criterion) {
-    let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-    let mut a = Hamt::<_, _>::new_with_bit_width(&db, 5);
-    for i in 0..black_box(ITEM_COUNT) {
-        a.set(vec![i; 20].into(), BenchData::new(i)).unwrap();
-    }
+    let db = MemoryBlockstore::default();
+    let mut a = setup_hamt(&db);
     let cid = a.flush().unwrap();
 
     c.bench_function("HAMT deleting all nodes", |b| {
         b.iter(|| {
-            let mut a = Hamt::<_, BenchData>::load_with_bit_width(&cid, &db, 5).unwrap();
+            let mut a = Hamt::<_, BenchData>::load_with_bit_width(&cid, &db, BIT_WIDTH).unwrap();
             for i in 0..black_box(ITEM_COUNT) {
                 a.delete(black_box([i; 20].as_ref())).unwrap();
             }
@@ -84,20 +83,47 @@ fn delete(c: &mut Criterion) {
 }
 
 fn for_each(c: &mut Criterion) {
-    let db = fvm_ipld_blockstore::MemoryBlockstore::default();
-    let mut a = Hamt::<_, _>::new_with_bit_width(&db, 5);
-    for i in 0..black_box(ITEM_COUNT) {
-        a.set(vec![i; 20].into(), BenchData::new(i)).unwrap();
-    }
+    let db = MemoryBlockstore::default();
+    let mut a = setup_hamt(&db);
     let cid = a.flush().unwrap();
 
     c.bench_function("HAMT for_each function", |b| {
         b.iter(|| {
-            let a = Hamt::<_, _>::load_with_bit_width(&cid, &db, 5).unwrap();
+            let a = Hamt::<_, _>::load_with_bit_width(&cid, &db, BIT_WIDTH).unwrap();
             black_box(a).for_each(|_k, _v: &BenchData| Ok(())).unwrap();
         })
     });
 }
 
-criterion_group!(benches, insert, insert_load_flush, delete, for_each);
+fn for_each_cacheless(c: &mut Criterion) {
+    let db = MemoryBlockstore::default();
+    let mut a = setup_hamt(&db);
+    let cid = a.flush().unwrap();
+
+    c.bench_function("HAMT for_each_cacheless function", |b| {
+        b.iter(|| {
+            let a = Hamt::<_, _>::load_with_bit_width(&cid, &db, BIT_WIDTH).unwrap();
+            black_box(a)
+                .for_each_cacheless(|_k, _v: &BenchData| Ok(()))
+                .unwrap();
+        })
+    });
+}
+
+fn setup_hamt<BS: Blockstore>(db: &BS) -> Hamt<&BS, BenchData> {
+    let mut a = Hamt::<_, _>::new_with_bit_width(db, BIT_WIDTH);
+    for i in 0..ITEM_COUNT {
+        a.set(vec![i; 20].into(), BenchData::new(i)).unwrap();
+    }
+    a
+}
+
+criterion_group!(
+    benches,
+    insert,
+    insert_load_flush,
+    delete,
+    for_each,
+    for_each_cacheless
+);
 criterion_main!(benches);
