@@ -955,6 +955,41 @@ where
             .ok_or_else(|| syscall_error!(NotFound; "actor not found"))?
             .delegated_address)
     }
+
+    fn get_eth_delegate_to(&self, actor_id: ActorID) -> Result<Option<[u8; 20]>> {
+        use fvm_ipld_encoding::CborStore;
+
+        // Load actor state
+        let actor = match self.call_manager.get_actor(actor_id)? {
+            Some(a) => a,
+            None => return Ok(None),
+        };
+
+        // Verify EthAccount code
+        if !self
+            .call_manager
+            .machine()
+            .builtin_actors()
+            .is_ethaccount_actor(&actor.code)
+        {
+            return Ok(None);
+        }
+
+        // Define a minimal view of the EthAccount state for decoding.
+        #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]
+        struct EthAccountStateView {
+            delegate_to: Option<[u8; 20]>,
+            auth_nonce: u64,
+            evm_storage_root: cid::Cid,
+        }
+
+        // Attempt to decode the state root as EthAccountStateView.
+        let store = self.call_manager.blockstore();
+        let st: Option<EthAccountStateView> = store.get_cbor(&actor.state).map_err(
+            |e| syscall_error!(IllegalOperation; "failed to decode EthAccount state: {e}"),
+        )?;
+        Ok(st.and_then(|s| s.delegate_to))
+    }
 }
 
 impl<C> DebugOps for DefaultKernel<C>

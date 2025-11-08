@@ -23,6 +23,7 @@ fvm_ipld_hamt = { workspace = true }
 fvm_ipld_amt = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
+serde_tuple = "0.5"
 wasmtime = { workspace = true }
 wasmtime-environ = { workspace = true }
 serde = { workspace = true }

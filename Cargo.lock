@@ -2254,6 +2254,7 @@ dependencies = [
  "rayon",
  "replace_with",
  "serde",
+ "serde_tuple 0.5.0",
  "static_assertions",
  "thiserror 2.0.12",
  "wasmtime",
