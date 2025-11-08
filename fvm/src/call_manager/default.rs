@@ -527,6 +527,301 @@ impl<M> DefaultCallManager<M>
 where
     M: Machine,
 {
+    /// Attempt to intercept an EVM CALL/STATICCALL to an EthAccount (EOA) that has an active
+    /// delegation, and execute the delegate EVM code under authority context.
+    ///
+    /// Returns Some(InvocationResult) when interception was performed; None otherwise.
+    fn try_intercept_evm_call_to_eoa<K: Kernel<CallManager = Self>>(
+        &mut self,
+        from: ActorID,
+        to: ActorID,
+        entrypoint: &Entrypoint,
+        params: &Option<Block>,
+        value: &TokenAmount,
+        read_only: bool,
+    ) -> Result<Option<InvocationResult>> {
+        use crate::eam_actor::EAM_ACTOR_ID;
+        use fvm_ipld_encoding::CborStore;
+        use fvm_shared::address::Address;
+        use fvm_shared::event::{ActorEvent, Entry, Flags, StampedEvent};
+
+        // Only intercept InvokeEVM calls originating from an EVM actor to an EthAccount.
+        let from_state = match self.get_actor(from)? {
+            Some(s) => s,
+            None => return Ok(None),
+        };
+        let to_state = match self.get_actor(to)? {
+            Some(s) => s,
+            None => return Ok(None),
+        };
+
+        // Skip explicit check of caller code; entrypoint gating below suffices.
+        if !self
+            .machine()
+            .builtin_actors()
+            .is_ethaccount_actor(&to_state.code)
+        {
+            return Ok(None);
+        }
+
+        // Optionally ensure the entrypoint matches EVM InvokeEVM selector to avoid false-positives.
+        let maybe_method = match entrypoint {
+            Entrypoint::Invoke(m) => Some(*m),
+            _ => None,
+        };
+        if let Some(m) = maybe_method {
+            if m != frc42_method_hash("InvokeEVM") {
+                // Not an EVM invoke; do not intercept.
+                return Ok(None);
+            }
+        } else {
+            return Ok(None);
+        }
+
+        // Decode EthAccount state: delegate_to and evm_storage_root.
+        #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]
+        struct EthAccountStateView {
+            delegate_to: Option<[u8; 20]>,
+            auth_nonce: u64,
+            evm_storage_root: cid::Cid,
+        }
+        let ea_state: Option<EthAccountStateView> = {
+            let store = self.blockstore();
+            store
+                .get_cbor(&to_state.state)
+            .map_err(|e| ExecutionError::Syscall(SyscallError::new(
+                ErrorNumber::IllegalOperation,
+                format!("failed to decode EthAccount state: {e}"),
+            )))?
+        };
+        let Some(ea) = ea_state else { return Ok(None) };
+        let Some(delegate20) = ea.delegate_to else {
+            return Ok(None);
+        };
+
+        // Resolve delegate 20-byte to f4 address under EAM namespace.
+        let delegate_addr = Address::new_delegated(EAM_ACTOR_ID, &delegate20)
+            .map_err(|e| ExecutionError::Syscall(SyscallError::new(
+                ErrorNumber::IllegalArgument,
+                format!("invalid delegate address: {e}"),
+            )))?;
+        let Some(delegate_id) = self.resolve_address(&delegate_addr)? else {
+            return Ok(None);
+        };
+        if self.get_actor(delegate_id)?.is_none() {
+            return Ok(None);
+        }
+        // Delegate target type is validated by GetBytecode call below.
+
+        // Get delegate bytecode CID via EVM.GetBytecode (method num 3).
+        let get_bytecode_method: MethodNum = 3;
+        let resp = self.call_actor::<K>(
+            from,
+            delegate_addr.clone(),
+            Entrypoint::Invoke(get_bytecode_method),
+            None,
+            &TokenAmount::zero(),
+            Some(self.gas_tracker().gas_available()),
+            true,
+        )?;
+        if !resp.exit_code.is_success() {
+            return Ok(None);
+        }
+        let Some(blk) = resp.value.clone() else {
+            return Ok(None);
+        };
+        #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]
+        struct BytecodeReturn { code: Option<cid::Cid> }
+        let bytecode_cid = match fvm_ipld_encoding::from_slice::<BytecodeReturn>(blk.data())
+            .ok()
+            .and_then(|r| r.code)
+        {
+            Some(c) => c,
+            None => return Ok(None),
+        };
+
+        // Extract EVM input bytes from params (IPLD_RAW).
+        let input = params
+            .as_ref()
+            .map(|p| p.data().to_vec())
+            .unwrap_or_default();
+
+        // Compute EthAddress(20) for caller (the EVM contract address) and authority (EOA).
+        let caller_eth20 = from_state
+            .delegated_address
+            .as_ref()
+            .and_then(|a| match a.payload() {
+                fvm_shared::address::Payload::Delegated(d) if d.namespace() == EAM_ACTOR_ID => {
+                    let sub = d.subaddress();
+                    if sub.len() >= 20 {
+                        Some(sub[sub.len() - 20..].to_vec())
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            });
+        let Some(caller_eth20) = caller_eth20 else {
+            return Ok(None);
+        };
+
+        // Build params and call into the caller EVM actor using a private trampoline that mounts the
+        // provided authority storage root and returns (output_data, new_root).
+        #[derive(fvm_ipld_encoding::tuple::Serialize_tuple)]
+        struct InvokeAsEoaParamsV2 {
+            code: cid::Cid,
+            #[serde(with = "fvm_ipld_encoding::strict_bytes")]
+            input: Vec<u8>,
+            caller: [u8; 20],
+            receiver: [u8; 20],
+            value: TokenAmount,
+            initial_storage_root: cid::Cid,
+        }
+        let mut caller_arr = [0u8; 20];
+        caller_arr.copy_from_slice(&caller_eth20);
+        let mut recv_arr = [0u8; 20];
+        recv_arr.copy_from_slice(&delegate20); // receiver is the authority EOA for context
+        let params_v2 = InvokeAsEoaParamsV2 {
+            code: bytecode_cid,
+            input,
+            caller: caller_arr,
+            receiver: recv_arr,
+            value: value.clone(),
+            initial_storage_root: ea.evm_storage_root,
+        };
+        let params_blk = Some(Block::new(
+            fvm_ipld_encoding::DAG_CBOR,
+            to_vec(&params_v2).map_err(|e| ExecutionError::Syscall(SyscallError::new(
+                ErrorNumber::IllegalArgument,
+                format!("failed to encode InvokeAsEoa params: {e}"),
+            )))?,
+            Vec::<Cid>::new(),
+        ));
+
+        // InvokeEVM-as-EOA with explicit storage root. Method hash of "InvokeAsEoaWithRoot".
+        let method_invoke_as_eoa_v2 = frc42_method_hash("InvokeAsEoaWithRoot");
+        let res = self.call_actor::<K>(
+            from,
+            // Call back into the caller EVM actor (self-call) to run the delegate code.
+            Address::new_id(from),
+            Entrypoint::Invoke(method_invoke_as_eoa_v2),
+            params_blk,
+            &TokenAmount::zero(),
+            Some(self.gas_tracker().gas_available()),
+            read_only,
+        )?;
+
+        // Map the result back to the original caller.
+        if !res.exit_code.is_success() {
+            // Propagate revert/abort as-is. The return data (if present) contains the revert payload.
+            return Ok(Some(InvocationResult {
+                exit_code: res.exit_code,
+                value: res.value,
+            }));
+        }
+
+        // Decode output (data, new_root), update EthAccount.evm_storage_root and emit the Delegated(address) event.
+        let Some(ret_blk) = res.value else {
+            return Ok(Some(InvocationResult {
+                exit_code: ExitCode::OK,
+                value: None,
+            }));
+        };
+        #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]
+        struct InvokeAsEoaReturnV2 {
+            #[serde(with = "fvm_ipld_encoding::strict_bytes")]
+            output_data: Vec<u8>,
+            new_storage_root: cid::Cid,
+        }
+        let out: InvokeAsEoaReturnV2 = fvm_ipld_encoding::from_slice(ret_blk.data()).map_err(|e| {
+            ExecutionError::Syscall(SyscallError::new(
+                ErrorNumber::Serialization,
+                format!("failed to decode InvokeAsEoa return: {e}"),
+            ))
+        })?;
+
+        // Persist updated storage root back to EthAccount state.
+        #[derive(fvm_ipld_encoding::tuple::Serialize_tuple)]
+        struct EthAccountStateUpdate {
+            delegate_to: Option<[u8; 20]>,
+            auth_nonce: u64,
+            evm_storage_root: cid::Cid,
+        }
+        let updated = EthAccountStateUpdate {
+            delegate_to: Some(delegate20),
+            auth_nonce: ea.auth_nonce,
+            evm_storage_root: out.new_storage_root,
+        };
+        let new_state_cid = self
+            .blockstore()
+            .put_cbor(&updated, multihash_codetable::Code::Blake2b256)
+            .map_err(|e| ExecutionError::Syscall(SyscallError::new(
+                ErrorNumber::Serialization,
+                format!("failed to write EthAccount state: {e}"),
+            )))?;
+        // Update actor state with new root, preserving balance/sequence/code/delegated address.
+        let mut new_actor_state = to_state.clone();
+        new_actor_state.state = new_state_cid;
+        self.set_actor(to, new_actor_state)?;
+
+        // Emit best-effort Delegated(address) event with the authority (EOA) address in a 32-byte ABI word.
+        let topic = keccak32(b"Delegated(address)");
+        let mut abi_word = [0u8; 32];
+        abi_word[12..].copy_from_slice(&delegate20);
+        let entries = vec![
+            Entry {
+                flags: Flags::FLAG_INDEXED_ALL,
+                key: "t1".to_string(),
+                codec: fvm_ipld_encoding::IPLD_RAW,
+                value: topic.to_vec(),
+            },
+            Entry {
+                flags: Flags::FLAG_INDEXED_ALL,
+                key: "d".to_string(),
+                codec: fvm_ipld_encoding::IPLD_RAW,
+                value: abi_word.to_vec(),
+            },
+        ];
+        self.append_event(StampedEvent::new(from, ActorEvent::from(entries)));
+
+        // Return data as a raw IPLD block to the caller (EVM interpreter will copy to memory).
+        let ret_blk = Block::new(
+            fvm_ipld_encoding::IPLD_RAW,
+            out.output_data,
+            Vec::<Cid>::new(),
+        );
+        Ok(Some(InvocationResult {
+            exit_code: ExitCode::OK,
+            value: Some(ret_blk),
+        }))
+    }
+}
+
+use fvm_shared::MethodNum;
+// (ExecutionError, SyscallError) are already in the prelude import list at top.
+/// Compute FRC-42 method hash from a string label.
+fn frc42_method_hash(name: &str) -> MethodNum {
+    use multihash_codetable::MultihashDigest;
+    let digest = multihash_codetable::Code::Keccak256.digest(name.as_bytes());
+    let d = digest.digest();
+    let mut bytes = [0u8; 8];
+    bytes[4..8].copy_from_slice(&d[0..4]);
+    u64::from_be_bytes(bytes)
+}
+
+/// Compute Keccak256 hash and return the 32-byte digest.
+fn keccak32(data: &[u8]) -> [u8; 32] {
+    use multihash_codetable::MultihashDigest;
+    let digest = multihash_codetable::Code::Keccak256.digest(data);
+    let mut out = [0u8; 32];
+    out.copy_from_slice(digest.digest());
+    out
+}
+
+impl<M> DefaultCallManager<M>
+where
+    M: Machine,
+{
     fn trace(&mut self, trace: ExecutionEvent) {
         // The price of deref magic is that you sometimes need to tell the compiler: no, this is
         // fine.
@@ -688,6 +983,21 @@ where
             let t = self.charge_gas(self.price_list().on_value_transfer())?;
             self.transfer(from, to, value)?;
             t.stop();
+        }
+
+        // EIP-7702 delegated CALL intercept: If an EVM actor is invoking an EthAccount (EOA)
+        // and that EthAccount has a delegate_to set, execute the delegate EVM code under
+        // an authority context using the authority's storage root, then map the result back.
+        // This path runs prior to normal invocation.
+        if let Some(intercept) = self.try_intercept_evm_call_to_eoa::<K>(
+            from,
+            to,
+            &entrypoint,
+            &params,
+            value,
+            read_only,
+        )? {
+            return Ok(intercept);
         }
 
         // Abort early if we have a send.
