@@ -665,6 +665,19 @@ where
             return Ok(None);
         };
 
+        // Extract authority ETH20 from the EthAccount's delegated f4 address (namespace EAM).
+        let authority_eth20 = to_state
+            .delegated_address
+            .as_ref()
+            .and_then(|a| match a.payload() {
+                fvm_shared::address::Payload::Delegated(d) if d.namespace() == EAM_ACTOR_ID => {
+                    let sub = d.subaddress();
+                    if sub.len() >= 20 { Some(sub[sub.len() - 20..].to_vec()) } else { None }
+                }
+                _ => None,
+            });
+        let Some(authority_eth20) = authority_eth20 else { return Ok(None) };
+
         // Build params and call into the caller EVM actor using a private trampoline that mounts the
         // provided authority storage root and returns (output_data, new_root).
         #[derive(fvm_ipld_encoding::tuple::Serialize_tuple)]
@@ -680,7 +693,7 @@ where
         let mut caller_arr = [0u8; 20];
         caller_arr.copy_from_slice(&caller_eth20);
         let mut recv_arr = [0u8; 20];
-        recv_arr.copy_from_slice(&delegate20); // receiver is the authority EOA for context
+        recv_arr.copy_from_slice(&authority_eth20); // receiver is the authority EOA for context
         let params_v2 = InvokeAsEoaParamsV2 {
             code: bytecode_cid,
             input,
@@ -697,6 +710,19 @@ where
             )))?,
             Vec::<Cid>::new(),
         ));
+
+        // Perform value transfer to authority prior to executing the delegate. On failure,
+        // short-circuit with a revert-like mapping (empty return bytes; non-success code).
+        if !value.is_zero() {
+            let t = self.charge_gas(self.price_list().on_value_transfer())?;
+            if let Err(_e) = self.transfer(from, to, value) {
+                let empty = Block::new(fvm_ipld_encoding::IPLD_RAW, Vec::<u8>::new(), Vec::<Cid>::new());
+                t.stop();
+                return Ok(Some(InvocationResult { exit_code: ExitCode::SYS_ASSERTION_FAILED, value: Some(empty) }));
+            }
+            t.stop();
+        }
+
 
         // InvokeEVM-as-EOA with explicit storage root. Method hash of "InvokeAsEoaWithRoot".
         let method_invoke_as_eoa_v2 = frc42_method_hash("InvokeAsEoaWithRoot");
@@ -767,7 +793,7 @@ where
         // Emit best-effort Delegated(address) event with the authority (EOA) address in a 32-byte ABI word.
         let topic = keccak32(b"Delegated(address)");
         let mut abi_word = [0u8; 32];
-        abi_word[12..].copy_from_slice(&delegate20);
+        abi_word[12..].copy_from_slice(&authority_eth20);
         let entries = vec![
             Entry {
                 flags: Flags::FLAG_INDEXED_ALL,
@@ -978,13 +1004,6 @@ where
             });
         }
 
-        // Transfer, if necessary.
-        if !value.is_zero() {
-            let t = self.charge_gas(self.price_list().on_value_transfer())?;
-            self.transfer(from, to, value)?;
-            t.stop();
-        }
-
         // EIP-7702 delegated CALL intercept: If an EVM actor is invoking an EthAccount (EOA)
         // and that EthAccount has a delegate_to set, execute the delegate EVM code under
         // an authority context using the authority's storage root, then map the result back.
@@ -998,6 +1017,13 @@ where
             read_only,
         )? {
             return Ok(intercept);
+        }
+
+        // Transfer, if necessary (non-intercept paths only).
+        if !value.is_zero() {
+            let t = self.charge_gas(self.price_list().on_value_transfer())?;
+            self.transfer(from, to, value)?;
+            t.stop();
         }
 
         // Abort early if we have a send.

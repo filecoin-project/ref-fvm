@@ -46,6 +46,10 @@ static_assertions = "1.1.0"
 pretty_assertions = "1.4.1"
 fvm = { path = ".", features = ["testing"], default-features = false }
 coverage-helper = { workspace = true }
+fvm_integration_tests = { workspace = true }
+# Use the builtin-actors bundle dev-dependency to embed a recent actor set.
+# In local development, this should point to the branch that includes EthAccount and EVM changes.
+actors = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "master" }
 
 [features]
 default = ["opencl", "verify-signature"]
