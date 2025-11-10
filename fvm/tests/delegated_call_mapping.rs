@@ -1,6 +1,6 @@
 mod common;
 
-use common::{new_harness, set_ethaccount_with_delegate};
+use common::{new_harness, set_ethaccount_with_delegate, install_evm_contract_at};
 use fvm_integration_tests::tester::{BasicAccount, ExecutionOptions};
 use fvm_integration_tests::testkit::fevm;
 use fvm_shared::address::Address;
@@ -45,13 +45,38 @@ fn make_caller_call_authority(authority20: [u8; 20], ret_len: u8) -> Vec<u8> {
 }
 
 #[test]
-fn delegated_call_success_mapping() {
+fn delegated_call_revert_payload_propagates() {
     // Harness
     let options = ExecutionOptions { debug: false, trace: false, events: true };
     let mut h = new_harness(options).expect("harness");
     let mut owner: BasicAccount = h.tester.create_basic_account().unwrap();
 
-    // Deploy two delegates: one returning, one reverting.
-    let ok_payload = [0xDE, 0xAD, 0xBE, 0xEF];
-    // Revert mapping case covered in builtin-actors tests; VM intercept here validates success mapping only.
+    // Prepare reverting delegate and authority mapping A -> B
+    let revert_payload = [0xDE, 0xAD, 0xBE, 0xEF];
+    let delegate_prog = make_reverting_delegate(revert_payload);
+    let b20: [u8; 20] = [
+        0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x28,0x29,0x2A,
+        0x2B,0x2C,0x2D,0x2E,0x2F,0x30,0x31,0x32,0x33,0x34,
+    ];
+    let a20: [u8; 20] = [
+        0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1A,
+        0x1B,0x1C,0x1D,0x1E,0x1F,0x20,0x21,0x22,0x23,0x24,
+    ];
+    let b_f4 = Address::new_delegated(10, &b20).unwrap();
+    let _ = install_evm_contract_at(&mut h, b_f4.clone(), &delegate_prog).unwrap();
+    let a_f4 = Address::new_delegated(10, &a20).unwrap();
+    set_ethaccount_with_delegate(&mut h, a_f4, b20).unwrap();
+
+    // Pre-install caller that CALLs A expecting revert.
+    let caller_prog = make_caller_call_authority(a20, 4);
+    let caller_f4 = Address::new_delegated(10, &[0xAB; 20]).unwrap();
+    let _ = install_evm_contract_at(&mut h, caller_f4.clone(), &caller_prog).unwrap();
+
+    h.tester.instantiate_machine(fvm_integration_tests::dummy::DummyExterns).unwrap();
+
+    // Invoke and expect non-success with revert payload propagated to return buffer.
+    let inv = fevm::invoke_contract(&mut h.tester, &mut owner, caller_f4, &[], fevm::DEFAULT_GAS).unwrap();
+    assert!(!inv.msg_receipt.exit_code.is_success());
+    let out = inv.msg_receipt.return_data.bytes().to_vec();
+    assert_eq!(out, revert_payload.to_vec());
 }

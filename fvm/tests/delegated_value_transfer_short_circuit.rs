@@ -24,7 +24,6 @@ fn make_caller_value_call(authority20: [u8; 20], value: u8, ret_len: u8) -> Vec<
 }
 
 #[test]
-#[ignore]
 fn delegated_value_transfer_short_circuit() {
     let options = ExecutionOptions { debug: false, trace: false, events: true };
     let mut h = new_harness(options).expect("harness");
@@ -48,15 +47,18 @@ fn delegated_value_transfer_short_circuit() {
     let auth_f4 = Address::new_delegated(10, &auth20).unwrap();
     set_ethaccount_with_delegate(&mut h, auth_f4, delegate_eth).unwrap();
 
+    // Pre-install a caller contract with non-zero value on CALL to the authority.
+    let caller_code = make_caller_value_call(auth20, 1, 0);
+    let caller_eth20 = [
+        0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9,
+        0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xEE, 0xED, 0xEC, 0xEB, 0xEA,
+    ];
+    let caller_f4 = Address::new_delegated(10, &caller_eth20).unwrap();
+    let _ = install_evm_contract_at(&mut h, caller_f4.clone(), &caller_code).unwrap();
+
     h.tester.instantiate_machine(fvm_integration_tests::dummy::DummyExterns).unwrap();
 
-    // Caller with non-zero value.
-    let caller_code = make_caller_value_call(auth20, 1, 0);
-    let caller = fevm::create_contract(&mut h.tester, &mut owner, &caller_code).unwrap();
-    assert!(caller.msg_receipt.exit_code.is_success());
-    let caller_ret = caller.msg_receipt.return_data.deserialize::<fevm::CreateReturn>().unwrap();
-    let caller_addr = caller_ret.robust_address.expect("robust");
-    let inv = fevm::invoke_contract(&mut h.tester, &mut owner, caller_addr, &[], fevm::DEFAULT_GAS).unwrap();
+    let inv = fevm::invoke_contract(&mut h.tester, &mut owner, caller_f4, &[], fevm::DEFAULT_GAS).unwrap();
 
     // Expect call failure due to value transfer failure; revert data empty.
     assert!(!inv.msg_receipt.exit_code.is_success());
