@@ -35,7 +35,7 @@ else
     -v "${REF_FVM_ABS}:/work/ref-fvm" \
     -v "${BA_ABS}:/work/builtin-actors" \
     -w /work/ref-fvm \
-    builtin-actors-builder bash -lc 'rustup show && cargo test -p fvm --tests -- --nocapture' || {
+    builtin-actors-builder bash -lc 'PATH=/usr/local/cargo/bin:$PATH; cargo test -p fvm --no-default-features --features testing --tests -- --nocapture' || {
       echo "[eip7702] ref-fvm tests failed inside Docker as well." >&2
       exit 1
     }
