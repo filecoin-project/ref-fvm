@@ -80,36 +80,79 @@ pub fn bundle_code_by_name(h: &Harness, name: &str) -> anyhow::Result<Option<cid
     Ok(entries.into_iter().find(|(n, _)| n == name).map(|(_, c)| c))
 }
 
-pub fn install_evm_contract_at(h: &mut Harness, evm_addr: fvm_shared::address::Address, runtime: &[u8]) -> anyhow::Result<u64> {
+pub fn install_evm_contract_at(
+    h: &mut Harness,
+    evm_addr: fvm_shared::address::Address,
+    runtime: &[u8],
+) -> anyhow::Result<u64> {
     use fvm_ipld_blockstore::Block;
     use multihash_codetable::Code as MhCode;
+
+    // Resolve EVM actor code CID from the embedded bundle.
     let evm_code = bundle_code_by_name(h, "evm")?.expect("evm code in bundle");
-    let bs = h.tester.state_tree.as_ref().unwrap().store();
-    let bytecode_blk = Block::new(fvm_ipld_encoding::IPLD_RAW, runtime);
-    let bytecode_cid = bs.put(MhCode::Blake2b256, &bytecode_blk)?;
-    let mut bytecode_hash = [0u8; 32];
-    {
-        use multihash_codetable::MultihashDigest;
-        let mh = multihash_codetable::Code::Keccak256.digest(runtime);
-        bytecode_hash.copy_from_slice(mh.digest());
+
+    // Local types matching builtin-actors EVM state CBOR exactly.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+    struct BytecodeHash(#[serde(with = "fvm_ipld_encoding::strict_bytes")] [u8; 32]);
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, fvm_ipld_encoding::tuple::Serialize_tuple)]
+    struct TransientDataLifespan {
+        origin: fvm_shared::ActorID,
+        nonce: u64,
     }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, fvm_ipld_encoding::tuple::Serialize_tuple)]
+    struct TransientData {
+        transient_data_state: cid::Cid,
+        transient_data_lifespan: TransientDataLifespan,
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, fvm_ipld_encoding::tuple::Serialize_tuple)]
+    struct Tombstone {
+        origin: fvm_shared::ActorID,
+        nonce: u64,
+    }
+
     #[derive(fvm_ipld_encoding::tuple::Serialize_tuple)]
     struct EvmState {
         bytecode: cid::Cid,
-        #[serde(with = "fvm_ipld_encoding::strict_bytes")]
-        bytecode_hash: [u8; 32],
+        bytecode_hash: BytecodeHash,
         contract_state: cid::Cid,
-        transient_data: Option<()>,
+        transient_data: Option<TransientData>,
         nonce: u64,
-        tombstone: Option<()>,
+        tombstone: Option<Tombstone>,
         delegations: Option<cid::Cid>,
         delegation_nonces: Option<cid::Cid>,
         delegation_storage: Option<cid::Cid>,
     }
+
+    // Access blockstore.
+    let bs = h.tester.state_tree.as_ref().unwrap().store();
+
+    // Persist runtime bytecode and compute keccak256 hash.
+    let bytecode_blk = Block::new(fvm_ipld_encoding::IPLD_RAW, runtime);
+    let bytecode_cid = bs.put(MhCode::Blake2b256, &bytecode_blk)?;
+    let mut digest = [0u8; 32];
+    {
+        use multihash_codetable::MultihashDigest;
+        let mh = multihash_codetable::Code::Keccak256.digest(runtime);
+        digest.copy_from_slice(mh.digest());
+    }
+
+    // Create and persist an empty KAMT root for contract_state so the EVM can load it.
+    let contract_state_cid = {
+        use fvm_ipld_kamt::{id::Identity, Config as KamtConfig, Kamt};
+        // Use the same config as the actor (bit_width=5, etc.). Key/value types are irrelevant for an empty map.
+        let mut k: Kamt<_, [u8; 32], [u8; 32], Identity> =
+            Kamt::new_with_config(bs.clone(), KamtConfig { min_data_depth: 0, bit_width: 5, max_array_width: 1 });
+        k.flush()?
+    };
+
+    // Minimal EVM state; no transient data, no tombstone, no 7702 maps.
     let st = EvmState {
         bytecode: bytecode_cid,
-        bytecode_hash,
-        contract_state: cid::Cid::default(),
+        bytecode_hash: BytecodeHash(digest),
+        contract_state: contract_state_cid,
         transient_data: None,
         nonce: 0,
         tombstone: None,
@@ -117,10 +160,18 @@ pub fn install_evm_contract_at(h: &mut Harness, evm_addr: fvm_shared::address::A
         delegation_nonces: None,
         delegation_storage: None,
     };
+
+    // Persist state and install actor at requested address.
     let st_cid = bs.put_cbor(&st, multihash_codetable::Code::Blake2b256)?;
     let stree = h.tester.state_tree.as_mut().unwrap();
     let id = stree.register_new_address(&evm_addr).unwrap();
-    let act = fvm::state_tree::ActorState::new(evm_code, st_cid, fvm_shared::econ::TokenAmount::default(), 0, Some(evm_addr));
+    let act = fvm::state_tree::ActorState::new(
+        evm_code,
+        st_cid,
+        fvm_shared::econ::TokenAmount::default(),
+        0,
+        Some(evm_addr),
+    );
     stree.set_actor(id, act);
     Ok(id)
 }
