@@ -10,16 +10,38 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-pushd "${BA_DIR}" >/dev/null
-make bundle-testing-repro
-popd >/dev/null
+REF_FVM_ABS="$(cd "${ROOT_DIR}" && pwd)"
+BA_ABS="$(cd "${BA_DIR}" && pwd)"
+# Build the bundle with ref-fvm mounted to satisfy local patch paths.
+docker run --rm ${DOCKER_PLATFORM:-} \
+  -v "${BA_ABS}/output:/output" \
+  -v "${REF_FVM_ABS}:/usr/src/ref-fvm" \
+  builtin-actors-builder "testing"
 
-echo "[eip7702] Running ref-fvm tests (this may rebuild with the Docker-built toolchain)..."
+echo "[eip7702] Running ref-fvm tests (host toolchain)..."
 pushd "${ROOT_DIR}" >/dev/null
-cargo test -p fvm --tests -- --nocapture || {
-  echo "[eip7702] ref-fvm tests failed. If you are on macOS, prefer running tests inside Docker." >&2
-  exit 1
-}
+if cargo test -p fvm --tests -- --nocapture; then
+  echo "[eip7702] Host tests succeeded."
+else
+  echo "[eip7702] Host tests failed; falling back to Docker runner..." >&2
+  popd >/dev/null
+  # Run tests inside the builtin-actors builder image, mounting both repos under a common /work root
+  REF_FVM_ABS="$(cd "${ROOT_DIR}" && pwd)"
+  BA_ABS="$(cd "${BA_DIR}" && pwd)"
+  echo "[eip7702] Docker test run with volumes:"
+  echo "  - ref-fvm: ${REF_FVM_ABS} -> /work/ref-fvm"
+  echo "  - builtin-actors: ${BA_ABS} -> /work/builtin-actors"
+  docker run --rm ${DOCKER_PLATFORM:-} \
+    -v "${REF_FVM_ABS}:/work/ref-fvm" \
+    -v "${BA_ABS}:/work/builtin-actors" \
+    -w /work/ref-fvm \
+    builtin-actors-builder bash -lc 'rustup show && cargo test -p fvm --tests -- --nocapture' || {
+      echo "[eip7702] ref-fvm tests failed inside Docker as well." >&2
+      exit 1
+    }
+  echo "[eip7702] Docker-based tests succeeded."
+  exit 0
+fi
 popd >/dev/null
 
 echo "[eip7702] Test matrix summary:"
@@ -29,4 +51,3 @@ echo " - Value transfer short-circuit"
 echo " - Delegated revert payload propagation"
 
 echo "[eip7702] Done."
-
