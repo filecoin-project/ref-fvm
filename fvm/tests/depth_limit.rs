@@ -30,6 +30,22 @@ fn caller_call_authority(auth20: [u8; 20]) -> Vec<u8> {
     code
 }
 
+fn wrap_init_with_runtime(runtime: &[u8]) -> Vec<u8> {
+    let len = runtime.len();
+    assert!(len <= 0xFF);
+    let offset: u8 = 12;
+    let mut init = Vec::with_capacity(12 + len);
+    init.extend_from_slice(&[0x60, len as u8]);
+    init.extend_from_slice(&[0x60, offset]);
+    init.extend_from_slice(&[0x60, 0x00]);
+    init.push(0x39); // CODECOPY
+    init.extend_from_slice(&[0x60, len as u8]);
+    init.extend_from_slice(&[0x60, 0x00]);
+    init.push(0xF3); // RETURN
+    init.extend_from_slice(runtime);
+    init
+}
+
 #[test]
 fn delegated_call_depth_limit_enforced() {
     let options = ExecutionOptions { debug: false, trace: false, events: true };
@@ -62,14 +78,18 @@ fn delegated_call_depth_limit_enforced() {
     set_ethaccount_with_delegate(&mut h, a_f4, b20).unwrap();
     set_ethaccount_with_delegate(&mut h, b_f4, c20).unwrap();
 
-    h.tester.instantiate_machine(fvm_integration_tests::dummy::DummyExterns).unwrap();
-
-    // Caller -> CALL A expects to execute B only (depth=1), returning b_val.
+    // Pre-install the caller contract at a chosen f4 address to avoid EAM flows.
     let caller_prog = caller_call_authority(a20);
-    let caller = fevm::create_contract(&mut h.tester, &mut owner, &caller_prog).unwrap();
-    let caller_ret = caller.msg_receipt.return_data.deserialize::<fevm::CreateReturn>().unwrap();
-    let caller_addr = caller_ret.robust_address.expect("robust");
-    let inv = fevm::invoke_contract(&mut h.tester, &mut owner, caller_addr, &[], fevm::DEFAULT_GAS).unwrap();
+    let caller_eth20 = [
+        0xAA, 0xAB, 0xAC, 0xAD, 0xAE,
+        0xAF, 0xB0, 0xB1, 0xB2, 0xB3,
+        0xB4, 0xB5, 0xB6, 0xB7, 0xB8,
+        0xB9, 0xBA, 0xBB, 0xBC, 0xBD,
+    ];
+    let caller_f4 = Address::new_delegated(10, &caller_eth20).unwrap();
+    let _ = install_evm_contract_at(&mut h, caller_f4.clone(), &caller_prog).unwrap();
+    h.tester.instantiate_machine(fvm_integration_tests::dummy::DummyExterns).unwrap();
+    let inv = fevm::invoke_contract(&mut h.tester, &mut owner, caller_f4, &[], fevm::DEFAULT_GAS).unwrap();
     assert!(inv.msg_receipt.exit_code.is_success());
     let out = inv.msg_receipt.return_data.bytes().to_vec();
     assert_eq!(out, b_val, "should stop at first delegation depth");
