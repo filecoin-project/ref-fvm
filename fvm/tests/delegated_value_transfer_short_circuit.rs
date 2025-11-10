@@ -1,6 +1,8 @@
 mod common;
 
 use common::{new_harness, set_ethaccount_with_delegate, install_evm_contract_at};
+use fvm_ipld_encoding::CborStore;
+use cid::Cid;
 use fvm_integration_tests::tester::{BasicAccount, ExecutionOptions};
 use fvm_integration_tests::testkit::fevm;
 use fvm_shared::address::Address;
@@ -45,7 +47,7 @@ fn delegated_value_transfer_short_circuit() {
         0x01, 0x02, 0x03, 0x04, 0x05,
     ];
     let auth_f4 = Address::new_delegated(10, &auth20).unwrap();
-    set_ethaccount_with_delegate(&mut h, auth_f4, delegate_eth).unwrap();
+    let auth_id = set_ethaccount_with_delegate(&mut h, auth_f4, delegate_eth).unwrap();
 
     // Pre-install a caller contract with non-zero value on CALL to the authority.
     let caller_code = make_caller_value_call(auth20, 1, 0);
@@ -58,10 +60,28 @@ fn delegated_value_transfer_short_circuit() {
 
     h.tester.instantiate_machine(fvm_integration_tests::dummy::DummyExterns).unwrap();
 
+    // Read storage root before call
+    #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]
+    struct EthAccountStateView { delegate_to: Option<[u8;20]>, auth_nonce: u64, evm_storage_root: Cid }
+    let stree = h.tester.state_tree.as_ref().unwrap();
+    let before_root: Cid = {
+        let act = stree.get_actor(auth_id).unwrap().expect("actor");
+        let view: Option<EthAccountStateView> = stree.store().get_cbor(&act.state).unwrap();
+        view.expect("state").evm_storage_root
+    };
+
     let inv = fevm::invoke_contract(&mut h.tester, &mut owner, caller_f4, &[], fevm::DEFAULT_GAS).unwrap();
 
     // Expect call failure due to value transfer failure; revert data empty.
     assert!(!inv.msg_receipt.exit_code.is_success());
     let out = inv.msg_receipt.return_data.bytes().to_vec();
     assert!(out.is_empty());
+
+    // Overlay should not persist on short-circuit (root unchanged)
+    let after_root: Cid = {
+        let act = h.tester.state_tree.as_ref().unwrap().get_actor(auth_id).unwrap().expect("actor");
+        let view: Option<EthAccountStateView> = h.tester.state_tree.as_ref().unwrap().store().get_cbor(&act.state).unwrap();
+        view.expect("state").evm_storage_root
+    };
+    assert_eq!(before_root, after_root, "storage root should not persist on short-circuit");
 }

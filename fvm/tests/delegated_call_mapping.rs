@@ -65,7 +65,7 @@ fn delegated_call_revert_payload_propagates() {
     let b_f4 = Address::new_delegated(10, &b20).unwrap();
     let _ = install_evm_contract_at(&mut h, b_f4.clone(), &delegate_prog).unwrap();
     let a_f4 = Address::new_delegated(10, &a20).unwrap();
-    set_ethaccount_with_delegate(&mut h, a_f4, b20).unwrap();
+    let a_id = set_ethaccount_with_delegate(&mut h, a_f4, b20).unwrap();
 
     // Pre-install caller that CALLs A expecting revert.
     let caller_prog = make_caller_call_authority(a20, 4);
@@ -74,9 +74,28 @@ fn delegated_call_revert_payload_propagates() {
 
     h.tester.instantiate_machine(fvm_integration_tests::dummy::DummyExterns).unwrap();
 
+    // Read storage root before
+    #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]
+    struct EthAccountStateView { delegate_to: Option<[u8;20]>, auth_nonce: u64, evm_storage_root: cid::Cid }
+    let before_root = {
+        let stree = h.tester.state_tree.as_ref().unwrap();
+        let act = stree.get_actor(a_id).unwrap().expect("actor");
+        let view: Option<EthAccountStateView> = stree.store().get_cbor(&act.state).unwrap();
+        view.expect("state").evm_storage_root
+    };
+
     // Invoke and expect non-success with revert payload propagated to return buffer.
     let inv = fevm::invoke_contract(&mut h.tester, &mut owner, caller_f4, &[], fevm::DEFAULT_GAS).unwrap();
     assert!(!inv.msg_receipt.exit_code.is_success());
     let out = inv.msg_receipt.return_data.bytes().to_vec();
     assert_eq!(out, revert_payload.to_vec());
+
+    // Overlay should not persist on revert
+    let after_root = {
+        let stree = h.tester.state_tree.as_ref().unwrap();
+        let act = stree.get_actor(a_id).unwrap().expect("actor");
+        let view: Option<EthAccountStateView> = stree.store().get_cbor(&act.state).unwrap();
+        view.expect("state").evm_storage_root
+    };
+    assert_eq!(before_root, after_root, "storage root should not persist on revert");
 }
