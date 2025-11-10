@@ -121,9 +121,6 @@ pub fn install_evm_contract_at(
         transient_data: Option<TransientData>,
         nonce: u64,
         tombstone: Option<Tombstone>,
-        delegations: Option<cid::Cid>,
-        delegation_nonces: Option<cid::Cid>,
-        delegation_storage: Option<cid::Cid>,
     }
 
     // Access blockstore.
@@ -156,9 +153,6 @@ pub fn install_evm_contract_at(
         transient_data: None,
         nonce: 0,
         tombstone: None,
-        delegations: None,
-        delegation_nonces: None,
-        delegation_storage: None,
     };
 
     // Persist state and install actor at requested address.
