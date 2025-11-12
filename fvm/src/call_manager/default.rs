@@ -1390,3 +1390,19 @@ impl EventsAccumulator {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{frc42_method_hash, keccak32};
+
+    #[test]
+    fn hash_helpers() {
+        let a = keccak32(b"hello");
+        let b = keccak32(b"hello");
+        assert_eq!(a, b);
+        assert_ne!(a, keccak32(b"world"));
+
+        let h = frc42_method_hash("InvokeEVM");
+        assert_ne!(h, 0);
+    }
+}
