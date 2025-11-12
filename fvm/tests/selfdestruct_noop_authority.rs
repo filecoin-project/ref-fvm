@@ -50,12 +50,9 @@ fn selfdestruct_is_noop_under_authority_context() {
     ];
     let delegate_eth: [u8; 20] = [0xD0; 20];
     let delegate_f4 = Address::new_delegated(10, &delegate_eth).unwrap();
-    let _ = common::install_evm_contract_at(
-        &mut h,
-        delegate_f4,
-        &selfdestruct_delegate(beneficiary20),
-    )
-    .unwrap();
+    let _ =
+        common::install_evm_contract_at(&mut h, delegate_f4, &selfdestruct_delegate(beneficiary20))
+            .unwrap();
 
     // Create authority EthAccount with delegate_to set.
     let auth20: [u8; 20] = [
