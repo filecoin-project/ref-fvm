@@ -618,7 +618,7 @@ where
         let get_bytecode_method: MethodNum = 3;
         let resp = self.call_actor::<K>(
             from,
-            delegate_addr.clone(),
+            delegate_addr,
             Entrypoint::Invoke(get_bytecode_method),
             None,
             &TokenAmount::zero(),
