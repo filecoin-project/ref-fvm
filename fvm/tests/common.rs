@@ -25,7 +25,9 @@ pub struct EthAccountStateView {
 
 pub struct Harness {
     pub tester: BasicTester,
+    #[allow(dead_code)]
     pub ethaccount_code: Cid,
+    #[allow(dead_code)]
     pub bundle_root: Cid,
 }
 
@@ -53,6 +55,7 @@ pub fn new_harness(options: ExecutionOptions) -> Result<Harness> {
 
 /// Create an EthAccount actor with the given authority delegated f4 address and EVM delegate (20 bytes).
 /// Returns the assigned ActorID of the authority account.
+#[allow(dead_code)]
 pub fn set_ethaccount_with_delegate(
     h: &mut Harness,
     authority_addr: Address,
@@ -86,6 +89,7 @@ pub fn set_ethaccount_with_delegate(
     Ok(authority_id)
 }
 
+#[allow(dead_code)]
 pub fn bundle_code_by_name(h: &Harness, name: &str) -> anyhow::Result<Option<cid::Cid>> {
     let store = h.tester.state_tree.as_ref().unwrap().store();
     let (ver, data_root): (u32, cid::Cid) = store.get_cbor(&h.bundle_root)?.expect("bundle header");
@@ -96,6 +100,7 @@ pub fn bundle_code_by_name(h: &Harness, name: &str) -> anyhow::Result<Option<cid
     Ok(entries.into_iter().find(|(n, _)| n == name).map(|(_, c)| c))
 }
 
+#[allow(dead_code)]
 pub fn install_evm_contract_at(
     h: &mut Harness,
     evm_addr: fvm_shared::address::Address,
