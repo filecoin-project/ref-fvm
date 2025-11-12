@@ -111,3 +111,5 @@ fn delegated_value_transfer_short_circuit() {
         "storage root should not persist on short-circuit"
     );
 }
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT

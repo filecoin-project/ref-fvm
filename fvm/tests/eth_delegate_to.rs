@@ -104,3 +104,5 @@ fn get_eth_delegate_to_various() {
     let got3 = k3.get_eth_delegate_to(authority_id + 2).unwrap();
     assert_eq!(got3, None);
 }
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT

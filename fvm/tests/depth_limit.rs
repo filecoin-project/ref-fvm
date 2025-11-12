@@ -103,3 +103,5 @@ fn delegated_call_depth_limit_enforced() {
     let out = inv.msg_receipt.return_data.bytes().to_vec();
     assert_eq!(out, b_val, "should stop at first delegation depth");
 }
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT

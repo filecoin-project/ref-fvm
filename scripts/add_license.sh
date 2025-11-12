@@ -27,15 +27,40 @@ for file in $(git grep --cached -Il '' -- '*.rs'); do
 done
 
 # Look for changes that don't have the new copyright holder.
-for file in $(git diff --diff-filter=d --name-only master -- '*.rs'); do
-  header=$(head -$LINES "$file")
-	if ! echo "$header" | grep -q -P "$PAT_PL"; then
-		echo "$file was missing Protocol Labs"
-		head -1 $COPYRIGHT_TXT > temp
-		cat "$file" >> temp
-		mv temp "$file"
-		ret=1
-	fi
-done
+# Determine the default branch to diff against and ensure it's available locally.
+DEFAULT_BRANCH="${GITHUB_BASE_REF:-}"
+if [ -z "$DEFAULT_BRANCH" ]; then
+  # Try to infer from origin/HEAD (e.g., origin/master or origin/main)
+  DEFAULT_BRANCH=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')
+fi
+if [ -z "$DEFAULT_BRANCH" ]; then
+  # Fall back to master, then main
+  if git show-ref --verify --quiet refs/heads/master; then
+    DEFAULT_BRANCH="master"
+  elif git show-ref --verify --quiet refs/heads/main; then
+    DEFAULT_BRANCH="main"
+  else
+    DEFAULT_BRANCH="master"
+  fi
+fi
+
+# Fetch the branch if missing locally (best-effort).
+if ! git rev-parse --verify "$DEFAULT_BRANCH" >/dev/null 2>&1; then
+  git fetch origin "$DEFAULT_BRANCH:$DEFAULT_BRANCH" >/dev/null 2>&1 || true
+fi
+
+# Only run the Protocol Labs header check if we have a valid base branch.
+if git rev-parse --verify "$DEFAULT_BRANCH" >/dev/null 2>&1; then
+  for file in $(git diff --diff-filter=d --name-only "$DEFAULT_BRANCH" -- '*.rs'); do
+    header=$(head -$LINES "$file")
+	  if ! echo "$header" | grep -q -P "$PAT_PL"; then
+	    echo "$file was missing Protocol Labs"
+	    head -1 $COPYRIGHT_TXT > temp
+	    cat "$file" >> temp
+	    mv temp "$file"
+	    ret=1
+	  fi
+  done
+fi
 
 exit $ret

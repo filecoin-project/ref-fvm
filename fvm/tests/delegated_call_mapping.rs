@@ -113,3 +113,5 @@ fn delegated_call_revert_payload_propagates() {
         "storage root should not persist on revert"
     );
 }
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT

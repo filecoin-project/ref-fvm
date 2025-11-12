@@ -42,3 +42,5 @@ fn ethaccount_state_roundtrip() {
         "decoded state must equal original"
     );
 }
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT

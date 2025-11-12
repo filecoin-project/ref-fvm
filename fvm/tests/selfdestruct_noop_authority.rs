@@ -94,3 +94,5 @@ fn selfdestruct_is_noop_under_authority_context() {
     // No explicit state verification here; the call must complete without errors and
     // any SELFDESTRUCT in delegated context must be a no-op for the authority.
 }
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
