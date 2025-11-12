@@ -8,7 +8,6 @@ use fvm_integration_tests::tester::{BasicAccount, ExecutionOptions};
 use fvm_integration_tests::testkit::fevm;
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::address::Address;
-use fvm_shared::error::ExitCode;
 
 fn make_caller_value_call(authority20: [u8; 20], value: u8, ret_len: u8) -> Vec<u8> {
     // CALL with a non-zero value, expecting transfer to fail due to insufficient funds on caller.

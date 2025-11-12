@@ -43,25 +43,19 @@ fn selfdestruct_is_noop_under_authority_context() {
     let mut h = new_harness(options).expect("harness");
     let mut owner: BasicAccount = h.tester.create_basic_account().unwrap();
 
-    // Deploy a delegate that calls SELFDESTRUCT(beneficiary=some address).
+    // Pre-install a delegate that calls SELFDESTRUCT(beneficiary=some address) at a fixed f4 address.
     let beneficiary20 = [
         0xBA, 0xAD, 0xF0, 0x0D, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB,
         0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
     ];
-    let del = fevm::create_contract(
-        &mut h.tester,
-        &mut owner,
+    let delegate_eth: [u8; 20] = [0xD0; 20];
+    let delegate_f4 = Address::new_delegated(10, &delegate_eth).unwrap();
+    let _ = common::install_evm_contract_at(
+        &mut h,
+        delegate_f4,
         &selfdestruct_delegate(beneficiary20),
     )
     .unwrap();
-    assert!(del.msg_receipt.exit_code.is_success());
-    let delegate_eth = del
-        .msg_receipt
-        .return_data
-        .deserialize::<fevm::CreateReturn>()
-        .unwrap()
-        .eth_address
-        .0;
 
     // Create authority EthAccount with delegate_to set.
     let auth20: [u8; 20] = [
@@ -71,19 +65,17 @@ fn selfdestruct_is_noop_under_authority_context() {
     let auth_f4 = Address::new_delegated(10, &auth20).unwrap();
     let auth_id = set_ethaccount_with_delegate(&mut h, auth_f4.clone(), delegate_eth).unwrap();
 
+    // Pre-install caller contract at a fixed address that CALLs the authority.
+    let caller_code = caller_call_authority(auth20);
+    let caller_addr = Address::new_delegated(10, &[0xC1u8; 20]).unwrap();
+    let _ = common::install_evm_contract_at(&mut h, caller_addr.clone(), &caller_code).unwrap();
+
+    // Instantiate machine after pre-installing actors.
     h.tester
         .instantiate_machine(fvm_integration_tests::dummy::DummyExterns)
         .unwrap();
 
     // Call authority from caller contract to trigger delegated execution.
-    let caller_code = caller_call_authority(auth20);
-    let caller = fevm::create_contract(&mut h.tester, &mut owner, &caller_code).unwrap();
-    let caller_ret = caller
-        .msg_receipt
-        .return_data
-        .deserialize::<fevm::CreateReturn>()
-        .unwrap();
-    let caller_addr = caller_ret.robust_address.expect("robust");
     let _inv = fevm::invoke_contract(
         &mut h.tester,
         &mut owner,

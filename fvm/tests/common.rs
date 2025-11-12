@@ -4,7 +4,7 @@ use anyhow::Result;
 use cid::Cid;
 use fvm::machine::Manifest;
 use fvm_integration_tests::bundle::import_bundle;
-use fvm_integration_tests::tester::{BasicAccount, BasicTester, ExecutionOptions, Tester};
+use fvm_integration_tests::tester::{BasicTester, ExecutionOptions, Tester};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::address::Address;

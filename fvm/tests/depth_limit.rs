@@ -32,6 +32,7 @@ fn caller_call_authority(auth20: [u8; 20]) -> Vec<u8> {
     code
 }
 
+#[allow(dead_code)]
 fn wrap_init_with_runtime(runtime: &[u8]) -> Vec<u8> {
     let len = runtime.len();
     assert!(len <= 0xFF);

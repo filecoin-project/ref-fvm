@@ -7,7 +7,6 @@ use fvm_integration_tests::tester::{BasicAccount, ExecutionOptions};
 use fvm_integration_tests::testkit::fevm;
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::address::Address;
-use fvm_shared::error::ExitCode;
 
 fn make_reverting_delegate(payload: [u8; 4]) -> Vec<u8> {
     // REVERT with 4-byte payload at offset 0
@@ -19,6 +18,7 @@ fn make_reverting_delegate(payload: [u8; 4]) -> Vec<u8> {
     code
 }
 
+#[allow(dead_code)]
 fn make_returning_delegate(payload: [u8; 4]) -> Vec<u8> {
     // RETURN 4-byte payload from offset 0
     let mut code = Vec::new();
