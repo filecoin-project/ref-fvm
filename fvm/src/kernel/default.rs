@@ -1,4 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
+// Copyright 2021-2023 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
+// Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::convert::{TryFrom, TryInto};
 use std::path::PathBuf;
@@ -979,7 +982,9 @@ where
         #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]
         struct EthAccountStateView {
             delegate_to: Option<[u8; 20]>,
+            #[allow(dead_code)]
             auth_nonce: u64,
+            #[allow(dead_code)]
             evm_storage_root: cid::Cid,
         }
 
