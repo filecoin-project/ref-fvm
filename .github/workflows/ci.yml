@@ -57,7 +57,7 @@ jobs:
             push: true
             covname: fvm-lcov.info
             command: llvm-cov
-            args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
+            args: --package fvm --lcov --output-path fvm-lcov.info
           - name: test
             key: v3-cov
             covname: lcov.info
