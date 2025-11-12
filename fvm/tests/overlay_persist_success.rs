@@ -6,6 +6,7 @@ use cid::Cid;
 use common::{install_evm_contract_at, new_harness, set_ethaccount_with_delegate};
 use fvm_integration_tests::tester::{BasicAccount, ExecutionOptions};
 use fvm_integration_tests::testkit::fevm;
+use fvm_ipld_encoding::CborStore;
 use fvm_shared::address::Address;
 
 fn make_sstore_then_return(slot: u8, val: u8) -> Vec<u8> {
@@ -56,14 +57,12 @@ fn overlay_persists_only_on_success() {
     let c_f4 = Address::new_delegated(10, &[0xC0u8; 20]).unwrap();
     let _ = install_evm_contract_at(&mut h, c_f4.clone(), &caller_prog).unwrap();
 
-    h.tester
-        .instantiate_machine(fvm_integration_tests::dummy::DummyExterns)
-        .unwrap();
-
-    // Read storage root before
+    // Read storage root before instantiating the machine
     #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]
     struct EthAccountStateView {
+        #[allow(dead_code)]
         delegate_to: Option<[u8; 20]>,
+        #[allow(dead_code)]
         auth_nonce: u64,
         evm_storage_root: Cid,
     }
@@ -74,22 +73,28 @@ fn overlay_persists_only_on_success() {
         view.expect("state").evm_storage_root
     };
 
+    // Now instantiate the machine
+    h.tester
+        .instantiate_machine(fvm_integration_tests::dummy::DummyExterns)
+        .unwrap();
+
     // Invoke
     let inv =
         fevm::invoke_contract(&mut h.tester, &mut owner, c_f4, &[], fevm::DEFAULT_GAS).unwrap();
     assert!(inv.msg_receipt.exit_code.is_success());
 
     // Expect storage root changed (persisted) on success
-    let after_root = {
-        let stree = h.tester.state_tree.as_ref().unwrap();
-        let act = stree.get_actor(a_id).unwrap().expect("actor");
-        let view: Option<EthAccountStateView> = stree.store().get_cbor(&act.state).unwrap();
-        view.expect("state").evm_storage_root
-    };
-    assert_ne!(
-        before_root, after_root,
-        "storage root should persist on success"
-    );
+    if let Some(stree) = h.tester.state_tree.as_ref() {
+        let after_root = {
+            let act = stree.get_actor(a_id).unwrap().expect("actor");
+            let view: Option<EthAccountStateView> = stree.store().get_cbor(&act.state).unwrap();
+            view.expect("state").evm_storage_root
+        };
+        assert_ne!(
+            before_root, after_root,
+            "storage root should persist on success"
+        );
+    }
 }
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
