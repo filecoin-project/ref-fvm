@@ -43,7 +43,11 @@ pub fn new_harness(options: ExecutionOptions) -> Result<Harness> {
     let mut tester = Tester::new(NetworkVersion::V21, StateTreeVersion::V5, root, bs)?;
     tester.options = Some(options);
 
-    Ok(Harness { tester, ethaccount_code, bundle_root: root })
+    Ok(Harness {
+        tester,
+        ethaccount_code,
+        bundle_root: root,
+    })
 }
 
 /// Create an EthAccount actor with the given authority delegated f4 address and EVM delegate (20 bytes).
@@ -62,20 +66,31 @@ pub fn set_ethaccount_with_delegate(
     let authority_id = state_tree.register_new_address(&authority_addr).unwrap();
 
     // Persist minimal EthAccount state.
-    let view = EthAccountStateView { delegate_to: Some(delegate20), auth_nonce: 0, evm_storage_root: Cid::default() };
+    let view = EthAccountStateView {
+        delegate_to: Some(delegate20),
+        auth_nonce: 0,
+        evm_storage_root: Cid::default(),
+    };
     let st_cid = state_tree.store().put_cbor(&view, Code::Blake2b256)?;
 
     // Install the EthAccount actor state with delegated_address = authority_addr.
-    let act = fvm::state_tree::ActorState::new(h.ethaccount_code, st_cid, TokenAmount::default(), 0, Some(authority_addr));
+    let act = fvm::state_tree::ActorState::new(
+        h.ethaccount_code,
+        st_cid,
+        TokenAmount::default(),
+        0,
+        Some(authority_addr),
+    );
     state_tree.set_actor(authority_id, act);
     Ok(authority_id)
 }
 
-
 pub fn bundle_code_by_name(h: &Harness, name: &str) -> anyhow::Result<Option<cid::Cid>> {
     let store = h.tester.state_tree.as_ref().unwrap().store();
     let (ver, data_root): (u32, cid::Cid) = store.get_cbor(&h.bundle_root)?.expect("bundle header");
-    if ver != 1 { return Ok(None); }
+    if ver != 1 {
+        return Ok(None);
+    }
     let entries: Vec<(String, cid::Cid)> = store.get_cbor(&data_root)?.expect("manifest data");
     Ok(entries.into_iter().find(|(n, _)| n == name).map(|(_, c)| c))
 }
@@ -138,10 +153,16 @@ pub fn install_evm_contract_at(
 
     // Create and persist an empty KAMT root for contract_state so the EVM can load it.
     let contract_state_cid = {
-        use fvm_ipld_kamt::{id::Identity, Config as KamtConfig, Kamt};
+        use fvm_ipld_kamt::{Config as KamtConfig, Kamt, id::Identity};
         // Use the same config as the actor (bit_width=5, etc.). Key/value types are irrelevant for an empty map.
-        let mut k: Kamt<_, [u8; 32], [u8; 32], Identity> =
-            Kamt::new_with_config(bs.clone(), KamtConfig { min_data_depth: 0, bit_width: 5, max_array_width: 1 });
+        let mut k: Kamt<_, [u8; 32], [u8; 32], Identity> = Kamt::new_with_config(
+            bs.clone(),
+            KamtConfig {
+                min_data_depth: 0,
+                bit_width: 5,
+                max_array_width: 1,
+            },
+        );
         k.flush()?
     };
 

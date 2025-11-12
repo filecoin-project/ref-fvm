@@ -2,7 +2,12 @@ use cid::Cid;
 use fvm_ipld_encoding::CborStore;
 
 // Minimal view of EthAccount state for roundtrip (kept in sync with kernel implementation).
-#[derive(fvm_ipld_encoding::tuple::Serialize_tuple, fvm_ipld_encoding::tuple::Deserialize_tuple, PartialEq, Debug)]
+#[derive(
+    fvm_ipld_encoding::tuple::Serialize_tuple,
+    fvm_ipld_encoding::tuple::Deserialize_tuple,
+    PartialEq,
+    Debug,
+)]
 struct EthAccountStateView {
     delegate_to: Option<[u8; 20]>,
     auth_nonce: u64,
@@ -21,11 +26,19 @@ fn ethaccount_state_roundtrip() {
     let mut delegate = [0u8; 20];
     delegate.copy_from_slice(&[0xAB; 20]);
 
-    let view = EthAccountStateView { delegate_to: Some(delegate), auth_nonce: 42, evm_storage_root: root };
+    let view = EthAccountStateView {
+        delegate_to: Some(delegate),
+        auth_nonce: 42,
+        evm_storage_root: root,
+    };
 
     // Encode to CBOR, then decode back.
     let cid = bs.put_cbor(&view, Code::Blake2b256).expect("put_cbor");
     let roundtrip: Option<EthAccountStateView> = bs.get_cbor(&cid).expect("get_cbor");
     assert!(roundtrip.is_some(), "expected state view to decode");
-    assert_eq!(roundtrip.unwrap(), view, "decoded state must equal original");
+    assert_eq!(
+        roundtrip.unwrap(),
+        view,
+        "decoded state must equal original"
+    );
 }

@@ -587,12 +587,12 @@ where
         }
         let ea_state: Option<EthAccountStateView> = {
             let store = self.blockstore();
-            store
-                .get_cbor(&to_state.state)
-            .map_err(|e| ExecutionError::Syscall(SyscallError::new(
-                ErrorNumber::IllegalOperation,
-                format!("failed to decode EthAccount state: {e}"),
-            )))?
+            store.get_cbor(&to_state.state).map_err(|e| {
+                ExecutionError::Syscall(SyscallError::new(
+                    ErrorNumber::IllegalOperation,
+                    format!("failed to decode EthAccount state: {e}"),
+                ))
+            })?
         };
         let Some(ea) = ea_state else { return Ok(None) };
         let Some(delegate20) = ea.delegate_to else {
@@ -600,11 +600,12 @@ where
         };
 
         // Resolve delegate 20-byte to f4 address under EAM namespace.
-        let delegate_addr = Address::new_delegated(EAM_ACTOR_ID, &delegate20)
-            .map_err(|e| ExecutionError::Syscall(SyscallError::new(
+        let delegate_addr = Address::new_delegated(EAM_ACTOR_ID, &delegate20).map_err(|e| {
+            ExecutionError::Syscall(SyscallError::new(
                 ErrorNumber::IllegalArgument,
                 format!("invalid delegate address: {e}"),
-            )))?;
+            ))
+        })?;
         let Some(delegate_id) = self.resolve_address(&delegate_addr)? else {
             return Ok(None);
         };
@@ -631,7 +632,9 @@ where
             return Ok(None);
         };
         #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]
-        struct BytecodeReturn { code: Option<cid::Cid> }
+        struct BytecodeReturn {
+            code: Option<cid::Cid>,
+        }
         let bytecode_cid = match fvm_ipld_encoding::from_slice::<BytecodeReturn>(blk.data())
             .ok()
             .and_then(|r| r.code)
@@ -672,11 +675,17 @@ where
             .and_then(|a| match a.payload() {
                 fvm_shared::address::Payload::Delegated(d) if d.namespace() == EAM_ACTOR_ID => {
                     let sub = d.subaddress();
-                    if sub.len() >= 20 { Some(sub[sub.len() - 20..].to_vec()) } else { None }
+                    if sub.len() >= 20 {
+                        Some(sub[sub.len() - 20..].to_vec())
+                    } else {
+                        None
+                    }
                 }
                 _ => None,
             });
-        let Some(authority_eth20) = authority_eth20 else { return Ok(None) };
+        let Some(authority_eth20) = authority_eth20 else {
+            return Ok(None);
+        };
 
         // Build params and call into the caller EVM actor using a private trampoline that mounts the
         // provided authority storage root and returns (output_data, new_root).
@@ -704,10 +713,12 @@ where
         };
         let params_blk = Some(Block::new(
             fvm_ipld_encoding::DAG_CBOR,
-            to_vec(&params_v2).map_err(|e| ExecutionError::Syscall(SyscallError::new(
-                ErrorNumber::IllegalArgument,
-                format!("failed to encode InvokeAsEoa params: {e}"),
-            )))?,
+            to_vec(&params_v2).map_err(|e| {
+                ExecutionError::Syscall(SyscallError::new(
+                    ErrorNumber::IllegalArgument,
+                    format!("failed to encode InvokeAsEoa params: {e}"),
+                ))
+            })?,
             Vec::<Cid>::new(),
         ));
 
@@ -716,13 +727,19 @@ where
         if !value.is_zero() {
             let t = self.charge_gas(self.price_list().on_value_transfer())?;
             if let Err(_e) = self.transfer(from, to, value) {
-                let empty = Block::new(fvm_ipld_encoding::IPLD_RAW, Vec::<u8>::new(), Vec::<Cid>::new());
+                let empty = Block::new(
+                    fvm_ipld_encoding::IPLD_RAW,
+                    Vec::<u8>::new(),
+                    Vec::<Cid>::new(),
+                );
                 t.stop();
-                return Ok(Some(InvocationResult { exit_code: ExitCode::SYS_ASSERTION_FAILED, value: Some(empty) }));
+                return Ok(Some(InvocationResult {
+                    exit_code: ExitCode::SYS_ASSERTION_FAILED,
+                    value: Some(empty),
+                }));
             }
             t.stop();
         }
-
 
         // InvokeEVM-as-EOA with explicit storage root. Method hash of "InvokeAsEoaWithRoot".
         let method_invoke_as_eoa_v2 = frc42_method_hash("InvokeAsEoaWithRoot");
@@ -759,12 +776,13 @@ where
             output_data: Vec<u8>,
             new_storage_root: cid::Cid,
         }
-        let out: InvokeAsEoaReturnV2 = fvm_ipld_encoding::from_slice(ret_blk.data()).map_err(|e| {
-            ExecutionError::Syscall(SyscallError::new(
-                ErrorNumber::Serialization,
-                format!("failed to decode InvokeAsEoa return: {e}"),
-            ))
-        })?;
+        let out: InvokeAsEoaReturnV2 =
+            fvm_ipld_encoding::from_slice(ret_blk.data()).map_err(|e| {
+                ExecutionError::Syscall(SyscallError::new(
+                    ErrorNumber::Serialization,
+                    format!("failed to decode InvokeAsEoa return: {e}"),
+                ))
+            })?;
 
         // Persist updated storage root back to EthAccount state.
         #[derive(fvm_ipld_encoding::tuple::Serialize_tuple)]
@@ -781,10 +799,12 @@ where
         let new_state_cid = self
             .blockstore()
             .put_cbor(&updated, multihash_codetable::Code::Blake2b256)
-            .map_err(|e| ExecutionError::Syscall(SyscallError::new(
-                ErrorNumber::Serialization,
-                format!("failed to write EthAccount state: {e}"),
-            )))?;
+            .map_err(|e| {
+                ExecutionError::Syscall(SyscallError::new(
+                    ErrorNumber::Serialization,
+                    format!("failed to write EthAccount state: {e}"),
+                ))
+            })?;
         // Update actor state with new root, preserving balance/sequence/code/delegated address.
         let mut new_actor_state = to_state.clone();
         new_actor_state.state = new_state_cid;

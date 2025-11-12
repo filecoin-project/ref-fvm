@@ -1,10 +1,10 @@
 mod common;
 
-use common::{new_harness, set_ethaccount_with_delegate, install_evm_contract_at};
+use cid::Cid;
+use common::{install_evm_contract_at, new_harness, set_ethaccount_with_delegate};
 use fvm_integration_tests::tester::{BasicAccount, ExecutionOptions};
 use fvm_integration_tests::testkit::fevm;
 use fvm_shared::address::Address;
-use cid::Cid;
 
 fn make_sstore_then_return(slot: u8, val: u8) -> Vec<u8> {
     // PUSH1 val; PUSH1 slot; SSTORE; RETURN(0,0)
@@ -30,7 +30,11 @@ fn make_call_authority(authority20: [u8; 20]) -> Vec<u8> {
 
 #[test]
 fn overlay_persists_only_on_success() {
-    let options = ExecutionOptions { debug: false, trace: false, events: true };
+    let options = ExecutionOptions {
+        debug: false,
+        trace: false,
+        events: true,
+    };
     let mut h = new_harness(options).expect("harness");
     let mut owner: BasicAccount = h.tester.create_basic_account().unwrap();
 
@@ -50,11 +54,17 @@ fn overlay_persists_only_on_success() {
     let c_f4 = Address::new_delegated(10, &[0xC0u8; 20]).unwrap();
     let _ = install_evm_contract_at(&mut h, c_f4.clone(), &caller_prog).unwrap();
 
-    h.tester.instantiate_machine(fvm_integration_tests::dummy::DummyExterns).unwrap();
+    h.tester
+        .instantiate_machine(fvm_integration_tests::dummy::DummyExterns)
+        .unwrap();
 
     // Read storage root before
     #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]
-    struct EthAccountStateView { delegate_to: Option<[u8;20]>, auth_nonce: u64, evm_storage_root: Cid }
+    struct EthAccountStateView {
+        delegate_to: Option<[u8; 20]>,
+        auth_nonce: u64,
+        evm_storage_root: Cid,
+    }
     let before_root = {
         let stree = h.tester.state_tree.as_ref().unwrap();
         let act = stree.get_actor(a_id).unwrap().expect("actor");
@@ -63,7 +73,8 @@ fn overlay_persists_only_on_success() {
     };
 
     // Invoke
-    let inv = fevm::invoke_contract(&mut h.tester, &mut owner, c_f4, &[], fevm::DEFAULT_GAS).unwrap();
+    let inv =
+        fevm::invoke_contract(&mut h.tester, &mut owner, c_f4, &[], fevm::DEFAULT_GAS).unwrap();
     assert!(inv.msg_receipt.exit_code.is_success());
 
     // Expect storage root changed (persisted) on success
@@ -73,6 +84,8 @@ fn overlay_persists_only_on_success() {
         let view: Option<EthAccountStateView> = stree.store().get_cbor(&act.state).unwrap();
         view.expect("state").evm_storage_root
     };
-    assert_ne!(before_root, after_root, "storage root should persist on success");
+    assert_ne!(
+        before_root, after_root,
+        "storage root should persist on success"
+    );
 }
-

@@ -48,8 +48,11 @@ fvm = { path = ".", features = ["testing"], default-features = false }
 coverage-helper = { workspace = true }
 fvm_integration_tests = { workspace = true }
 # Use the builtin-actors bundle dev-dependency to embed a recent actor set.
-# In local development, this should point to the branch that includes EthAccount and EVM changes.
-actors = { package = "fil_builtin_actors_bundle", path = "../../builtin-actors" }
+# Default to the upstream git repository so CI does not require a sibling
+# checkout of `builtin-actors`. Local developers can override this via a
+# `[patch]` in a personal `.cargo/config.toml` or workspace Cargo.toml if
+# needed to point at a local path.
+actors = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "master" }
 fvm_ipld_kamt = { workspace = true }
 
 [features]
