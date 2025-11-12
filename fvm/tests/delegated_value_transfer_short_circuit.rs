@@ -59,7 +59,7 @@ fn delegated_value_transfer_short_circuit() {
         0xEE, 0xED, 0xEC, 0xEB, 0xEA,
     ];
     let caller_f4 = Address::new_delegated(10, &caller_eth20).unwrap();
-    let _ = install_evm_contract_at(&mut h, caller_f4.clone(), &caller_code).unwrap();
+    let _ = install_evm_contract_at(&mut h, caller_f4, &caller_code).unwrap();
 
     // Read storage root before instantiating the machine
     #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]

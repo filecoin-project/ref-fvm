@@ -3,17 +3,14 @@
 use cid::Cid;
 use fvm::kernel::ActorOps as _;
 use fvm::kernel::BlockRegistry;
-use fvm::kernel::Kernel as _;
 use fvm::kernel::default::DefaultKernel;
 use fvm::machine::Machine as _;
 use fvm::state_tree::ActorState;
-use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 
 mod dummy;
-use dummy::{DummyCallManager, DummyMachine};
+use dummy::DummyCallManager;
 
 #[derive(
     fvm_ipld_encoding::tuple::Serialize_tuple, fvm_ipld_encoding::tuple::Deserialize_tuple,

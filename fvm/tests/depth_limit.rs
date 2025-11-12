@@ -74,8 +74,8 @@ fn delegated_call_depth_limit_enforced() {
     let c_f4 = Address::new_delegated(10, &c_eth20).unwrap();
     let b_rt = returning_const(b_val);
     let c_rt = returning_const(c_val);
-    let _ = install_evm_contract_at(&mut h, b_f4.clone(), &b_rt).unwrap();
-    let _ = install_evm_contract_at(&mut h, c_f4.clone(), &c_rt).unwrap();
+    let _ = install_evm_contract_at(&mut h, b_f4, &b_rt).unwrap();
+    let _ = install_evm_contract_at(&mut h, c_f4, &c_rt).unwrap();
 
     // Set A->B, B->C via EthAccount state.
     let a20: [u8; 20] = [
@@ -96,7 +96,7 @@ fn delegated_call_depth_limit_enforced() {
         0xB9, 0xBA, 0xBB, 0xBC, 0xBD,
     ];
     let caller_f4 = Address::new_delegated(10, &caller_eth20).unwrap();
-    let _ = install_evm_contract_at(&mut h, caller_f4.clone(), &caller_prog).unwrap();
+    let _ = install_evm_contract_at(&mut h, caller_f4, &caller_prog).unwrap();
     h.tester
         .instantiate_machine(fvm_integration_tests::dummy::DummyExterns)
         .unwrap();

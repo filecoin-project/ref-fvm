@@ -7,7 +7,6 @@ use fvm_integration_tests::tester::{BasicAccount, ExecutionOptions};
 use fvm_integration_tests::testkit::fevm;
 use fvm_shared::ActorID;
 use fvm_shared::address::Address;
-use fvm_shared::econ::TokenAmount;
 use multihash_codetable::MultihashDigest;
 
 fn extcodecopy_program(target20: [u8; 20], offset: u8, size: u8) -> Vec<u8> {
@@ -26,21 +25,7 @@ fn extcodecopy_program(target20: [u8; 20], offset: u8, size: u8) -> Vec<u8> {
     code
 }
 
-fn wrap_init_with_runtime(runtime: &[u8]) -> Vec<u8> {
-    let len = runtime.len();
-    assert!(len <= 0xFF);
-    let offset: u8 = 12;
-    let mut init = Vec::with_capacity(12 + len);
-    init.extend_from_slice(&[0x60, len as u8]);
-    init.extend_from_slice(&[0x60, offset]);
-    init.extend_from_slice(&[0x60, 0x00]);
-    init.push(0x39); // CODECOPY
-    init.extend_from_slice(&[0x60, len as u8]);
-    init.extend_from_slice(&[0x60, 0x00]);
-    init.push(0xF3); // RETURN
-    init.extend_from_slice(runtime);
-    init
-}
+// Unused helper retained in depth_limit.rs when needed.
 
 #[test]
 fn evm_extcode_projection_size_hash_copy() {
@@ -91,7 +76,7 @@ fn evm_extcode_projection_size_hash_copy() {
         0xDC, 0xDD, 0xDE, 0xDF, 0xE0,
     ];
     let caller_addr = Address::new_delegated(10, &caller_eth20).unwrap();
-    let _ = common::install_evm_contract_at(&mut h, caller_addr.clone(), &caller_prog).unwrap();
+    let _ = common::install_evm_contract_at(&mut h, caller_addr, &caller_prog).unwrap();
 
     // Instantiate the machine after pre-installing all actors.
     h.tester
@@ -102,7 +87,7 @@ fn evm_extcode_projection_size_hash_copy() {
     let inv = fevm::invoke_contract(
         &mut h.tester,
         &mut owner,
-        caller_addr.clone(),
+        caller_addr,
         &[],
         fevm::DEFAULT_GAS,
     )
@@ -143,7 +128,7 @@ fn evm_extcode_projection_size_hash_copy() {
         0xF0, 0xF1, 0xF2, 0xF3, 0xF4,
     ];
     let hprog_addr = Address::new_delegated(10, &hprog_eth20).unwrap();
-    let _ = common::install_evm_contract_at(&mut h, hprog_addr.clone(), &prog).unwrap();
+    let _ = common::install_evm_contract_at(&mut h, hprog_addr, &prog).unwrap();
     let inv2 = fevm::invoke_contract(
         &mut h.tester,
         &mut owner,
@@ -167,7 +152,7 @@ fn evm_extcode_projection_size_hash_copy() {
         22,
     );
     let addr_w1 = Address::new_delegated(10, &[0xA0; 20]).unwrap();
-    let _ = common::install_evm_contract_at(&mut h, addr_w1.clone(), &caller_prog_w1).unwrap();
+    let _ = common::install_evm_contract_at(&mut h, addr_w1, &caller_prog_w1).unwrap();
     let inv_w1 =
         fevm::invoke_contract(&mut h.tester, &mut owner, addr_w1, &[], fevm::DEFAULT_GAS).unwrap();
     let out_w1 = inv_w1.msg_receipt.return_data.bytes().to_vec();
@@ -183,7 +168,7 @@ fn evm_extcode_projection_size_hash_copy() {
         1,
     );
     let addr_w2 = Address::new_delegated(10, &[0xA1; 20]).unwrap();
-    let _ = common::install_evm_contract_at(&mut h, addr_w2.clone(), &caller_prog_w2).unwrap();
+    let _ = common::install_evm_contract_at(&mut h, addr_w2, &caller_prog_w2).unwrap();
     let inv_w2 =
         fevm::invoke_contract(&mut h.tester, &mut owner, addr_w2, &[], fevm::DEFAULT_GAS).unwrap();
     let out_w2 = inv_w2.msg_receipt.return_data.bytes().to_vec();
@@ -199,7 +184,7 @@ fn evm_extcode_projection_size_hash_copy() {
         10,
     );
     let addr_w3 = Address::new_delegated(10, &[0xA2; 20]).unwrap();
-    let _ = common::install_evm_contract_at(&mut h, addr_w3.clone(), &caller_prog_w3).unwrap();
+    let _ = common::install_evm_contract_at(&mut h, addr_w3, &caller_prog_w3).unwrap();
     let inv_w3 =
         fevm::invoke_contract(&mut h.tester, &mut owner, addr_w3, &[], fevm::DEFAULT_GAS).unwrap();
     let out_w3 = inv_w3.msg_receipt.return_data.bytes().to_vec();

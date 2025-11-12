@@ -45,7 +45,7 @@ fn overlay_persists_only_on_success() {
     let b20 = [0xB0u8; 20];
     let b_f4 = Address::new_delegated(10, &b20).unwrap();
     let b_prog = make_sstore_then_return(1, 2);
-    let _ = install_evm_contract_at(&mut h, b_f4.clone(), &b_prog).unwrap();
+    let _ = install_evm_contract_at(&mut h, b_f4, &b_prog).unwrap();
 
     // Authority A -> B
     let a20 = [0xA0u8; 20];
@@ -55,7 +55,7 @@ fn overlay_persists_only_on_success() {
     // Pre-install caller C that CALLs A
     let caller_prog = make_call_authority(a20);
     let c_f4 = Address::new_delegated(10, &[0xC0u8; 20]).unwrap();
-    let _ = install_evm_contract_at(&mut h, c_f4.clone(), &caller_prog).unwrap();
+    let _ = install_evm_contract_at(&mut h, c_f4, &caller_prog).unwrap();
 
     // Read storage root before instantiating the machine
     #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]

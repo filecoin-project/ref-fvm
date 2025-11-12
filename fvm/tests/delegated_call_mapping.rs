@@ -70,14 +70,14 @@ fn delegated_call_revert_payload_propagates() {
         0x20, 0x21, 0x22, 0x23, 0x24,
     ];
     let b_f4 = Address::new_delegated(10, &b20).unwrap();
-    let _ = install_evm_contract_at(&mut h, b_f4.clone(), &delegate_prog).unwrap();
+    let _ = install_evm_contract_at(&mut h, b_f4, &delegate_prog).unwrap();
     let a_f4 = Address::new_delegated(10, &a20).unwrap();
     let a_id = set_ethaccount_with_delegate(&mut h, a_f4, b20).unwrap();
 
     // Pre-install caller that CALLs A expecting revert.
     let caller_prog = make_caller_call_authority(a20, 4);
     let caller_f4 = Address::new_delegated(10, &[0xAB; 20]).unwrap();
-    let _ = install_evm_contract_at(&mut h, caller_f4.clone(), &caller_prog).unwrap();
+    let _ = install_evm_contract_at(&mut h, caller_f4, &caller_prog).unwrap();
 
     // Read storage root before instantiating the machine
     #[derive(fvm_ipld_encoding::tuple::Deserialize_tuple)]

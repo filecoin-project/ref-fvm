@@ -14,7 +14,6 @@ use fvm_shared::version::NetworkVersion;
 use multihash_codetable::Code;
 
 // Embedded actor bundle from builtin-actors (dev-dependency `actors`).
-use actors; // fil_builtin_actors_bundle
 
 // Minimal EthAccount state view mirroring kernel expectations.
 #[derive(fvm_ipld_encoding::tuple::Serialize_tuple)]

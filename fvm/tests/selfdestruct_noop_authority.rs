@@ -60,12 +60,12 @@ fn selfdestruct_is_noop_under_authority_context() {
         0x44, 0x33, 0x22, 0x11, 0x00,
     ];
     let auth_f4 = Address::new_delegated(10, &auth20).unwrap();
-    let auth_id = set_ethaccount_with_delegate(&mut h, auth_f4.clone(), delegate_eth).unwrap();
+    let _auth_id = set_ethaccount_with_delegate(&mut h, auth_f4, delegate_eth).unwrap();
 
     // Pre-install caller contract at a fixed address that CALLs the authority.
     let caller_code = caller_call_authority(auth20);
     let caller_addr = Address::new_delegated(10, &[0xC1u8; 20]).unwrap();
-    let _ = common::install_evm_contract_at(&mut h, caller_addr.clone(), &caller_code).unwrap();
+    let _ = common::install_evm_contract_at(&mut h, caller_addr, &caller_code).unwrap();
 
     // Instantiate machine after pre-installing actors.
     h.tester
