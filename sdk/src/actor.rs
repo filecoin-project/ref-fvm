@@ -171,23 +171,30 @@ pub fn balance_of(actor_id: ActorID) -> Option<TokenAmount> {
 
 /// Returns the EthAccount's delegate_to address (20 bytes) if set; None otherwise.
 pub fn get_eth_delegate_to(actor_id: ActorID) -> Option<[u8; 20]> {
-    let mut buf = [0u8; 20];
+    // Accept either 20-byte address or a larger ABI-encoded word; we take the last 20 bytes.
+    let mut tmp = [0u8; 32];
     unsafe {
-        match sys::actor::get_eth_delegate_to(actor_id, buf.as_mut_ptr(), buf.len() as u32) {
+        match sys::actor::get_eth_delegate_to(actor_id, tmp.as_mut_ptr(), tmp.len() as u32) {
             Ok(0) => None,
             Ok(n) => {
-                // The kernel should write exactly 20 bytes; tolerate larger by taking the last 20.
+                use core::cmp::Ordering;
                 let len = n as usize;
-                if len == 20 {
-                    Some(buf)
-                } else if len > 20 {
-                    let mut out = [0u8; 20];
-                    let start = len - 20;
-                    // We got more bytes back than expected; copy the last 20.
-                    out.copy_from_slice(&buf[start..start + 20.min(len - start)]);
-                    Some(out)
-                } else {
-                    None
+                match len.cmp(&20) {
+                    Ordering::Equal => {
+                        let mut out = [0u8; 20];
+                        out.copy_from_slice(&tmp[..20]);
+                        Some(out)
+                    }
+                    Ordering::Greater => {
+                        let mut out = [0u8; 20];
+                        let start = len.saturating_sub(20);
+                        let end = start.saturating_add(20);
+                        let slice_end = end.min(tmp.len());
+                        let slice_start = slice_end.saturating_sub(20);
+                        out.copy_from_slice(&tmp[slice_start..slice_end]);
+                        Some(out)
+                    }
+                    Ordering::Less => None,
                 }
             }
             Err(ErrorNumber::NotFound) => None,
