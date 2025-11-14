@@ -65,6 +65,10 @@ pub struct InnerDefaultCallManager<M: Machine> {
     num_actors_created: u64,
     /// Current call-stack depth.
     call_stack_depth: u32,
+    /// EIP-7702: flag indicating that a delegated CALL is currently executing
+    /// under authority context. When set, delegated CALL interception must
+    /// not be re-applied (depth limit == 1).
+    delegation_active: bool,
     /// The current chain of errors, if any.
     backtrace: Backtrace,
     /// The current execution trace.
@@ -155,6 +159,7 @@ where
             nonce,
             num_actors_created: 0,
             call_stack_depth: 0,
+            delegation_active: false,
             backtrace: Backtrace::default(),
             exec_trace: vec![],
             invocation_count: 0,
@@ -545,6 +550,13 @@ where
         use fvm_shared::address::Address;
         use fvm_shared::event::{ActorEvent, Entry, Flags, StampedEvent};
 
+        // Enforce delegation depth limit: once we're executing under authority context
+        // for a delegated CALL, do not attempt to re-intercept nested CALLs. This keeps
+        // delegation depth at 1 even if EthAccount mappings form chains.
+        if self.delegation_active {
+            return Ok(None);
+        }
+
         // Only intercept InvokeEVM calls originating from an EVM actor to an EthAccount.
         let from_state = match self.get_actor(from)? {
             Some(s) => s,
@@ -743,6 +755,11 @@ where
 
         // InvokeEVM-as-EOA with explicit storage root. Method hash of "InvokeAsEoaWithRoot".
         let method_invoke_as_eoa_v2 = frc42_method_hash("InvokeAsEoaWithRoot");
+        // Mark delegation as active for the duration of the delegated execution so that
+        // any nested CALLs issued by the delegate do not trigger further delegation
+        // intercepts (depth limit == 1).
+        let prev_delegation_active = self.delegation_active;
+        self.delegation_active = true;
         let res = self.call_actor::<K>(
             from,
             // Call back into the caller EVM actor (self-call) to run the delegate code.
@@ -752,7 +769,9 @@ where
             &TokenAmount::zero(),
             Some(self.gas_tracker().gas_available()),
             read_only,
-        )?;
+        );
+        self.delegation_active = prev_delegation_active;
+        let res = res?;
 
         // Map the result back to the original caller.
         if !res.exit_code.is_success() {
