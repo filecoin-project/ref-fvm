@@ -1,6 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, anyhow};
 use cid::Cid;
@@ -33,6 +34,7 @@ use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
 use crate::trace::{ExecutionEvent, ExecutionTrace};
 use crate::{syscall_error, system_actor};
+use crate::executor::ReservationSession;
 
 /// The default [`CallManager`] implementation.
 #[repr(transparent)]
@@ -77,6 +79,8 @@ pub struct InnerDefaultCallManager<M: Machine> {
     events: EventsAccumulator,
     /// The actor call stack (ActorID and entrypoint name tuple).
     actor_call_stack: Vec<(ActorID, &'static str)>,
+    /// Shared reservation session ledger for the current tipset, if any.
+    reservation_session: Arc<Mutex<ReservationSession>>,
 }
 
 #[doc(hidden)]
@@ -111,6 +115,7 @@ where
         receiver_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
+        reservation_session: Arc<Mutex<ReservationSession>>,
     ) -> Self {
         let limits = machine.new_limiter();
         let gas_tracker =
@@ -162,6 +167,7 @@ where
             events: Default::default(),
             state_access_tracker,
             actor_call_stack: vec![],
+            reservation_session,
         })))
     }
 
@@ -489,8 +495,46 @@ where
             .get_actor(from)?
             .ok_or_else(||syscall_error!(InsufficientFunds; "insufficient funds to transfer {value}FIL from {from} to {to})"))?;
 
-        if &from_actor.balance < value {
-            return Err(syscall_error!(InsufficientFunds; "sender does not have funds to transfer (balance {}, transfer {})", &from_actor.balance, value).into());
+        // In reservation mode, ensure the sender cannot spend funds that are reserved for gas.
+        // Free balance is defined as balance - reserved_remaining. To avoid negative intermediates,
+        // we enforce the equivalent inequality: value + reserved_remaining <= balance.
+        let (reservation_open, reserved_remaining) = {
+            let session = self
+                .reservation_session
+                .lock()
+                .expect("reservation session mutex poisoned");
+            if session.open {
+                let reserved = session
+                    .reservations
+                    .get(&from)
+                    .cloned()
+                    .unwrap_or_else(TokenAmount::zero);
+                (true, reserved)
+            } else {
+                (false, TokenAmount::zero())
+            }
+        };
+
+        if reservation_open {
+            let required = &reserved_remaining + value;
+            if &from_actor.balance < &required {
+                return Err(syscall_error!(
+                    InsufficientFunds;
+                    "sender does not have free funds to transfer (balance {}, transfer {}, reserved {})",
+                    &from_actor.balance,
+                    value,
+                    &reserved_remaining
+                )
+                .into());
+            }
+        } else if &from_actor.balance < value {
+            return Err(syscall_error!(
+                InsufficientFunds;
+                "sender does not have funds to transfer (balance {}, transfer {})",
+                &from_actor.balance,
+                value
+            )
+            .into());
         }
 
         if from == to {

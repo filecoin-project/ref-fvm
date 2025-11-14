@@ -2,18 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 mod default;
 mod threaded;
+mod telemetry;
 
 use std::fmt::Display;
 
 use cid::Cid;
-pub use default::DefaultExecutor;
+pub use default::{DefaultExecutor, ReservationSession};
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::event::StampedEvent;
 use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
+use fvm_shared::ActorID;
 use num_traits::Zero;
+use thiserror::Error;
 pub use threaded::ThreadedExecutor;
 
 use crate::Kernel;
@@ -44,6 +47,35 @@ pub trait Executor {
 
     /// Flushes the state-tree, returning the new root CID.
     fn flush(&mut self) -> anyhow::Result<Cid>;
+}
+
+/// Errors that can occur while managing gas reservation sessions.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum ReservationError {
+    /// Reservations are not implemented for this engine version.
+    #[error("reservations not implemented")]
+    NotImplemented,
+    /// A sender does not have enough balance to cover its reserved total at begin.
+    #[error("insufficient funds at begin for sender {sender}")]
+    InsufficientFundsAtBegin { sender: ActorID },
+    /// A reservation session is already open.
+    #[error("reservation session already open")]
+    SessionOpen,
+    /// No reservation session is currently open.
+    #[error("no reservation session open")]
+    SessionClosed,
+    /// The reservation ledger has non-zero entries at session end.
+    #[error("reservation ledger has non-zero remainder at session end")]
+    NonZeroRemainder,
+    /// The reservation plan exceeds resource limits (senders or encoded bytes).
+    #[error("reservation plan too large")]
+    PlanTooLarge,
+    /// Arithmetic overflow or underflow while accounting reservations.
+    #[error("reservation arithmetic overflow or underflow")]
+    Overflow,
+    /// Any inconsistency between host plan and engine state (e.g., unknown sender).
+    #[error("reservation invariant violated: {0}")]
+    ReservationInvariant(String),
 }
 
 /// A description of some failure encountered when applying a message.

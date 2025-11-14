@@ -371,13 +371,14 @@ where
         let balance = self.current_balance()?;
         if !balance.is_zero() {
             if !burn_unspent {
-                return Err(
-                    syscall_error!(IllegalOperation; "self-destruct with unspent funds").into(),
-                );
+                return Err(syscall_error!(
+                    IllegalOperation;
+                    "self-destruct with unspent funds"
+                )
+                .into());
             }
             self.call_manager
-                .transfer(self.actor_id, BURNT_FUNDS_ACTOR_ID, &balance)
-                .or_fatal()?;
+                .transfer(self.actor_id, BURNT_FUNDS_ACTOR_ID, &balance)?;
         }
 
         // Delete the executing actor.

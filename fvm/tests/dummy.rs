@@ -3,6 +3,7 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use cid::Cid;
@@ -15,6 +16,7 @@ use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
 use fvm::trace::IpldOperation;
 use fvm::{Kernel, kernel};
+use fvm::executor::ReservationSession;
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
 use fvm_shared::address::Address;
@@ -258,6 +260,7 @@ impl CallManager for DummyCallManager {
         _receiver_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
+        _reservation_session: Arc<Mutex<ReservationSession>>,
     ) -> Self {
         let rc = Rc::new(RefCell::new(TestData {
             charge_gas_calls: 0,
