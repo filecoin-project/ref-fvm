@@ -178,3 +178,25 @@ pub fn balance_of(context: Context<'_, impl ActorOps>, actor_id: u64) -> Result<
         .context("balance exceeds u128 limit")
         .or_fatal()
 }
+
+pub fn get_eth_delegate_to(
+    context: Context<'_, impl ActorOps>,
+    actor_id: ActorID,
+    obuf_off: u32,
+    obuf_len: u32,
+) -> Result<u32> {
+    let obuf = context.memory.try_slice_mut(obuf_off, obuf_len)?;
+    match context.kernel.get_eth_delegate_to(actor_id)? {
+        Some(delegate) => {
+            // Write exactly 20 bytes.
+            if obuf_len < 20 {
+                return Err(
+                    syscall_error!(BufferTooSmall; "delegate_to output buffer too small").into(),
+                );
+            }
+            obuf[..20].copy_from_slice(&delegate);
+            Ok(20)
+        }
+        None => Ok(0),
+    }
+}
