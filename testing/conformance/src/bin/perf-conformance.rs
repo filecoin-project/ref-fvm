@@ -45,7 +45,7 @@ fn main() {
     )
     .expect("failed to construct engine");
 
-    let (bs, _) = async_std::task::block_on(vector.seed_blockstore()).unwrap();
+    let (bs, _) = vector.seed_blockstore().unwrap();
     for variant in vector.preconditions.variants.iter() {
         run_variant_for_perf(bs.clone(), &vector, variant, &engine, itt_info)
     }
