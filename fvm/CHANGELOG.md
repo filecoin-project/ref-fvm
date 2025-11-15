@@ -4,6 +4,8 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.11.3 (2025-11-15)
+
 - Update `wasmtime` to 36
 
 ## 2.11.2 (2025-08-27)
