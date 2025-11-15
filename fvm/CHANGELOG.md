@@ -4,6 +4,8 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+- Update `wasmtime` to 36
+
 ## 3.13.2 [2025-08-27]
 
 - Update `filecoin-proofs-api` to v19
