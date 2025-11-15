@@ -3,6 +3,7 @@ ignore = [
   "RUSTSEC-2024-0436", # Paste is unmaintained, whatever.
   "RUSTSEC-2025-0046", # wasmtime, only impacting WASI, tracked in https://github.com/filecoin-project/ref-fvm/issues/2186
   "RUSTSEC-2022-0061", # parity-wasm, unmaintained, no fix: https://github.com/filecoin-project/ref-fvm/issues/1843
+  "RUSTSEC-2025-0057", # fxhash is no longer maintained, tracked in https://github.com/filecoin-project/ref-fvm/issues/2221
 ]
 
 [bans]

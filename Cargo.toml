@@ -24,7 +24,7 @@ fvm_ipld_amt = { version = "0.7.4"}
 fvm_ipld_car = { version = "0.9.0" }
 fvm_ipld_blockstore = { version = "0.3.1" }
 fvm_ipld_encoding = { version = "0.5.3" }
-wasmtime = {version = "31.0.0", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
+wasmtime = {version = "36", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
 
 fvm = { path = "fvm", version = "~2.11.2", default-features = false }
 fvm_shared = { path = "shared", version = "~2.11.2", default-features = false }
