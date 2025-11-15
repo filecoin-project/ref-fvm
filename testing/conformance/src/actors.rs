@@ -1,6 +1,5 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::io::Read;
 use std::sync::Mutex;
 
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
@@ -19,10 +18,7 @@ fn load_bundles(bundles: &[&[u8]]) -> anyhow::Result<MemoryBlockstore> {
     for bundle in bundles {
         let mut reader = tar::Archive::new(zstd::Decoder::with_buffer(*bundle)?);
         for entry in reader.entries()? {
-            // We need to read it to a vec first as we can't send it between threads (async issues).
-            let mut car = Vec::new();
-            entry?.read_to_end(&mut car)?;
-            load_car(&bs, &*car)?;
+            load_car(&bs, entry?)?;
         }
     }
     Ok(bs)
