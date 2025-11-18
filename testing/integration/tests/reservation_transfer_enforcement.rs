@@ -42,8 +42,10 @@ fn reservation_blocks_value_over_free_on_send() {
     )
     .unwrap();
 
-    let [(sender_id, sender_address), (_receiver_id, receiver_address)] =
-        tester.create_accounts().unwrap();
+    let [
+        (sender_id, sender_address),
+        (_receiver_id, receiver_address),
+    ] = tester.create_accounts().unwrap();
 
     tester.instantiate_machine(DummyExterns).unwrap();
     let executor = tester.executor.as_mut().unwrap();

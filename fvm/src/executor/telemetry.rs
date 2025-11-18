@@ -4,8 +4,8 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::ActorID;
+use fvm_shared::econ::TokenAmount;
 
 /// Telemetry for reservation sessions and settlement.
 ///
@@ -125,4 +125,3 @@ pub fn reset() {
         .lock()
         .expect("reservation telemetry mutex poisoned") = ReservationTelemetry::default();
 }
-

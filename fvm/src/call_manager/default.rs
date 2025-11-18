@@ -23,6 +23,7 @@ use crate::call_manager::FinishRet;
 use crate::call_manager::backtrace::Frame;
 use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::Engine;
+use crate::executor::ReservationSession;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{
     Block, BlockRegistry, ClassifyResult, ExecutionError, Kernel, Result, SyscallError,
@@ -34,7 +35,6 @@ use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
 use crate::trace::{ExecutionEvent, ExecutionTrace};
 use crate::{syscall_error, system_actor};
-use crate::executor::ReservationSession;
 
 /// The default [`CallManager`] implementation.
 #[repr(transparent)]

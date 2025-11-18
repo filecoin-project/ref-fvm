@@ -32,8 +32,8 @@ pub use self::reservation::ReservationSession;
 mod reservation {
     use std::collections::HashMap;
 
-    use fvm_shared::econ::TokenAmount;
     use fvm_shared::ActorID;
+    use fvm_shared::econ::TokenAmount;
 
     #[derive(Default)]
     pub struct ReservationSession {
@@ -495,10 +495,7 @@ where
                 }
                 return Ok(Err(ApplyRet::prevalidation_fail(
                     ExitCode::SYS_OUT_OF_GAS,
-                    format!(
-                        "Out of gas ({} > {})",
-                        inclusion_total, msg.gas_limit
-                    ),
+                    format!("Out of gas ({} > {})", inclusion_total, msg.gas_limit),
                     &self.context().base_fee * inclusion_total,
                 )));
             }
@@ -664,9 +661,7 @@ where
             let consumption = &base_fee_burn + &over_estimation_burn + &miner_tip;
 
             self.state_tree_mut()
-                .mutate_actor(sender_id, |act| {
-                    act.deduct_funds(&consumption).or_fatal()
-                })
+                .mutate_actor(sender_id, |act| act.deduct_funds(&consumption).or_fatal())
                 .context("failed to lookup sender actor for settlement")?;
 
             // Decrement this message's reservation; underflow or a missing entry indicates a fatal
@@ -686,12 +681,7 @@ where
             transfer_to_actor(sender_id, &refund)?;
 
             // Track settlement metrics in legacy mode as well, without a virtual refund component.
-            telemetry::settlement_record(
-                &base_fee_burn,
-                &miner_tip,
-                &over_estimation_burn,
-                None,
-            );
+            telemetry::settlement_record(&base_fee_burn, &miner_tip, &over_estimation_burn, None);
         }
 
         if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_cost {
@@ -805,9 +795,7 @@ where
 
             if &actor_state.balance < reserved {
                 telemetry::reservation_begin_failed();
-                return Err(ReservationError::InsufficientFundsAtBegin {
-                    sender: *actor_id,
-                });
+                return Err(ReservationError::InsufficientFundsAtBegin { sender: *actor_id });
             }
         }
 
@@ -850,18 +838,18 @@ mod tests {
     use cid::Cid;
     use fvm_ipld_blockstore::MemoryBlockstore;
     use fvm_ipld_encoding::{CborStore, DAG_CBOR, RawBytes};
+    use fvm_shared::IDENTITY_HASH;
     use fvm_shared::address::Address;
     use fvm_shared::error::ExitCode;
     use fvm_shared::state::{ActorState, StateTreeVersion};
-    use fvm_shared::IDENTITY_HASH;
     use multihash_codetable::{Code, Multihash};
 
     use crate::call_manager::DefaultCallManager;
+    use crate::call_manager::NO_DATA_BLOCK_ID;
     use crate::engine::EnginePool;
     use crate::externs::{Chain, Consensus, Externs, Rand};
-    use crate::call_manager::NO_DATA_BLOCK_ID;
-    use crate::kernel::filecoin::DefaultFilecoinKernel;
     use crate::kernel::default::DefaultKernel;
+    use crate::kernel::filecoin::DefaultFilecoinKernel;
     use crate::kernel::{BlockRegistry, SelfOps, SendOps};
     use crate::machine::{DefaultMachine, Manifest, NetworkConfig};
     use crate::state_tree::StateTree;
@@ -904,10 +892,7 @@ mod tests {
     }
 
     impl Chain for DummyExterns {
-        fn get_tipset_cid(
-            &self,
-            epoch: fvm_shared::clock::ChainEpoch,
-        ) -> anyhow::Result<Cid> {
+        fn get_tipset_cid(&self, epoch: fvm_shared::clock::ChainEpoch) -> anyhow::Result<Cid> {
             Ok(Cid::new_v1(
                 DAG_CBOR,
                 Multihash::wrap(IDENTITY_HASH, &epoch.to_be_bytes()).unwrap(),
@@ -929,11 +914,12 @@ mod tests {
         bs = st.into_store();
 
         // An empty built-in actors manifest.
-        let manifest_cid = bs.put_cbor(&Manifest::DUMMY_CODES, Code::Blake2b256).unwrap();
+        let manifest_cid = bs
+            .put_cbor(&Manifest::DUMMY_CODES, Code::Blake2b256)
+            .unwrap();
         let actors_cid = bs.put_cbor(&(1, manifest_cid), Code::Blake2b256).unwrap();
 
-        let mut net_cfg =
-            NetworkConfig::new(fvm_shared::version::NetworkVersion::V21);
+        let mut net_cfg = NetworkConfig::new(fvm_shared::version::NetworkVersion::V21);
         net_cfg.override_actors(actors_cid);
         let mut mc = net_cfg.for_epoch(0, 0, root);
         mc.set_base_fee(base_fee);
@@ -952,7 +938,9 @@ mod tests {
         bs = st.into_store();
 
         // An empty built-in actors manifest.
-        let manifest_cid = bs.put_cbor(&Manifest::DUMMY_CODES, Code::Blake2b256).unwrap();
+        let manifest_cid = bs
+            .put_cbor(&Manifest::DUMMY_CODES, Code::Blake2b256)
+            .unwrap();
         let actors_cid = bs.put_cbor(&(1, manifest_cid), Code::Blake2b256).unwrap();
 
         let mc = NetworkConfig::new(fvm_shared::version::NetworkVersion::V21)
@@ -965,10 +953,7 @@ mod tests {
         TestExecutor::new(engine, Box::new(machine)).unwrap()
     }
 
-    fn new_executor_with_actor(
-        id: ActorID,
-        balance: TokenAmount,
-    ) -> TestExecutor {
+    fn new_executor_with_actor(id: ActorID, balance: TokenAmount) -> TestExecutor {
         let mut exec = new_executor();
 
         let account_code = *exec.builtin_actors().get_account_code();
@@ -1013,8 +998,7 @@ mod tests {
     #[test]
     fn begin_and_end_with_zero_remainder_succeeds() {
         let sender: ActorID = 1000;
-        let mut exec =
-            new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
+        let mut exec = new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
 
         let plan = vec![(Address::new_id(sender), TokenAmount::from_atto(500u64))];
 
@@ -1026,11 +1010,7 @@ mod tests {
                 .expect("reservation session mutex poisoned");
             assert!(session.open);
             assert_eq!(
-                session
-                    .reservations
-                    .get(&sender)
-                    .cloned()
-                    .unwrap(),
+                session.reservations.get(&sender).cloned().unwrap(),
                 TokenAmount::from_atto(500u64)
             );
 
@@ -1054,8 +1034,7 @@ mod tests {
     #[test]
     fn begin_twice_errors_with_session_open() {
         let sender: ActorID = 42;
-        let mut exec =
-            new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
+        let mut exec = new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
         let plan = vec![(Address::new_id(sender), TokenAmount::from_atto(100u64))];
 
         exec.begin_reservation_session(&plan).unwrap();
@@ -1066,8 +1045,7 @@ mod tests {
     #[test]
     fn end_with_non_zero_remainder_errors() {
         let sender: ActorID = 7;
-        let mut exec =
-            new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
+        let mut exec = new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
         let plan = vec![(Address::new_id(sender), TokenAmount::from_atto(1234u64))];
 
         exec.begin_reservation_session(&plan).unwrap();
@@ -1093,15 +1071,11 @@ mod tests {
     #[test]
     fn insufficient_funds_at_begin() {
         let sender: ActorID = 5;
-        let mut exec =
-            new_executor_with_actor(sender, TokenAmount::from_atto(10u64));
+        let mut exec = new_executor_with_actor(sender, TokenAmount::from_atto(10u64));
         let plan = vec![(Address::new_id(sender), TokenAmount::from_atto(11u64))];
 
         let err = exec.begin_reservation_session(&plan).unwrap_err();
-        assert_eq!(
-            err,
-            ReservationError::InsufficientFundsAtBegin { sender }
-        );
+        assert_eq!(err, ReservationError::InsufficientFundsAtBegin { sender });
     }
 
     #[test]
@@ -1178,11 +1152,7 @@ mod tests {
                 .lock()
                 .expect("reservation session mutex poisoned");
             assert_eq!(
-                session
-                    .reservations
-                    .get(&sender)
-                    .cloned()
-                    .unwrap(),
+                session.reservations.get(&sender).cloned().unwrap(),
                 gas_cost
             );
         }
@@ -1261,8 +1231,7 @@ mod tests {
     #[test]
     fn preflight_negative_fee_cap_yields_overflow() {
         let sender: ActorID = 2500;
-        let mut exec =
-            new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
+        let mut exec = new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
 
         let raw_length = 100usize;
         let pl = &exec.context().price_list;
@@ -1336,8 +1305,7 @@ mod tests {
             .preflight_message(&msg, ApplyKind::Explicit, raw_length)
             .unwrap();
 
-        let apply_ret =
-            res.expect_err("expected prevalidation failure for inclusion gas too low");
+        let apply_ret = res.expect_err("expected prevalidation failure for inclusion gas too low");
         assert_eq!(apply_ret.msg_receipt.exit_code, ExitCode::SYS_OUT_OF_GAS);
 
         // Actor state is unchanged on prevalidation failure.
@@ -1363,8 +1331,7 @@ mod tests {
     #[test]
     fn reservation_coverage_violation_yields_reservation_invariant() {
         let sender: ActorID = 4000;
-        let mut exec =
-            new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
+        let mut exec = new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
 
         let raw_length = 100usize;
         let pl = &exec.context().price_list;
@@ -1413,8 +1380,7 @@ mod tests {
     #[test]
     fn reservation_prevalidation_decrement_underflow_yields_overflow() {
         let sender: ActorID = 5000;
-        let mut exec =
-            new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
+        let mut exec = new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
 
         // Manually open a reservation session with an under-sized reservation to trigger
         // arithmetic underflow when we attempt to decrement it.
@@ -1777,10 +1743,7 @@ mod tests {
             .get_actor(BURNT_FUNDS_ACTOR_ID)
             .unwrap()
             .expect("burnt funds actor must exist");
-        assert_eq!(
-            burnt_actor.balance,
-            &base_fee_burn + &over_estimation_burn
-        );
+        assert_eq!(burnt_actor.balance, &base_fee_burn + &over_estimation_burn);
 
         let reward_actor = exec
             .state_tree()
@@ -1873,13 +1836,20 @@ mod tests {
             let gas_used = gas_used_seed % gas_limit.saturating_add(1);
 
             // Constrain fee_cap and premium to be non-negative to match protocol assumptions.
-            let fee_cap = if fee_cap.is_negative() { -fee_cap } else { fee_cap };
-            let premium = if premium.is_negative() { -premium } else { premium };
+            let fee_cap = if fee_cap.is_negative() {
+                -fee_cap
+            } else {
+                fee_cap
+            };
+            let premium = if premium.is_negative() {
+                -premium
+            } else {
+                premium
+            };
 
             let base_fee = TokenAmount::from_atto(10u64);
 
-            let outputs =
-                GasOutputs::compute(gas_used, gas_limit, &base_fee, &fee_cap, &premium);
+            let outputs = GasOutputs::compute(gas_used, gas_limit, &base_fee, &fee_cap, &premium);
 
             // All gas accounting components must be non-negative.
             if outputs.base_fee_burn.is_negative()
@@ -1909,5 +1879,4 @@ mod tests {
             .tests(100)
             .quickcheck(prop as fn(u64, u64, TokenAmount, TokenAmount) -> TestResult);
     }
-
 }
