@@ -1216,7 +1216,7 @@ mod tests {
                 .reservation_session
                 .lock()
                 .expect("reservation session mutex poisoned");
-            assert!(session.reservations.get(&sender).is_none());
+            assert!(!session.reservations.contains_key(&sender));
         }
         exec.end_reservation_session().unwrap();
         {
@@ -1323,7 +1323,7 @@ mod tests {
                 .reservation_session
                 .lock()
                 .expect("reservation session mutex poisoned");
-            assert!(session.reservations.get(&sender).is_none());
+            assert!(!session.reservations.contains_key(&sender));
         }
         exec.end_reservation_session().unwrap();
     }
@@ -1759,7 +1759,7 @@ mod tests {
                 .reservation_session
                 .lock()
                 .expect("reservation session mutex poisoned");
-            assert!(session.reservations.get(&sender).is_none());
+            assert!(!session.reservations.contains_key(&sender));
         }
 
         exec.end_reservation_session().unwrap();
