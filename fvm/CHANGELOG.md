@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.7.5 [2025-11-15]
+
+- Update `wasmtime` to 36
+
 ## 4.7.4 [2025-10-06]
 
 - feat: nv28 skeleton [#2220](https://github.com/filecoin-project/ref-fvm/pull/2220)
