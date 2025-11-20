@@ -517,7 +517,7 @@ where
 
         if reservation_open {
             let required = &reserved_remaining + value;
-            if &from_actor.balance < &required {
+            if from_actor.balance < required {
                 return Err(syscall_error!(
                     InsufficientFunds;
                     "sender does not have free funds to transfer (balance {}, transfer {}, reserved {})",
