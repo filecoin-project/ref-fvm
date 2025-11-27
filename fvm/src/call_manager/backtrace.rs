@@ -1,6 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use std::fmt::Display;
+
+use std::fmt::{Display, Formatter, Result};
 
 use fvm_shared::address::Address;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -8,19 +9,24 @@ use fvm_shared::{ActorID, MethodNum};
 
 use crate::kernel::SyscallError;
 
+// Assuming 'anyhow' is available in the crate scope for Cause::from_fatal
+// use anyhow;
+
 /// A call backtrace records the actors an error was propagated through, from
 /// the moment it was emitted. The original error is the _cause_. Backtraces are
-/// useful for identifying the root cause of an error.
+/// useful for identifying the root cause of an error in the actor model.
 #[derive(Debug, Default, Clone)]
 pub struct Backtrace {
     /// The actors through which this error was propagated from bottom (source) to top.
     pub frames: Vec<Frame>,
-    /// The last syscall error before the first actor in `frames` aborted.
+    /// The last syscall error or fatal error before the first actor in `frames` aborted.
     pub cause: Option<Cause>,
 }
 
 impl Display for Backtrace {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        // Frames are displayed in reverse order (top to bottom of the propagation chain)
+        // to resemble a traditional call stack trace.
         for (i, frame) in self.frames.iter().rev().enumerate() {
             writeln!(f, "{:02}: {}", i, frame)?;
         }
@@ -32,7 +38,7 @@ impl Display for Backtrace {
 }
 
 impl Backtrace {
-    /// Returns true if the backtrace is completely empty.
+    /// Returns true if the backtrace is completely empty (no frames and no cause).
     pub fn is_empty(&self) -> bool {
         self.frames.is_empty() && self.cause.is_none()
     }
@@ -43,12 +49,10 @@ impl Backtrace {
         self.frames.clear();
     }
 
-    /// Begins a new backtrace. If there is an existing backtrace, this will clear it.
+    /// Begins a new backtrace by setting the initial cause and clearing existing frames.
     ///
-    /// Note: Backtraces are populated _backwards_. That is, a frame is inserted
-    /// every time an actor returns. That's why `begin()` resets any currently
-    /// accumulated state, as once an error occurs, we want to track its
-    /// propagation all the way up.
+    /// Backtraces are populated _backwards_: a frame is inserted every time an actor returns
+    /// with an error, tracking its propagation all the way up.
     pub fn begin(&mut self, cause: Cause) {
         self.cause = Some(cause);
         self.frames.clear();
@@ -57,7 +61,7 @@ impl Backtrace {
     /// Sets the cause of a backtrace.
     ///
     /// This is useful to stamp a backtrace with its cause after the frames
-    /// have been collected, such as when we ultimately handle a fatal error at
+    /// have been collected, such as when ultimately handling a fatal error at
     /// the top of its propagation chain.
     pub fn set_cause(&mut self, cause: Cause) {
         self.cause = Some(cause);
@@ -65,31 +69,31 @@ impl Backtrace {
 
     /// Push a "frame" (actor exit) onto the backtrace.
     ///
-    /// This should be called every time an actor exits with an error.
+    /// This should be called every time an actor exits with an error code.
     pub fn push_frame(&mut self, frame: Frame) {
         self.frames.push(frame)
     }
 }
 
-/// A "frame" in a call backtrace.
+/// A "frame" in a call backtrace, representing an actor's exit point.
 #[derive(Clone, Debug)]
 pub struct Frame {
     /// The actor that exited with this code.
     pub source: ActorID,
-    /// The method that was invoked.
+    /// The method that was invoked on the actor.
     pub method: MethodNum,
-    /// The exit code.
+    /// The exit code returned by the actor.
     pub code: ExitCode,
-    /// The abort message.
+    /// The abort message associated with the exit.
     pub message: String,
 }
 
 impl Display for Frame {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
             "{} (method {}) -- {} ({})",
-            Address::new_id(self.source),
+            Address::new_id(self.source), // Display actor ID as an ID address
             self.method,
             &self.message,
             self.code,
@@ -100,23 +104,22 @@ impl Display for Frame {
 /// The ultimate "cause" of a failed message.
 #[derive(Clone, Debug)]
 pub enum Cause {
-    /// The original cause was a syscall error.
+    /// The original cause was a syscall error originating in the kernel.
     Syscall {
-        /// The syscall "module".
+        /// The syscall "module" (e.g., "crypto").
         module: &'static str,
-        /// The syscall function name.
+        /// The syscall function name (e.g., "hash_blake2b").
         function: &'static str,
-        /// The exact syscall error.
+        /// The exact syscall error number.
         error: ErrorNumber,
         /// The informational syscall message.
         message: String,
     },
-    /// The original cause was a fatal error.
+    /// The original cause was a fatal error (e.g., a host runtime panic).
     Fatal {
         /// The alternate-formatted message from the anyhow error.
         error_msg: String,
-        /// The backtrace, captured if the relevant
-        /// [environment variables](https://doc.rust-lang.org/std/backtrace/index.html#environment-variables) are enabled.
+        /// The backtrace, captured if the relevant environment variables are enabled.
         backtrace: String,
     },
 }
@@ -133,6 +136,7 @@ impl Cause {
     }
 
     /// Records a fatal error as the cause of a backtrace.
+    /// NOTE: This function requires the 'anyhow' crate to be accessible in the environment.
     pub fn from_fatal(err: anyhow::Error) -> Self {
         Self::Fatal {
             error_msg: format!("{:#}", err),
@@ -142,7 +146,7 @@ impl Cause {
 }
 
 impl Display for Cause {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Cause::Syscall {
                 module,
@@ -150,17 +154,23 @@ impl Display for Cause {
                 error,
                 message,
             } => {
+                // Simplified display format: only show the error number once.
                 write!(
                     f,
-                    "{}::{} -- {} ({}: {})",
-                    module, function, &message, *error as u32, error,
+                    "{module}::{function} -- {message} (code: {code})",
+                    module = module,
+                    function = function,
+                    message = message,
+                    // Format ErrorNumber as its raw u32 value for clarity.
+                    code = *error as u32,
                 )
             }
             Cause::Fatal {
                 error_msg,
                 backtrace,
             } => {
-                write!(f, "[FATAL] Error: {}, Backtrace:\n{}", error_msg, backtrace)
+                // Prints the fatal error message followed by the detailed Rust backtrace.
+                write!(f, "[FATAL] Error: {}\n{}", error_msg, backtrace)
             }
         }
     }
