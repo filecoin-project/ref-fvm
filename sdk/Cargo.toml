@@ -1,6 +1,9 @@
+# The Cargo manifest for the Filecoin Virtual Machine Actor Development SDK.
+
 [package]
 name = "fvm_sdk"
 description = "Filecoin Virtual Machine actor development SDK"
+# Metadata inherited from the workspace manifest for version control and consistency.
 version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -8,11 +11,14 @@ repository.workspace = true
 authors = ["Protocol Labs", "Filecoin Core Devs"]
 
 [lib]
+# This SDK is a library crate, typically compiled into a Wasm module for FVM actors.
 crate-type = ["lib"]
 
 [dependencies]
+# Dependencies inherited from the workspace manifest for version control.
 cid = { workspace = true }
-## num-traits; disabling default features makes it play nice with no_std.
+# num-traits: Disabled default features for compatibility with `no_std` environments 
+# like the FVM, optimizing for minimal size and reduced binary complexity.
 num-traits = { workspace = true, default-features = false }
 lazy_static = { workspace = true }
 log = { workspace = true }
@@ -21,10 +27,12 @@ fvm_shared = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 
 [features]
+# The default set of features when compiling this crate.
 default = ["verify-signature"]
 m2-native = []
 upgrade-actor = []
-# Use this feature to keep `verify_signature` syscall that is supposed to be removed by FIP-0079,
-# The current implementation keeps it by default for backward compatibility reason.
-# See <https://github.com/filecoin-project/ref-fvm/issues/2001>
+
+# Enables the `verify_signature` syscall.
+# This feature is kept by default for backward compatibility with older FIPs (like FIP-0079).
+# See tracking issue: <https://github.com/filecoin-project/ref-fvm/issues/2001>
 verify-signature = []
