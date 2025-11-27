@@ -10,21 +10,35 @@ authors = ["Protocol Labs", "Filecoin Core Devs"]
 [lib]
 crate-type = ["lib"]
 
+# MARK: - Dependencies (Alphabetically Sorted)
 [dependencies]
-cid = { workspace = true }
-## num-traits; disabling default features makes it play nice with no_std.
-num-traits = { workspace = true, default-features = false }
-lazy_static = { workspace = true }
-log = { workspace = true }
-thiserror = { workspace = true }
-fvm_shared = { workspace = true }
+# Core Content ID (CID) dependency.
+cid = { workspace = true } 
+# FVM IPLD encoding and serialization utilities.
 fvm_ipld_encoding = { workspace = true }
+# Core FVM shared types and constants.
+fvm_shared = { workspace = true }
+# General-purpose compile-time initialization (e.g., for global statics).
+lazy_static = { workspace = true }
+# Logging utility.
+log = { workspace = true }
+# Necessary for `no_std` compatibility in the FVM environment.
+num-traits = { workspace = true, default-features = false }
+# Error handling utilities.
+thiserror = { workspace = true }
 
+# MARK: - Features
 [features]
-default = ["verify-signature"]
+# The default feature set enabled when no explicit features are specified.
+default = ["verify-signature"] 
+
+# Allows actors to run natively on the M2 runtime (if supported by implementation).
 m2-native = []
+
+# Enables functionality related to actor code upgrades.
 upgrade-actor = []
-# Use this feature to keep `verify_signature` syscall that is supposed to be removed by FIP-0079,
-# The current implementation keeps it by default for backward compatibility reason.
-# See <https://github.com/filecoin-project/ref-fvm/issues/2001>
+
+# Allows access to the `verify_signature` syscall.
+# This feature is kept for backward compatibility and is expected to be removed per FIP-0079.
+# See: <https://github.com/filecoin-project/ref-fvm/issues/2001>
 verify-signature = []
