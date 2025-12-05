@@ -21,7 +21,6 @@ use super::{ApplyFailure, ApplyKind, ApplyRet, Executor, ReservationError};
 use crate::call_manager::{Backtrace, CallManager, Entrypoint, InvocationResult, backtrace};
 use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::EnginePool;
-use crate::executor::telemetry;
 use crate::gas::{Gas, GasCharge, GasOutputs};
 use crate::kernel::{Block, ClassifyResult, Context as _, ExecutionError, Kernel};
 use crate::machine::{BURNT_FUNDS_ACTOR_ID, Machine, REWARD_ACTOR_ID};
@@ -35,10 +34,13 @@ mod reservation {
     use fvm_shared::ActorID;
     use fvm_shared::econ::TokenAmount;
 
+    use crate::executor::telemetry::ReservationTelemetry;
+
     #[derive(Default)]
     pub struct ReservationSession {
         pub reservations: HashMap<ActorID, TokenAmount>,
         pub open: bool,
+        pub telemetry: ReservationTelemetry,
     }
 }
 
@@ -409,7 +411,7 @@ where
                 }
 
                 // Keep the reserved_remaining_gauge{sender} telemetry in sync with the ledger.
-                telemetry::reservation_remaining_update(sender, &remaining);
+                session.telemetry.reservation_remaining_update(sender, &remaining);
                 Ok(())
             }
             Entry::Vacant(_) => Err(ReservationError::ReservationInvariant(format!(
@@ -670,18 +672,31 @@ where
 
             // Track settlement metrics, including the virtual refund realized via reservation
             // release.
-            telemetry::settlement_record(
-                &base_fee_burn,
-                &miner_tip,
-                &over_estimation_burn,
-                Some(&refund),
-            );
+            self.reservation_session
+                .lock()
+                .expect("reservation session mutex poisoned")
+                .telemetry
+                .settlement_record(
+                    &base_fee_burn,
+                    &miner_tip,
+                    &over_estimation_burn,
+                    Some(&refund),
+                );
         } else {
             // Legacy behavior: refund unused gas directly to the sender.
             transfer_to_actor(sender_id, &refund)?;
 
             // Track settlement metrics in legacy mode as well, without a virtual refund component.
-            telemetry::settlement_record(&base_fee_burn, &miner_tip, &over_estimation_burn, None);
+            self.reservation_session
+                .lock()
+                .expect("reservation session mutex poisoned")
+                .telemetry
+                .settlement_record(
+                    &base_fee_burn,
+                    &miner_tip,
+                    &over_estimation_burn,
+                    None,
+                );
         }
 
         if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_cost {
@@ -734,7 +749,11 @@ where
 
         const MAX_SENDERS: usize = 65_536;
         if plan.len() > MAX_SENDERS {
-            telemetry::reservation_begin_failed();
+            self.reservation_session
+                .lock()
+                .expect("reservation session mutex poisoned")
+                .telemetry
+                .reservation_begin_failed();
             return Err(ReservationError::PlanTooLarge);
         }
 
@@ -744,7 +763,7 @@ where
             .expect("reservation session mutex poisoned");
 
         if session.open {
-            telemetry::reservation_begin_failed();
+            session.telemetry.reservation_begin_failed();
             return Err(ReservationError::SessionOpen);
         }
 
@@ -794,12 +813,12 @@ where
                 })?;
 
             if &actor_state.balance < reserved {
-                telemetry::reservation_begin_failed();
+                session.telemetry.reservation_begin_failed();
                 return Err(ReservationError::InsufficientFundsAtBegin { sender: *actor_id });
             }
         }
 
-        telemetry::reservation_begin_succeeded(&reservations);
+        session.telemetry.reservation_begin_succeeded(&reservations);
 
         session.reservations = reservations;
         session.open = true;
@@ -826,7 +845,7 @@ where
         session.reservations.clear();
         session.open = false;
 
-        telemetry::reservation_end_succeeded();
+        session.telemetry.reservation_end_succeeded();
 
         Ok(())
     }
