@@ -411,7 +411,9 @@ where
                 }
 
                 // Keep the reserved_remaining_gauge{sender} telemetry in sync with the ledger.
-                session.telemetry.reservation_remaining_update(sender, &remaining);
+                session
+                    .telemetry
+                    .reservation_remaining_update(sender, &remaining);
                 Ok(())
             }
             Entry::Vacant(_) => Err(ReservationError::ReservationInvariant(format!(
@@ -691,12 +693,7 @@ where
                 .lock()
                 .expect("reservation session mutex poisoned")
                 .telemetry
-                .settlement_record(
-                    &base_fee_burn,
-                    &miner_tip,
-                    &over_estimation_burn,
-                    None,
-                );
+                .settlement_record(&base_fee_burn, &miner_tip, &over_estimation_burn, None);
         }
 
         if (&base_fee_burn + &over_estimation_burn + &refund + &miner_tip) != gas_cost {
@@ -789,9 +786,9 @@ where
 
             if amount.is_negative() {
                 telemetry::reservation_begin_failed();
-                return Err(ReservationError::ReservationInvariant(
-                    format!("negative reservation amount for {addr}: {amount}")
-                ));
+                return Err(ReservationError::ReservationInvariant(format!(
+                    "negative reservation amount for {addr}: {amount}"
+                )));
             }
             if amount.is_zero() {
                 continue;

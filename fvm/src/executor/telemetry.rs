@@ -49,9 +49,7 @@ impl ReservationTelemetry {
 
     /// Record a failed reservation session begin.
     pub fn reservation_begin_failed(&mut self) {
-        self.reservation_begin_failed = self
-            .reservation_begin_failed
-            .saturating_add(1);
+        self.reservation_begin_failed = self.reservation_begin_failed.saturating_add(1);
     }
 
     /// Record a successful reservation session end and clear per-sender gauges.
