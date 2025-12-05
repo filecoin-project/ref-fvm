@@ -787,6 +787,12 @@ where
                 }
             };
 
+            if amount.is_negative() {
+                telemetry::reservation_begin_failed();
+                return Err(ReservationError::ReservationInvariant(
+                    format!("negative reservation amount for {addr}: {amount}")
+                ));
+            }
             if amount.is_zero() {
                 continue;
             }
