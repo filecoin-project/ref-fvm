@@ -757,34 +757,35 @@ where
             return Err(ReservationError::PlanTooLarge);
         }
 
-        let mut session = self
-            .reservation_session
-            .lock()
-            .expect("reservation session mutex poisoned");
-
-        if session.open {
-            session.telemetry.reservation_begin_failed();
-            return Err(ReservationError::SessionOpen);
-        }
+        let session_arc = self.reservation_session.clone();
+        let record_failure = || {
+            session_arc
+                .lock()
+                .expect("reservation session mutex poisoned")
+                .telemetry
+                .reservation_begin_failed();
+        };
 
         // Aggregate per-actor reservations.
         let mut reservations: HashMap<ActorID, TokenAmount> = HashMap::new();
 
         for (addr, amount) in plan {
             // Resolve address to ActorID via the state tree.
-            let sender_id = self
-                .state_tree()
-                .lookup_id(addr)
-                .map_err(|e| {
-                    ReservationError::ReservationInvariant(format!(
-                        "failed to lookup actor {addr}: {e}"
-                    ))
-                })?
-                .ok_or_else(|| {
-                    ReservationError::ReservationInvariant(format!(
+            let sender_id = match self.state_tree().lookup_id(addr) {
+                Ok(Some(id)) => id,
+                Ok(None) => {
+                    record_failure();
+                    return Err(ReservationError::ReservationInvariant(format!(
                         "failed to resolve address {addr} to actor ID"
-                    ))
-                })?;
+                    )));
+                }
+                Err(e) => {
+                    record_failure();
+                    return Err(ReservationError::ReservationInvariant(format!(
+                        "failed to lookup actor {addr}: {e}"
+                    )));
+                }
+            };
 
             if amount.is_zero() {
                 continue;
@@ -798,24 +799,36 @@ where
 
         // Check affordability per sender: Σ(plan) ≤ actor.balance.
         for (actor_id, reserved) in &reservations {
-            let actor_state = self
-                .state_tree()
-                .get_actor(*actor_id)
-                .map_err(|e| {
-                    ReservationError::ReservationInvariant(format!(
-                        "failed to load actor {actor_id}: {e}"
-                    ))
-                })?
-                .ok_or_else(|| {
-                    ReservationError::ReservationInvariant(format!(
+            let actor_state = match self.state_tree().get_actor(*actor_id) {
+                Ok(Some(state)) => state,
+                Ok(None) => {
+                    record_failure();
+                    return Err(ReservationError::ReservationInvariant(format!(
                         "reservation plan includes unknown actor {actor_id}"
-                    ))
-                })?;
+                    )));
+                }
+                Err(e) => {
+                    record_failure();
+                    return Err(ReservationError::ReservationInvariant(format!(
+                        "failed to load actor {actor_id}: {e}"
+                    )));
+                }
+            };
 
             if &actor_state.balance < reserved {
-                session.telemetry.reservation_begin_failed();
+                record_failure();
                 return Err(ReservationError::InsufficientFundsAtBegin { sender: *actor_id });
             }
+        }
+
+        let mut session = self
+            .reservation_session
+            .lock()
+            .expect("reservation session mutex poisoned");
+
+        if session.open {
+            session.telemetry.reservation_begin_failed();
+            return Err(ReservationError::SessionOpen);
         }
 
         session.telemetry.reservation_begin_succeeded(&reservations);
