@@ -36,6 +36,11 @@ mod reservation {
 
     use crate::executor::telemetry::ReservationTelemetry;
 
+    /// Tracks the gas reservation ledger for a tipset-scope session.
+    ///
+    /// The ledger maintains per-actor reservation amounts that are decremented
+    /// as messages are processed. All entries must reach zero before the session
+    /// can be closed.
     #[derive(Default)]
     pub struct ReservationSession {
         pub reservations: HashMap<ActorID, TokenAmount>,
@@ -785,7 +790,7 @@ where
             };
 
             if amount.is_negative() {
-                telemetry::reservation_begin_failed();
+                record_failure();
                 return Err(ReservationError::ReservationInvariant(format!(
                     "negative reservation amount for {addr}: {amount}"
                 )));
