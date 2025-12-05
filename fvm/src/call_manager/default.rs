@@ -602,7 +602,7 @@ where
             store.get_cbor(&to_state.state).map_err(|e| {
                 ExecutionError::Syscall(SyscallError::new(
                     ErrorNumber::IllegalOperation,
-                    format!("failed to decode EthAccount state: {e}"),
+                    "failed to decode EthAccount state".to_string(),
                 ))
             })?
         };

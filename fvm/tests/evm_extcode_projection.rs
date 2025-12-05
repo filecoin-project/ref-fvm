@@ -190,5 +190,3 @@ fn evm_extcode_projection_size_hash_copy() {
     let out_w3 = inv_w3.msg_receipt.return_data.bytes().to_vec();
     assert_eq!(out_w3, vec![0u8; 10]);
 }
-// Copyright 2021-2023 Protocol Labs
-// SPDX-License-Identifier: Apache-2.0, MIT
