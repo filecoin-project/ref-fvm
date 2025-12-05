@@ -1919,4 +1919,79 @@ mod tests {
             .tests(100)
             .quickcheck(prop as fn(u64, u64, TokenAmount, TokenAmount) -> TestResult);
     }
+
+    #[test]
+    fn negative_reservation_amount_fails() {
+        let sender: ActorID = 50;
+        let mut exec = new_executor_with_actor(sender, TokenAmount::from_atto(1000u64));
+        // Construct a negative amount.
+        // TokenAmount is a wrapper around BigInt.
+        let negative_amt = TokenAmount::from_atto(100u64) - TokenAmount::from_atto(200u64);
+        assert!(negative_amt.is_negative());
+
+        let plan = vec![(Address::new_id(sender), negative_amt.clone())];
+
+        let err = exec.begin_reservation_session(&plan).unwrap_err();
+        match err {
+            ReservationError::ReservationInvariant(msg) => {
+                assert!(msg.contains("negative reservation amount"));
+            }
+            other => panic!("expected ReservationInvariant, got {:?}", other),
+        }
+
+        // Verify telemetry recorded the failure
+        let session = exec
+            .reservation_session
+            .lock()
+            .expect("reservation session mutex poisoned");
+        assert_eq!(session.telemetry.reservation_begin_failed, 1);
+    }
+
+    #[test]
+    fn telemetry_state_updates() {
+        let sender: ActorID = 60;
+        let mut exec = new_executor_with_actor(sender, TokenAmount::from_atto(1_000_000u64));
+        let plan = vec![(Address::new_id(sender), TokenAmount::from_atto(500u64))];
+
+        // 1. Test failure increment
+        // Use a too-large plan to force failure
+        {
+            let poor_sender = 61;
+            let account_code = *exec.builtin_actors().get_account_code();
+            exec.state_tree_mut()
+                .set_actor(poor_sender, ActorState::new_empty(account_code, None));
+            let fail_plan = vec![(Address::new_id(poor_sender), TokenAmount::from_atto(10u64))];
+
+            exec.begin_reservation_session(&fail_plan).unwrap_err();
+
+            let session = exec.reservation_session.lock().unwrap();
+            assert_eq!(session.telemetry.reservation_begin_failed, 1);
+            assert_eq!(session.telemetry.reservations_open, 0);
+        }
+
+        // 2. Test success increment
+        exec.begin_reservation_session(&plan).unwrap();
+        {
+            let session = exec.reservation_session.lock().unwrap();
+            assert_eq!(session.telemetry.reservation_begin_failed, 1); // unchanged
+            assert_eq!(session.telemetry.reservations_open, 1);
+            assert_eq!(session.telemetry.reservation_total_per_sender.len(), 1);
+            assert_eq!(session.telemetry.reserved_remaining_per_sender.len(), 1);
+        }
+
+        // 3. Test end session decrement
+        // We must clear reservations manually to allow end_session (simulating consumption)
+        {
+            let mut session = exec.reservation_session.lock().unwrap();
+            session.reservations.clear();
+        }
+
+        exec.end_reservation_session().unwrap();
+        {
+            let session = exec.reservation_session.lock().unwrap();
+            assert_eq!(session.telemetry.reservations_open, 0);
+            assert!(session.telemetry.reservation_total_per_sender.is_empty());
+            assert!(session.telemetry.reserved_remaining_per_sender.is_empty());
+        }
+    }
 }
