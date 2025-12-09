@@ -32,22 +32,7 @@ fn caller_call_authority(auth20: [u8; 20]) -> Vec<u8> {
     code
 }
 
-#[allow(dead_code)]
-fn wrap_init_with_runtime(runtime: &[u8]) -> Vec<u8> {
-    let len = runtime.len();
-    assert!(len <= 0xFF);
-    let offset: u8 = 12;
-    let mut init = Vec::with_capacity(12 + len);
-    init.extend_from_slice(&[0x60, len as u8]);
-    init.extend_from_slice(&[0x60, offset]);
-    init.extend_from_slice(&[0x60, 0x00]);
-    init.push(0x39); // CODECOPY
-    init.extend_from_slice(&[0x60, len as u8]);
-    init.extend_from_slice(&[0x60, 0x00]);
-    init.push(0xF3); // RETURN
-    init.extend_from_slice(runtime);
-    init
-}
+
 
 #[test]
 fn delegated_call_depth_limit_enforced() {

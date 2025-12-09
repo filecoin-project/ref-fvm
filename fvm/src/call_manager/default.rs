@@ -568,6 +568,7 @@ where
         };
 
         // Skip explicit check of caller code; entrypoint gating below suffices.
+        // Caller code is implicitly validated via entrypoint matching below.
         if !self
             .machine()
             .builtin_actors()
@@ -668,8 +669,8 @@ where
             .and_then(|a| match a.payload() {
                 fvm_shared::address::Payload::Delegated(d) if d.namespace() == EAM_ACTOR_ID => {
                     let sub = d.subaddress();
-                    if sub.len() >= 20 {
-                        Some(sub[sub.len() - 20..].to_vec())
+                    if sub.len() == 20 {
+                        Some(sub.to_vec())
                     } else {
                         None
                     }
@@ -687,8 +688,8 @@ where
             .and_then(|a| match a.payload() {
                 fvm_shared::address::Payload::Delegated(d) if d.namespace() == EAM_ACTOR_ID => {
                     let sub = d.subaddress();
-                    if sub.len() >= 20 {
-                        Some(sub[sub.len() - 20..].to_vec())
+                    if sub.len() == 20 {
+                        Some(sub.to_vec())
                     } else {
                         None
                     }
@@ -739,6 +740,7 @@ where
         if !value.is_zero() {
             let t = self.charge_gas(self.price_list().on_value_transfer())?;
             if let Err(_e) = self.transfer(from, to, value) {
+                log::debug!("Value transfer failed during delegated call: {:?}", _e);
                 let empty = Block::new(
                     fvm_ipld_encoding::IPLD_RAW,
                     Vec::<u8>::new(),
@@ -1059,6 +1061,7 @@ where
         }
 
         // Transfer, if necessary (non-intercept paths only).
+        // Transfer value for normal (non-delegated) calls.
         if !value.is_zero() {
             let t = self.charge_gas(self.price_list().on_value_transfer())?;
             self.transfer(from, to, value)?;
