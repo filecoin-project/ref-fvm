@@ -25,8 +25,6 @@ fn extcodecopy_program(target20: [u8; 20], offset: u8, size: u8) -> Vec<u8> {
     code
 }
 
-
-
 #[test]
 fn evm_extcode_projection_size_hash_copy() {
     // Build harness with events enabled to mirror runtime conditions.

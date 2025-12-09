@@ -18,8 +18,6 @@ fn make_reverting_delegate(payload: [u8; 4]) -> Vec<u8> {
     code
 }
 
-
-
 fn make_caller_call_authority(authority20: [u8; 20], ret_len: u8) -> Vec<u8> {
     // Performs CALL(gas, authority, value=0, args=(0,0), rets=(0,ret_len)), then returns that region.
     let mut code = Vec::new();

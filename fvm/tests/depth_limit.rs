@@ -32,8 +32,6 @@ fn caller_call_authority(auth20: [u8; 20]) -> Vec<u8> {
     code
 }
 
-
-
 #[test]
 fn delegated_call_depth_limit_enforced() {
     let options = ExecutionOptions {
