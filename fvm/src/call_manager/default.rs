@@ -599,7 +599,7 @@ where
         }
         let ea_state: Option<EthAccountStateView> = {
             let store = self.blockstore();
-            store.get_cbor(&to_state.state).map_err(|e| {
+            store.get_cbor(&to_state.state).map_err(|_e| {
                 ExecutionError::Syscall(SyscallError::new(
                     ErrorNumber::IllegalOperation,
                     "failed to decode EthAccount state".to_string(),

@@ -53,13 +53,13 @@ fi
 if git rev-parse --verify "$DEFAULT_BRANCH" >/dev/null 2>&1; then
   for file in $(git diff --diff-filter=d --name-only "$DEFAULT_BRANCH" -- '*.rs'); do
     header=$(head -$LINES "$file")
-	  if ! echo "$header" | grep -q -P "$PAT_PL"; then
-	    echo "$file was missing Protocol Labs"
-	    head -1 $COPYRIGHT_TXT > temp
-	    cat "$file" >> temp
-	    mv temp "$file"
-	    ret=1
-	  fi
+    if ! echo "$header" | grep -q -P "$PAT_PL"; then
+      echo "$file was missing Protocol Labs"
+      head -1 $COPYRIGHT_TXT > temp
+      cat "$file" >> temp
+      mv temp "$file"
+      ret=1
+    fi
   done
 fi
 
