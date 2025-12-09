@@ -612,10 +612,10 @@ where
         };
 
         // Resolve delegate 20-byte to f4 address under EAM namespace.
-        let delegate_addr = Address::new_delegated(EAM_ACTOR_ID, &delegate20).map_err(|e| {
+        let delegate_addr = Address::new_delegated(EAM_ACTOR_ID, &delegate20).map_err(|_e| {
             ExecutionError::Syscall(SyscallError::new(
                 ErrorNumber::IllegalArgument,
-                format!("invalid delegate address: {e}"),
+                "invalid delegate address".to_string(),
             ))
         })?;
         let Some(delegate_id) = self.resolve_address(&delegate_addr)? else {
@@ -725,10 +725,10 @@ where
         };
         let params_blk = Some(Block::new(
             fvm_ipld_encoding::DAG_CBOR,
-            to_vec(&params_v2).map_err(|e| {
+            to_vec(&params_v2).map_err(|_e| {
                 ExecutionError::Syscall(SyscallError::new(
                     ErrorNumber::IllegalArgument,
-                    format!("failed to encode InvokeAsEoa params: {e}"),
+                    "failed to encode InvokeAsEoa params".to_string(),
                 ))
             })?,
             Vec::<Cid>::new(),
@@ -796,10 +796,10 @@ where
             new_storage_root: cid::Cid,
         }
         let out: InvokeAsEoaReturnV2 =
-            fvm_ipld_encoding::from_slice(ret_blk.data()).map_err(|e| {
+            fvm_ipld_encoding::from_slice(ret_blk.data()).map_err(|_e| {
                 ExecutionError::Syscall(SyscallError::new(
                     ErrorNumber::Serialization,
-                    format!("failed to decode InvokeAsEoa return: {e}"),
+                    "failed to decode InvokeAsEoa return".to_string(),
                 ))
             })?;
 
@@ -818,10 +818,10 @@ where
         let new_state_cid = self
             .blockstore()
             .put_cbor(&updated, multihash_codetable::Code::Blake2b256)
-            .map_err(|e| {
+            .map_err(|_e| {
                 ExecutionError::Syscall(SyscallError::new(
                     ErrorNumber::Serialization,
-                    format!("failed to write EthAccount state: {e}"),
+                    "failed to write EthAccount state".to_string(),
                 ))
             })?;
         // Update actor state with new root, preserving balance/sequence/code/delegated address.
