@@ -48,7 +48,7 @@ multihash-codetable = { version = "0.1.4", default-features = false }
 multihash-derive = { version = "0.9.1", default-features = false }
 
 # crypto
-blake2b_simd = "1.0.3"
+blake2b_simd = "1.0.4"
 k256 = { version = "0.13.4", features = ["ecdsa"], default-features = false }
 bls-signatures = { version = "0.15", default-features = false }
 
