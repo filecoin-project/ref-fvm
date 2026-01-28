@@ -24,7 +24,7 @@ pub use self::vec::*;
 /// reachable set.
 pub const CBOR: u64 = 0x51;
 /// DagCBOR should be used for all IPLD-CBOR data where CIDs need to be traversable.
-pub const DAG_CBOR: u64 = 0x71;
+pub const DAG_CBOR: u64 = serde_ipld_dagcbor::DAG_CBOR_CODE;
 /// RAW should be used for raw data.
 pub const IPLD_RAW: u64 = 0x55;
 
