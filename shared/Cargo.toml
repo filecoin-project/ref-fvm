@@ -25,7 +25,7 @@ anyhow = "1.0.97"
 fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 serde = { version = "1", default-features = false }
-serde_tuple = "0.5"
+serde_tuple = "1.1"
 serde_repr = "0.1"
 serde_bytes = { package = "cs_serde_bytes", version = "0.12" }
 arbitrary = { version = "1.4", optional = true, features = ["derive"]}
