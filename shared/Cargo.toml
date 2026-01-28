@@ -8,7 +8,7 @@ repository.workspace = true
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
 
 [dependencies]
-blake2b_simd = "1.0.3"
+blake2b_simd = "1.0.4"
 thiserror = "2.0"
 num-traits = "0.2"
 num-derive = "0.4"
