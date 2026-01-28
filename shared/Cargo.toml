@@ -23,7 +23,7 @@ unsigned-varint = "0.8.0"
 anyhow = "1.0.97"
 fvm_ipld_encoding = { workspace = true }
 serde = { version = "1", default-features = false }
-serde_tuple = "0.5"
+serde_tuple = "1.1"
 arbitrary = { version = "1.4", optional = true, features = ["derive"] }
 quickcheck = { version = "1", optional = true }
 bitflags = { version = "2.9.0", features = ["serde"] }
