@@ -322,7 +322,7 @@ impl BitField {
 
     /// Returns the number of set bits in the bit field.
     pub fn len(&self) -> u64 {
-        self.ranges().map(|range| range.size()).sum()
+        (self.set.len() as u64) + self.ranges.iter().map(|range| range.size() - (self.unset.range(range.clone()).count() as u64) - (self.set.range(range.clone()).count() as u64)).sum::<u64>()
     }
 
     /// Returns a new bit field containing the bits in `self` that remain
