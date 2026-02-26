@@ -46,23 +46,6 @@ pub(crate) enum Pointer<K, V, H, Ver = version::V3> {
     Dirty(Box<Node<K, V, H, Ver>>),
 }
 
-impl<K, V, H, Ver> Clone for Pointer<K, V, H, Ver>
-where
-    K: Clone,
-    V: Clone,
-{
-    fn clone(&self) -> Self {
-        match self {
-            Self::Values(v) => Self::Values(v.clone()),
-            Self::Link { cid, cache: _ } => Self::Link {
-                cid: *cid,
-                cache: Default::default(),
-            },
-            Self::Dirty(n) => Self::Dirty(n.clone()),
-        }
-    }
-}
-
 impl<K: PartialEq, V: PartialEq, H, Ver> PartialEq for Pointer<K, V, H, Ver> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

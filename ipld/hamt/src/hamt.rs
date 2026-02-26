@@ -363,7 +363,7 @@ where
     /// map.set(4, 2).unwrap();
     ///
     /// let mut total = 0;
-    /// map.for_each(|_, v| {
+    /// map.for_each(|_, v: &u64| {
     ///    total += v;
     ///    Ok(())
     /// }).unwrap();
@@ -398,7 +398,7 @@ where
     /// map.set(4, 2).unwrap();
     ///
     /// let mut total = 0;
-    /// map.for_each_cacheless(|_, v| {
+    /// map.for_each_cacheless(|_, v: &u64| {
     ///    total += v;
     ///    Ok(())
     /// }).unwrap();
@@ -406,8 +406,7 @@ where
     /// ```
     pub fn for_each_cacheless<F>(&self, mut f: F) -> Result<(), Error>
     where
-        K: Clone,
-        V: DeserializeOwned + Clone,
+        V: DeserializeOwned,
         F: FnMut(&K, &V) -> anyhow::Result<()>,
     {
         self.root
