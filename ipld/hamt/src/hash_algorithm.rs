@@ -72,9 +72,9 @@ pub enum Identity {}
 
 #[cfg(feature = "identity")]
 impl HashAlgorithm for Identity {
-    fn hash<X: ?Sized>(key: &X) -> HashedKey
+    fn hash<X>(key: &X) -> HashedKey
     where
-        X: Hash,
+        X: Hash + ?Sized,
     {
         let mut ident_hasher = IdentityHasher::default();
         key.hash(&mut ident_hasher);
