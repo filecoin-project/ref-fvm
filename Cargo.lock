@@ -288,13 +288,13 @@ dependencies = [
 
 [[package]]
 name = "blake2b_simd"
-version = "1.0.3"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06e903a20b159e944f91ec8499fe1e55651480c541ea0a584f5d967c49ad9d99"
+checksum = "b79834656f71332577234b50bfc009996f7449e0c056884e6a02492ded0ca2f3"
 dependencies = [
  "arrayref",
  "arrayvec 0.7.6",
- "constant_time_eq 0.3.1",
+ "constant_time_eq 0.4.2",
 ]
 
 [[package]]
@@ -405,9 +405,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.10.1"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
+checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
 name = "cast"
@@ -606,7 +606,7 @@ dependencies = [
  "cid",
  "fvm_ipld_bitfield 0.7.2",
  "fvm_ipld_encoding 0.5.3",
- "fvm_shared 4.7.4",
+ "fvm_shared 4.7.5",
  "libfuzzer-sys",
  "rand",
  "serde",
@@ -643,6 +643,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
+name = "constant_time_eq"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
+
+[[package]]
 name = "convert_case"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -677,36 +683,36 @@ dependencies = [
 
 [[package]]
 name = "cranelift-assembler-x64"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0920ef6863433fa28ece7e53925be4cd39a913adba2dc3738f4edd182f76d168"
+checksum = "ba33ddc4e157cb1abe9da6c821e8824f99e56d057c2c22536850e0141f281d61"
 dependencies = [
  "cranelift-assembler-x64-meta",
 ]
 
 [[package]]
 name = "cranelift-assembler-x64-meta"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8990a217e2529a378af1daf4f8afa889f928f07ebbde6ae2f058ae60e40e2c20"
+checksum = "69b23dd6ea360e6fb28a3f3b40b7f126509668f58076a4729b2cfd656f26a0ad"
 dependencies = [
  "cranelift-srcgen",
 ]
 
 [[package]]
 name = "cranelift-bforest"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62225596b687f69a42c038485a28369badc186cb7c74bd9436eeec9f539011b1"
+checksum = "a9d81afcee8fe27ee2536987df3fadcb2e161af4edb7dbe3ef36838d0ce74382"
 dependencies = [
  "cranelift-entity",
 ]
 
 [[package]]
 name = "cranelift-bitset"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c23914fc4062558650a6f0d8c1846c97b541215a291fdeabc85f68bdc9bbcca3"
+checksum = "fb33595f1279fe7af03b28245060e9085caf98b10ed3137461a85796eb83972a"
 dependencies = [
  "serde",
  "serde_derive",
@@ -714,9 +720,9 @@ dependencies = [
 
 [[package]]
 name = "cranelift-codegen"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41a238b2f7e7ec077eb170145fa15fd8b3d0f36cc83d8e354e29ca550f339ca7"
+checksum = "0230a6ac0660bfe31eb244cbb43dcd4f2b3c1c4e0addc3e0348c6053ea60272e"
 dependencies = [
  "bumpalo",
  "cranelift-assembler-x64",
@@ -741,9 +747,9 @@ dependencies = [
 
 [[package]]
 name = "cranelift-codegen-meta"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9315ddcc2512513a9d66455ec89bb70ae5498cb472f5ed990230536f4cd5c011"
+checksum = "96d6817fdc15cb8f236fc9d8e610767d3a03327ceca4abff7a14d8e2154c405e"
 dependencies = [
  "cranelift-assembler-x64-meta",
  "cranelift-codegen-shared",
@@ -754,24 +760,24 @@ dependencies = [
 
 [[package]]
 name = "cranelift-codegen-shared"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc6acea40ef860f28cb36eaad479e26556c1e538b0a66fc44598cf1b1689393d"
+checksum = "0403796328e9e2e7df2b80191cdbb473fd9ea3889eb45ef5632d0fef168ea032"
 
 [[package]]
 name = "cranelift-control"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b2af895da90761cfda4a4445960554fcec971e637882eda5a87337d993fe1b9"
+checksum = "188f04092279a3814e0b6235c2f9c2e34028e4beb72da7bfed55cbd184702bcc"
 dependencies = [
  "arbitrary",
 ]
 
 [[package]]
 name = "cranelift-entity"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e8c542c856feb50d504e4fc0526b3db3a514f882a9f68f956164531517828ab"
+checksum = "43f5e7391167605d505fe66a337e1a69583b3f34b63d359ffa5a430313c555e8"
 dependencies = [
  "cranelift-bitset",
  "serde",
@@ -780,9 +786,9 @@ dependencies = [
 
 [[package]]
 name = "cranelift-frontend"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9996dd9c20929c03360fe0c4edf3594c0cbb94525bdbfa04b6bb639ec14573c7"
+checksum = "ea5440792eb2b5ba0a0976df371b9f94031bd853ae56f389de610bca7128a7cb"
 dependencies = [
  "cranelift-codegen",
  "log",
@@ -792,15 +798,15 @@ dependencies = [
 
 [[package]]
 name = "cranelift-isle"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "928b8dccad51b9e0ffe54accbd617da900239439b13d48f0f122ab61105ca6ad"
+checksum = "1e5c05fab6fce38d729088f3fa1060eaa1ad54eefd473588887205ed2ab2f79e"
 
 [[package]]
 name = "cranelift-native"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f75ef0a6a2efed3a2a14812318e28dc82c214eab5399c13d70878e2f88947b5"
+checksum = "9c9a0607a028edf5ba5bba7e7cf5ca1b7f0a030e3ae84dcd401e8b9b05192280"
 dependencies = [
  "cranelift-codegen",
  "libc",
@@ -809,9 +815,9 @@ dependencies = [
 
 [[package]]
 name = "cranelift-srcgen"
-version = "0.123.2"
+version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "673bd6d1c83cb41d60afb140a1474ef6caf1a3e02f3820fc522aefbc93ac67d6"
+checksum = "cb0f2da72eb2472aaac6cfba4e785af42b1f2d82f5155f30c9c30e8cce351e17"
 
 [[package]]
 name = "crc32fast"
@@ -999,7 +1005,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18e4fdb82bd54a12e42fb58a800dcae6b9e13982238ce2296dc3570b92148e1f"
 dependencies = [
  "data-encoding",
- "syn 2.0.100",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -1333,8 +1339,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_account"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "fil_actors_runtime",
@@ -1368,8 +1374,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_cron"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "fil_actors_runtime",
  "fvm_ipld_blockstore 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1383,8 +1389,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_datacap"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "cid",
  "fil_actors_runtime",
@@ -1404,8 +1410,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_eam"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "cid",
@@ -1425,8 +1431,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_ethaccount"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "fil_actors_runtime",
  "frc42_dispatch",
@@ -1441,10 +1447,11 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_evm"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
+ "blst",
  "cid",
  "fil_actors_evm_shared",
  "fil_actors_runtime",
@@ -1466,8 +1473,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_init"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "cid",
@@ -1485,8 +1492,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_market"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "cid",
@@ -1510,8 +1517,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_miner"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "bitflags 2.9.0",
@@ -1537,8 +1544,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_multisig"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "cid",
@@ -1558,8 +1565,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_paych"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "cid",
@@ -1575,13 +1582,13 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_placeholder"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 
 [[package]]
 name = "fil_actor_power"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "cid",
@@ -1602,8 +1609,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_reward"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "fil_actors_runtime",
  "fvm_ipld_blockstore 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1618,8 +1625,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_system"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "cid",
@@ -1635,8 +1642,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actor_verifreg"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "cid",
@@ -1657,8 +1664,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actors_evm_shared"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "fil_actors_runtime",
  "fvm_ipld_encoding 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1670,8 +1677,8 @@ dependencies = [
 
 [[package]]
 name = "fil_actors_runtime"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -1706,14 +1713,14 @@ name = "fil_address_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
 ]
 
 [[package]]
 name = "fil_builtin_actors_bundle"
-version = "16.0.1"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+version = "17.0.0"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "cid",
  "clap",
@@ -1743,8 +1750,8 @@ name = "fil_create_actor"
 version = "0.1.0"
 dependencies = [
  "fil_actors_runtime",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
 ]
 
 [[package]]
@@ -1753,8 +1760,8 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
  "num-traits",
  "serde",
 ]
@@ -1764,8 +1771,8 @@ name = "fil_events_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
  "serde",
 ]
 
@@ -1774,8 +1781,8 @@ name = "fil_exit_data_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
 ]
 
 [[package]]
@@ -1786,8 +1793,8 @@ dependencies = [
  "cid",
  "fvm_gas_calibration_shared",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
  "ipld-core",
  "num-derive",
  "num-traits",
@@ -1799,8 +1806,8 @@ name = "fil_gaslimit_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
  "log",
  "serde",
 ]
@@ -1809,8 +1816,8 @@ dependencies = [
 name = "fil_hello_world_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
 ]
 
 [[package]]
@@ -1821,8 +1828,8 @@ dependencies = [
  "cid",
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
  "multihash-codetable",
  "serde",
 ]
@@ -1832,24 +1839,24 @@ name = "fil_ipld_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
 ]
 
 [[package]]
 name = "fil_malformed_syscall_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
 ]
 
 [[package]]
 name = "fil_oom_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
 ]
 
 [[package]]
@@ -1858,8 +1865,8 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
 ]
 
 [[package]]
@@ -1868,16 +1875,16 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
 ]
 
 [[package]]
 name = "fil_stack_overflow_actor"
 version = "0.1.0"
 dependencies = [
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
 ]
 
 [[package]]
@@ -1886,8 +1893,8 @@ version = "0.1.0"
 dependencies = [
  "fil_actors_runtime",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
  "multihash-codetable",
  "multihash-derive",
 ]
@@ -1898,8 +1905,8 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
  "serde",
 ]
 
@@ -1909,8 +1916,8 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
  "serde",
 ]
 
@@ -2226,7 +2233,7 @@ dependencies = [
 
 [[package]]
 name = "fvm"
-version = "4.7.4"
+version = "4.7.5"
 dependencies = [
  "ambassador",
  "anyhow",
@@ -2241,7 +2248,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_encoding 0.5.3",
  "fvm_ipld_hamt 0.10.4",
- "fvm_shared 4.7.4",
+ "fvm_shared 4.7.5",
  "lazy_static",
  "log",
  "minstant",
@@ -2271,7 +2278,7 @@ dependencies = [
  "fvm",
  "fvm_integration_tests",
  "fvm_ipld_encoding 0.5.3",
- "fvm_shared 4.7.4",
+ "fvm_shared 4.7.5",
  "hex",
 ]
 
@@ -2323,7 +2330,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_car 0.9.0",
  "fvm_ipld_encoding 0.5.3",
- "fvm_shared 4.7.4",
+ "fvm_shared 4.7.5",
  "ipld-core",
  "itertools 0.14.0",
  "ittapi-rs",
@@ -2345,7 +2352,7 @@ dependencies = [
 name = "fvm_gas_calibration_shared"
 version = "0.1.0"
 dependencies = [
- "fvm_shared 4.7.4",
+ "fvm_shared 4.7.5",
  "num-derive",
  "num-traits",
  "serde",
@@ -2354,7 +2361,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_integration_tests"
-version = "4.7.4"
+version = "4.7.5"
 dependencies = [
  "ambassador",
  "anyhow",
@@ -2368,8 +2375,8 @@ dependencies = [
  "fvm_ipld_blockstore 0.3.1",
  "fvm_ipld_car 0.9.0",
  "fvm_ipld_encoding 0.5.3",
- "fvm_sdk 4.7.4",
- "fvm_shared 4.7.4",
+ "fvm_sdk 4.7.5",
+ "fvm_shared 4.7.5",
  "fvm_test_actors",
  "hex",
  "k256",
@@ -2511,7 +2518,7 @@ dependencies = [
  "serde_ipld_dagcbor",
  "serde_json",
  "serde_repr",
- "serde_tuple 1.1.2",
+ "serde_tuple 1.1.3",
  "thiserror 2.0.12",
 ]
 
@@ -2632,11 +2639,11 @@ dependencies = [
 
 [[package]]
 name = "fvm_sdk"
-version = "4.7.4"
+version = "4.7.5"
 dependencies = [
  "cid",
  "fvm_ipld_encoding 0.5.3",
- "fvm_shared 4.7.4",
+ "fvm_shared 4.7.5",
  "lazy_static",
  "log",
  "num-traits",
@@ -2667,7 +2674,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_shared"
-version = "4.7.4"
+version = "4.7.5"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -2680,7 +2687,7 @@ dependencies = [
  "data-encoding-macro",
  "filecoin-proofs-api",
  "fvm_ipld_encoding 0.5.3",
- "fvm_shared 4.7.4",
+ "fvm_shared 4.7.5",
  "hex",
  "k256",
  "multihash-codetable",
@@ -3073,9 +3080,9 @@ dependencies = [
 
 [[package]]
 name = "ipld-core"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "104718b1cc124d92a6d01ca9c9258a7df311405debb3408c445a36452f9bf8db"
+checksum = "090f624976d72f0b0bb71b86d58dc16c15e069193067cb3a3a09d655246cbbda"
 dependencies = [
  "cid",
  "serde",
@@ -3246,9 +3253,9 @@ dependencies = [
 
 [[package]]
 name = "keccak"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
+checksum = "cb26cec98cce3a3d96cbb7bced3c4b16e3d13f27ec56dbd62cbc8f39cfb9d653"
 dependencies = [
  "cpufeatures",
 ]
@@ -3853,9 +3860,9 @@ dependencies = [
 
 [[package]]
 name = "pulley-interpreter"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4e2d31146038fd9e62bfa331db057aca325d5ca10451a9fe341356cead7da53"
+checksum = "499d922aa0f9faac8d92351416664f1b7acd914008a90fce2f0516d31efddf67"
 dependencies = [
  "cranelift-bitset",
  "log",
@@ -3865,9 +3872,9 @@ dependencies = [
 
 [[package]]
 name = "pulley-macros"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efb9fdafaca625f9ea8cfa793364ea1bdd32d306cff18f166b00ddaa61ecbb27"
+checksum = "a3848fb193d6dffca43a21f24ca9492f22aab88af1223d06bac7f8a0ef405b81"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4206,10 +4213,11 @@ checksum = "56e6fa9c48d24d85fb3de5ad847117517440f6beceb7798af16b4a87d616b8d0"
 
 [[package]]
 name = "serde"
-version = "1.0.219"
+version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
+checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
+ "serde_core",
  "serde_derive",
 ]
 
@@ -4223,10 +4231,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_derive"
-version = "1.0.219"
+name = "serde_core"
+version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b0276cf7f2c73365f7157c8123c21cd9a50fbbd844757af28ca1f5925fc2a00"
+checksum = "41d385c7d4ca58e59fc732af25c3983b67ac852c1a25000afe1175de458b67ad"
+dependencies = [
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_derive"
+version = "1.0.228"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4289,12 +4306,12 @@ dependencies = [
 
 [[package]]
 name = "serde_tuple"
-version = "1.1.2"
+version = "1.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52569c5296679bd28e2457f067f97d270077df67da0340647da5412c8eac8d9e"
+checksum = "6af196b9c06f0aa5555ab980c01a2527b0f67517da8d68b1731b9d4764846a6f"
 dependencies = [
  "serde",
- "serde_tuple_macros 1.1.2",
+ "serde_tuple_macros 1.1.3",
 ]
 
 [[package]]
@@ -4310,9 +4327,9 @@ dependencies = [
 
 [[package]]
 name = "serde_tuple_macros"
-version = "1.1.2"
+version = "1.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f46c707781471741d5f2670edb36476479b26e94cf43efe21ca3c220b97ef2e"
+checksum = "ec3a1e7d2eadec84deabd46ae061bf480a91a6bce74d25dad375bd656f2e19d8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4891,7 +4908,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "vm_api"
 version = "1.0.0"
-source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#fe3e33162ca0579b712189e0c739013351e376fc"
+source = "git+https://github.com/filecoin-project/builtin-actors?branch=master#2f040c122bf672314450fee16aa45e8420f40dde"
 dependencies = [
  "anyhow",
  "cid",
@@ -5087,9 +5104,9 @@ dependencies = [
 
 [[package]]
 name = "wasmtime"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b3e1fab634681494213138ea3a18e958e5ea99da13a4a01a4b870d51a41680b"
+checksum = "6a2f8736ddc86e03a9d0e4c477a37939cfc53cd1b052ee38a3133679b87ef830"
 dependencies = [
  "addr2line 0.25.1",
  "anyhow",
@@ -5132,9 +5149,9 @@ dependencies = [
 
 [[package]]
 name = "wasmtime-environ"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6750e519977953a018fe994aada7e02510aea4babb03310aa5f5b4145b6e6577"
+checksum = "733682a327755c77153ac7455b1ba8f2db4d9946c1738f8002fe1fbda1d52e83"
 dependencies = [
  "anyhow",
  "cranelift-bitset",
@@ -5155,18 +5172,18 @@ dependencies = [
 
 [[package]]
 name = "wasmtime-internal-asm-macros"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdbf38adac6e81d5c0326e8fd25f80450e3038f2fc103afd3c5cc8b83d5dd78b"
+checksum = "68288980a2e02bcb368d436da32565897033ea21918007e3f2bae18843326cf9"
 dependencies = [
  "cfg-if",
 ]
 
 [[package]]
 name = "wasmtime-internal-cranelift"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d85b8ba128525bff91b89ac8a97755136a4fb0fb59df5ffb7539dd646455d441"
+checksum = "e89bb9ef571288e2be6b8a3c4763acc56c348dcd517500b1679d3ffad9e4a757"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -5191,9 +5208,9 @@ dependencies = [
 
 [[package]]
 name = "wasmtime-internal-fiber"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c566f5137de1f55339df8a236a5ec89698b466a3d33f9cc07823a58a3f85e16"
+checksum = "b698d004b15ea1f1ae2d06e5e8b80080cbd684fd245220ce2fac3cdd5ecf87f2"
 dependencies = [
  "anyhow",
  "cc",
@@ -5207,9 +5224,9 @@ dependencies = [
 
 [[package]]
 name = "wasmtime-internal-jit-debug"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e03f0b11f8fe4d456feac11e7e9dc6f02ddb34d4f6a1912775dbc63c5bdd5670"
+checksum = "c803a9fec05c3d7fa03474d4595079d546e77a3c71c1d09b21f74152e2165c17"
 dependencies = [
  "cc",
  "object 0.37.3",
@@ -5219,9 +5236,9 @@ dependencies = [
 
 [[package]]
 name = "wasmtime-internal-jit-icache-coherence"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71aeb74f9b3fd9225319c723e59832a77a674b0c899ba9795f9b2130a6d1b167"
+checksum = "d3866909d37f7929d902e6011847748147e8734e9d7e0353e78fb8b98f586aee"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -5231,24 +5248,24 @@ dependencies = [
 
 [[package]]
 name = "wasmtime-internal-math"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31d5dad8a609c6cc47a5f265f13b52e347e893450a69641af082b8a276043fa7"
+checksum = "5a23b03fb14c64bd0dfcaa4653101f94ade76c34a3027ed2d6b373267536e45b"
 dependencies = [
  "libm",
 ]
 
 [[package]]
 name = "wasmtime-internal-slab"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d152a7b875d62e395bfe0ae7d12e7b47cd332eb380353cce3eb831f9843731d"
+checksum = "fbff220b88cdb990d34a20b13344e5da2e7b99959a5b1666106bec94b58d6364"
 
 [[package]]
 name = "wasmtime-internal-unwinder"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2aaacc0fea00293f7af7e6c25cef74b7d213ebbe7560c86305eec15fc318fab8"
+checksum = "13e1ad30e88988b20c0d1c56ea4b4fbc01a8c614653cbf12ca50c0dcc695e2f7"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -5259,9 +5276,9 @@ dependencies = [
 
 [[package]]
 name = "wasmtime-internal-versioned-export-macros"
-version = "36.0.2"
+version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c61c7f75326434944cc5f3b75409a063fa37e537f6247f00f0f733679f0be406"
+checksum = "549aefdaa1398c2fcfbf69a7b882956bb5b6e8e5b600844ecb91a3b5bf658ca7"
 dependencies = [
  "proc-macro2",
  "quote",

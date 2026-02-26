@@ -2,6 +2,7 @@
 name = "fvm-bench"
 version = "0.1.0"
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 fvm_integration_tests = { workspace = true }
