@@ -364,20 +364,21 @@ where
         // If there are remaining funds, burn them. We do this instead of letting the user to
         // specify the beneficiary as:
         //
-        // 1. This lets the user handle transfer failure cases themselves. The only way _this_ can
-        //    fail is for the caller to run out of gas.
+        // 1. This lets the user handle transfer failure cases themselves. This can fail if the
+        //    caller runs out of gas, or if the actor has active reservations preventing the transfer.
         // 2. If we ever decide to allow code on method 0, allowing transfers here would be
         //    unfortunate.
         let balance = self.current_balance()?;
         if !balance.is_zero() {
             if !burn_unspent {
-                return Err(
-                    syscall_error!(IllegalOperation; "self-destruct with unspent funds").into(),
-                );
+                return Err(syscall_error!(
+                    IllegalOperation;
+                    "self-destruct with unspent funds"
+                )
+                .into());
             }
             self.call_manager
-                .transfer(self.actor_id, BURNT_FUNDS_ACTOR_ID, &balance)
-                .or_fatal()?;
+                .transfer(self.actor_id, BURNT_FUNDS_ACTOR_ID, &balance)?;
         }
 
         // Delete the executing actor.

@@ -3,11 +3,13 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use cid::Cid;
 use fvm::call_manager::{Backtrace, CallManager, Entrypoint, FinishRet, InvocationResult};
 use fvm::engine::Engine;
+use fvm::executor::ReservationSession;
 use fvm::externs::{Chain, Consensus, Externs, Rand};
 use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
 use fvm::machine::limiter::MemoryLimiter;
@@ -258,6 +260,7 @@ impl CallManager for DummyCallManager {
         _receiver_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
+        _reservation_session: Arc<Mutex<ReservationSession>>,
     ) -> Self {
         let rc = Rc::new(RefCell::new(TestData {
             charge_gas_calls: 0,
