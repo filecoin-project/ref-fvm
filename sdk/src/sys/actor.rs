@@ -186,4 +186,11 @@ super::fvm_syscalls! {
     pub fn balance_of(
         actor_id: u64
     )  -> Result<super::TokenAmount>;
+
+    /// Returns the EthAccount's `delegate_to` address as a 20-byte buffer, or 0 length if unset.
+    pub fn get_eth_delegate_to(
+        actor_id: u64,
+        obuf_off: *mut u8,
+        obuf_len: u32,
+    ) -> Result<u32>;
 }

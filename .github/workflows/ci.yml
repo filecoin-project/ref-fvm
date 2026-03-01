@@ -57,6 +57,8 @@ jobs:
             push: true
             covname: fvm-lcov.info
             command: llvm-cov
+            # Keep default features disabled to avoid pulling OpenCL on CI.
+            # Delegation paths are exercised by tests compatible with minimal builds.
             args: --package fvm --no-default-features --lcov --output-path fvm-lcov.info
           - name: test
             key: v3-cov
