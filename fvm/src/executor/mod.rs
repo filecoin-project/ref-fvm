@@ -93,6 +93,8 @@ pub struct ApplyRet {
     pub exec_trace: ExecutionTrace,
     /// Events generated while applying the message.
     pub events: Vec<StampedEvent>,
+    /// The IPLD codec of the return data. 0 indicates no return data.
+    pub return_codec: u64,
 }
 
 impl ApplyRet {
@@ -119,6 +121,7 @@ impl ApplyRet {
             failure_info: Some(ApplyFailure::PreValidation(message.into())),
             exec_trace: vec![],
             events: vec![],
+            return_codec: 0,
         }
     }
 }

@@ -183,30 +183,35 @@ where
         } = ret;
 
         // Extract the exit code and build the result of the message application.
-        let receipt = match res {
+        let (receipt, return_codec) = match res {
             Ok(InvocationResult { exit_code, value }) => {
-                // Convert back into a top-level return "value". We throw away the codec here,
-                // unfortunately.
-                let return_data = value
-                    .map(|blk| RawBytes::from(blk.data().to_vec()))
-                    .unwrap_or_default();
+                let (return_data, return_codec) = match value {
+                    Some(blk) => (RawBytes::from(blk.data().to_vec()), blk.codec()),
+                    None => (RawBytes::default(), 0),
+                };
 
                 if exit_code.is_success() {
                     backtrace.clear();
                 }
+                (
+                    Receipt {
+                        exit_code,
+                        return_data,
+                        gas_used,
+                        events_root,
+                    },
+                    return_codec,
+                )
+            }
+            Err(ExecutionError::OutOfGas) => (
                 Receipt {
-                    exit_code,
-                    return_data,
+                    exit_code: ExitCode::SYS_OUT_OF_GAS,
+                    return_data: Default::default(),
                     gas_used,
                     events_root,
-                }
-            }
-            Err(ExecutionError::OutOfGas) => Receipt {
-                exit_code: ExitCode::SYS_OUT_OF_GAS,
-                return_data: Default::default(),
-                gas_used,
-                events_root,
-            },
+                },
+                0,
+            ),
             Err(ExecutionError::Syscall(err)) => {
                 // Errors indicate the message couldn't be dispatched at all
                 // (as opposed to failing during execution of the receiving actor).
@@ -218,12 +223,15 @@ where
                 };
 
                 backtrace.begin(backtrace::Cause::from_syscall("send", "send", err));
-                Receipt {
-                    exit_code,
-                    return_data: Default::default(),
-                    gas_used,
-                    events_root,
-                }
+                (
+                    Receipt {
+                        exit_code,
+                        return_data: Default::default(),
+                        gas_used,
+                        events_root,
+                    },
+                    0,
+                )
             }
             Err(ExecutionError::Fatal(err)) => {
                 // We produce a receipt with SYS_ASSERTION_FAILED exit code, and
@@ -243,12 +251,15 @@ where
                     self.context().epoch,
                 ));
                 backtrace.set_cause(backtrace::Cause::from_fatal(err));
-                Receipt {
-                    exit_code: ExitCode::SYS_ASSERTION_FAILED,
-                    return_data: Default::default(),
-                    gas_used: msg.gas_limit,
-                    events_root,
-                }
+                (
+                    Receipt {
+                        exit_code: ExitCode::SYS_ASSERTION_FAILED,
+                        return_data: Default::default(),
+                        gas_used: msg.gas_limit,
+                        events_root,
+                    },
+                    0,
+                )
             }
         };
 
@@ -267,6 +278,7 @@ where
                 gas_cost,
                 exec_trace,
                 events,
+                return_codec,
             ),
             ApplyKind::Implicit => Ok(ApplyRet {
                 msg_receipt: receipt,
@@ -280,6 +292,7 @@ where
                 failure_info,
                 exec_trace,
                 events,
+                return_codec,
             }),
         }
     }
@@ -472,6 +485,7 @@ where
         gas_cost: TokenAmount,
         exec_trace: ExecutionTrace,
         events: Vec<StampedEvent>,
+        return_codec: u64,
     ) -> anyhow::Result<ApplyRet> {
         // NOTE: we don't support old network versions in the FVM, so we always burn.
         let GasOutputs {
@@ -529,6 +543,7 @@ where
             failure_info,
             exec_trace,
             events,
+            return_codec,
         })
     }
 
