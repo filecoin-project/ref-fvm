@@ -186,8 +186,8 @@ where
         let (receipt, return_codec) = match res {
             Ok(InvocationResult { exit_code, value }) => {
                 let (return_data, return_codec) = match value {
-                    Some(blk) => (RawBytes::from(blk.data().to_vec()), blk.codec()),
-                    None => (RawBytes::default(), 0),
+                    Some(blk) => (RawBytes::from(blk.data().to_vec()), Some(blk.codec())),
+                    None => (RawBytes::default(), None),
                 };
 
                 if exit_code.is_success() {
@@ -210,7 +210,7 @@ where
                     gas_used,
                     events_root,
                 },
-                0,
+                None,
             ),
             Err(ExecutionError::Syscall(err)) => {
                 // Errors indicate the message couldn't be dispatched at all
@@ -230,7 +230,7 @@ where
                         gas_used,
                         events_root,
                     },
-                    0,
+                    None,
                 )
             }
             Err(ExecutionError::Fatal(err)) => {
@@ -258,7 +258,7 @@ where
                         gas_used: msg.gas_limit,
                         events_root,
                     },
-                    0,
+                    None,
                 )
             }
         };
@@ -485,7 +485,7 @@ where
         gas_cost: TokenAmount,
         exec_trace: ExecutionTrace,
         events: Vec<StampedEvent>,
-        return_codec: u64,
+        return_codec: Option<u64>,
     ) -> anyhow::Result<ApplyRet> {
         // NOTE: we don't support old network versions in the FVM, so we always burn.
         let GasOutputs {
