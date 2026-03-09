@@ -394,7 +394,7 @@ where
     /// }
     /// assert_eq!(x,2)
     /// ```
-    pub fn iter(&self) -> Iter<BS, V, K, H, N> {
+    pub fn iter(&self) -> Iter<'_, BS, V, K, H, N> {
         Iter::new(&self.store, &self.root, &self.conf)
     }
 
@@ -465,7 +465,7 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-    pub fn iter_from<Q>(&self, key: &Q) -> Result<Iter<BS, V, K, H, N>, Error>
+    pub fn iter_from<Q>(&self, key: &Q) -> Result<Iter<'_, BS, V, K, H, N>, Error>
     where
         K: Borrow<Q>,
         Q: PartialEq,

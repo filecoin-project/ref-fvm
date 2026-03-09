@@ -14,7 +14,7 @@ macro_rules! identity_arr {
     ($($n:literal),*) => {
         $(
             impl AsHashedKey<[u8; $n], $n> for Identity {
-                fn as_hashed_key(key: &[u8; $n]) -> Cow<HashedKey<$n>> {
+                fn as_hashed_key(key: &[u8; $n]) -> Cow<'_, HashedKey<$n>> {
                     Cow::Borrowed(key)
                 }
             }
@@ -27,7 +27,7 @@ macro_rules! identity_hash {
     ($($t:ty),*) => {
         $(
             impl AsHashedKey<$t, 32> for Identity {
-                fn as_hashed_key(key: &$t) -> Cow<HashedKey<32>> {
+                fn as_hashed_key(key: &$t) -> Cow<'_, HashedKey<32>> {
                     const BYTES: usize = <$t>::BITS as usize / 8;
                     let mut output = [0u8; 32];
                     output[..BYTES].copy_from_slice(&<$t>::to_ne_bytes(*key));
