@@ -13,8 +13,6 @@
 mod bitfield;
 mod error;
 mod hamt;
-#[allow(dead_code)]
-mod hash;
 mod hash_algorithm;
 mod hash_bits;
 mod iter;
