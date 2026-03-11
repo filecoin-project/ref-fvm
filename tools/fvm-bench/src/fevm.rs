@@ -136,19 +136,15 @@ pub fn parse_eth_revert(returnval: &Vec<u8>) -> anyhow::Result<String> {
         ERROR_FUNCTION_SELECTOR => {
             let cbytes = &returnval[4..];
             let cbytes_len = cbytes.len() as u64;
-            if let Ok(offset) = bytes_to_u64(&cbytes[0..32]) {
-                if cbytes_len >= offset + 32 {
-                    if let Ok(length) = bytes_to_u64(&cbytes[offset as usize..offset as usize + 32])
-                    {
-                        if cbytes_len >= offset + 32 + length {
-                            let msg = String::from_utf8_lossy(
-                                &cbytes
-                                    [offset as usize + 32..offset as usize + 32 + length as usize],
-                            );
-                            return Ok(msg.to_string());
-                        }
-                    }
-                }
+            if let Ok(offset) = bytes_to_u64(&cbytes[0..32])
+                && cbytes_len >= offset + 32
+                && let Ok(length) = bytes_to_u64(&cbytes[offset as usize..offset as usize + 32])
+                && cbytes_len >= offset + 32 + length
+            {
+                let msg = String::from_utf8_lossy(
+                    &cbytes[offset as usize + 32..offset as usize + 32 + length as usize],
+                );
+                return Ok(msg.to_string());
             }
         }
         _ => return Ok(hex::encode(returnval)),

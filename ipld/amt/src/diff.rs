@@ -353,12 +353,11 @@ where
                                 node::Link::Dirty(n) => (None, Either::Borrowed(n.borrow())),
                             };
 
-                            if let Some(prev_cid) = &prev_cid {
-                                if let Some(curr_cid) = &curr_cid {
-                                    if prev_cid == curr_cid {
-                                        continue;
-                                    }
-                                }
+                            if let Some(prev_cid) = &prev_cid
+                                && let Some(curr_cid) = &curr_cid
+                                && prev_cid == curr_cid
+                            {
+                                continue;
                             }
 
                             let prev_sub_ctx = NodeContext {

@@ -831,7 +831,7 @@ fn for_each_ranged(
         // should have used the expected number of iterations
         assert_eq!(
             iterations,
-            (size_factor / page_size) + ((size_factor % page_size) > 0) as usize
+            (size_factor / page_size) + (!size_factor.is_multiple_of(page_size)) as usize
         );
     }
 
@@ -882,7 +882,7 @@ fn for_each_ranged(
         // should have used the expected number of iterations
         assert_eq!(
             iterations,
-            (size_factor / page_size) + ((size_factor % page_size) > 0) as usize
+            (size_factor / page_size) + (!size_factor.is_multiple_of(page_size)) as usize
         );
     }
 

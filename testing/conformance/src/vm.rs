@@ -293,51 +293,49 @@ pub struct TestLimiter<L> {
 /// Store the minimum of the maximums of desired memories in the global stats.
 impl<L> Drop for TestLimiter<L> {
     fn drop(&mut self) {
-        if let Some(ref stats) = self.global_stats {
-            if let Ok(mut stats) = stats.lock() {
-                let max_desired = self.local_stats.max_instance_memory_bytes;
-                let min_desired = self.local_stats.min_instance_memory_bytes;
+        if let Some(ref stats) = self.global_stats
+            && let Ok(mut stats) = stats.lock()
+        {
+            let max_desired = self.local_stats.max_instance_memory_bytes;
+            let min_desired = self.local_stats.min_instance_memory_bytes;
 
-                if stats.exec.max_instance_memory_bytes < max_desired {
-                    stats.exec.max_instance_memory_bytes = max_desired;
-                }
+            if stats.exec.max_instance_memory_bytes < max_desired {
+                stats.exec.max_instance_memory_bytes = max_desired;
+            }
 
-                if stats.exec.min_instance_memory_bytes == 0
-                    || stats.exec.min_instance_memory_bytes > max_desired
-                {
-                    stats.exec.min_instance_memory_bytes = max_desired;
-                }
+            if stats.exec.min_instance_memory_bytes == 0
+                || stats.exec.min_instance_memory_bytes > max_desired
+            {
+                stats.exec.min_instance_memory_bytes = max_desired;
+            }
 
-                if stats.init.max_instance_memory_bytes < min_desired {
-                    stats.init.max_instance_memory_bytes = min_desired;
-                }
+            if stats.init.max_instance_memory_bytes < min_desired {
+                stats.init.max_instance_memory_bytes = min_desired;
+            }
 
-                if stats.init.min_instance_memory_bytes == 0
-                    || stats.init.min_instance_memory_bytes > min_desired
-                {
-                    stats.init.min_instance_memory_bytes = min_desired;
-                }
+            if stats.init.min_instance_memory_bytes == 0
+                || stats.init.min_instance_memory_bytes > min_desired
+            {
+                stats.init.min_instance_memory_bytes = min_desired;
+            }
 
-                let max_desired = self.local_stats.max_table_elements;
-                let min_desired = self.local_stats.min_table_elements;
+            let max_desired = self.local_stats.max_table_elements;
+            let min_desired = self.local_stats.min_table_elements;
 
-                if stats.exec.max_table_elements < max_desired {
-                    stats.exec.max_table_elements = max_desired;
-                }
+            if stats.exec.max_table_elements < max_desired {
+                stats.exec.max_table_elements = max_desired;
+            }
 
-                if stats.exec.min_table_elements == 0 || stats.exec.min_table_elements > max_desired
-                {
-                    stats.exec.min_table_elements = max_desired;
-                }
+            if stats.exec.min_table_elements == 0 || stats.exec.min_table_elements > max_desired {
+                stats.exec.min_table_elements = max_desired;
+            }
 
-                if stats.init.max_table_elements < min_desired {
-                    stats.init.max_table_elements = min_desired;
-                }
+            if stats.init.max_table_elements < min_desired {
+                stats.init.max_table_elements = min_desired;
+            }
 
-                if stats.init.min_table_elements == 0 || stats.init.min_table_elements > min_desired
-                {
-                    stats.init.min_table_elements = min_desired;
-                }
+            if stats.init.min_table_elements == 0 || stats.init.min_table_elements > min_desired {
+                stats.init.min_table_elements = min_desired;
             }
         }
     }

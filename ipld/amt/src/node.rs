@@ -333,13 +333,10 @@ where
 
     fn set_leaf(&mut self, i: u64, val: V) -> Option<V> {
         match self {
-            Node::Leaf { vals } => {
-                let prev = std::mem::replace(
-                    vals.get_mut(usize::try_from(i).unwrap()).unwrap(),
-                    Some(val),
-                );
-                prev
-            }
+            Node::Leaf { vals } => vals
+                .get_mut(usize::try_from(i).unwrap())
+                .unwrap()
+                .replace(val),
             Node::Link { .. } => panic!("set_leaf should never be called on a shard of links"),
         }
     }

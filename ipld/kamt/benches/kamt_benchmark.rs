@@ -45,7 +45,7 @@ impl BenchData {
 struct VecKey;
 
 impl AsHashedKey<Vec<u8>, 32> for VecKey {
-    fn as_hashed_key(key: &Vec<u8>) -> Cow<HashedKey<32>> {
+    fn as_hashed_key(key: &Vec<u8>) -> Cow<'_, HashedKey<32>> {
         assert!(key.len() <= 32);
         let mut bytes = [0; 32];
         for (i, b) in key.iter().enumerate() {

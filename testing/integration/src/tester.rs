@@ -310,8 +310,8 @@ where
 
     /// Get blockstore
     pub fn blockstore(&self) -> &dyn Blockstore {
-        if self.executor.is_some() {
-            self.executor.as_ref().unwrap().blockstore()
+        if let Some(executor) = &self.executor {
+            executor.blockstore()
         } else {
             self.state_tree.as_ref().unwrap().store()
         }

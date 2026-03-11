@@ -281,7 +281,7 @@ fn random_mutations(data: &mut [u8], seed: u64, n: usize) {
 fn random_chunk(inp: &[u8], count: usize, seed: u64) -> Vec<&[u8]> {
     if count == 0 {
         Vec::new()
-    } else if seed % 2 == 0 {
+    } else if seed.is_multiple_of(2) {
         inp.chunks((inp.len() / count).max(1))
             .chain(std::iter::repeat(&[][..]))
             .take(count)

@@ -512,7 +512,7 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-    pub fn iter(&self) -> IterImpl<BS, V, K, H, Ver> {
+    pub fn iter(&self) -> IterImpl<'_, BS, V, K, H, Ver> {
         IterImpl::new(&self.store, &self.root, &self.conf)
     }
 
@@ -552,7 +552,7 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-    pub fn iter_from<Q>(&self, key: &Q) -> Result<IterImpl<BS, V, K, H, Ver>, Error>
+    pub fn iter_from<Q>(&self, key: &Q) -> Result<IterImpl<'_, BS, V, K, H, Ver>, Error>
     where
         H: HashAlgorithm,
         K: Borrow<Q>,
