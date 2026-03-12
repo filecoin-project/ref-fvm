@@ -224,6 +224,7 @@ impl DummyCallManager {
         )
     }
 
+    #[allow(dead_code)]
     pub fn new_with_gas(gas_tracker: GasTracker) -> (Self, Rc<RefCell<TestData>>) {
         let rc = Rc::new(RefCell::new(TestData {
             charge_gas_calls: 0,

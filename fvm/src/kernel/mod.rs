@@ -218,6 +218,10 @@ pub trait ActorOps {
 
     /// Returns the balance associated with an actor id
     fn balance_of(&self, actor_id: ActorID) -> Result<TokenAmount>;
+
+    /// Returns the EthAccount's `delegate_to` 20-byte address if set, or None.
+    /// Returns Ok(None) for non-EOAs and for EOAs without delegation set.
+    fn get_eth_delegate_to(&self, actor_id: ActorID) -> Result<Option<[u8; 20]>>;
 }
 
 /// Cryptographic primitives provided by the kernel.
