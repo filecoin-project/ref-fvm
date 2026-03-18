@@ -77,8 +77,8 @@ Finally, an [FVM "owner"](https://github.com/orgs/filecoin-project/teams/fvm-cra
 2. The **Releaser** GitHub Action will automatically:
    * Create git tags for each released crate (`crate_name@vX.Y.Z`).
    * Publish the draft GitHub Release(s).
-   * Publish the crates to [crates.io](https://crates.io) using `cargo publish --workspace`.
-     - Note: The `CARGO_REGISTRY_TOKEN` secret must be configured in the repository.
+   * Publish the crates to [crates.io](https://crates.io) using `cargo publish --workspace --no-default-features`.
+     - Note: This repository uses **trusted publishing** via OIDC. No `CARGO_REGISTRY_TOKEN` secret is required, but the repository must be configured as a trusted publisher on crates.io.
 
 3. Verify the releases on crates.io:
    https://crates.io/crates/fvm/versions

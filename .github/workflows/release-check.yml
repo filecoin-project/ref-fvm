@@ -44,4 +44,5 @@ jobs:
         run: |
           # Use cargo publish --workspace --dry-run to verify the entire workspace at once.
           # This correctly handles interdependent crates which a matrix-based approach misses.
-          cargo publish --workspace --dry-run
+          # We use --no-default-features to avoid OpenCL dependencies which are not available in the CI environment.
+          cargo publish --workspace --dry-run --no-default-features
