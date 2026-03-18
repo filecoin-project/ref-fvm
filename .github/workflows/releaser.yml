@@ -34,3 +34,17 @@ jobs:
       separator: "@"
     secrets:
       UCI_GITHUB_TOKEN: ${{ secrets.UCI_GITHUB_TOKEN }}
+
+  cargo-publish:
+    needs: [releaser]
+    if: needs.releaser.outputs.json != '{}'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          # Use cargo publish --workspace to publish all changed crates in the workspace.
+          # This handles interdependent crates correctly and only publishes those with version bumps.
+          cargo publish --workspace

@@ -36,17 +36,12 @@ jobs:
       separator: "@"
   cargo-publish:
     needs: [release-check]
-    if: needs.release-check.outputs.json != '[]'
+    if: needs.release-check.outputs.json != '{}'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        source: ${{ fromJSON(needs.release-check.outputs.json).*.source }}
     steps:
       - uses: actions/checkout@v4
-      - env:
-          source: ${{ matrix.source }}
+      - name: Dry-run publish
         run: |
-          pushd "$(dirname $source)"
-          cargo publish --dry-run
-          popd
+          # Use cargo publish --workspace --dry-run to verify the entire workspace at once.
+          # This correctly handles interdependent crates which a matrix-based approach misses.
+          cargo publish --workspace --dry-run
