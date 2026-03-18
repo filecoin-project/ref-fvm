@@ -1,7 +1,7 @@
 name: Release Checker
 
 on:
-  pull_request_target:
+  pull_request:
     paths:
       - "**/Cargo.toml"
     types: [ opened, synchronize, reopened, labeled, unlabeled ]
