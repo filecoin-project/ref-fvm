@@ -13,7 +13,8 @@ use fvm::gas::{Gas, GasCharge, GasTimer, GasTracker};
 use fvm::machine::limiter::MemoryLimiter;
 use fvm::machine::{Machine, MachineContext, Manifest, NetworkConfig};
 use fvm::state_tree::StateTree;
-use fvm::{kernel, Kernel};
+use fvm::trace::IpldOperation;
+use fvm::{Kernel, kernel};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
 use fvm_shared::address::Address;
@@ -23,7 +24,7 @@ use fvm_shared::event::StampedEvent;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IDENTITY_HASH};
-use multihash::{Code, Multihash};
+use multihash_codetable::{Code, Multihash};
 
 pub const STUB_NETWORK_VER: NetworkVersion = NetworkVersion::V21;
 
@@ -189,9 +190,9 @@ pub struct DummyCallManager {
     pub gas_tracker: GasTracker,
     pub gas_premium: TokenAmount,
     pub origin: ActorID,
-    pub origin_address: Address,
     pub nonce: u64,
     pub test_data: Rc<RefCell<TestData>>,
+    pub ipld_traces: Vec<(IpldOperation, Cid, usize)>,
     limits: DummyLimiter,
 }
 
@@ -200,7 +201,7 @@ pub struct TestData {
     pub charge_gas_calls: usize,
 }
 
-const BLOCK_GAS_LIMIT: Gas = Gas::new(fvm_shared::BLOCK_GAS_LIMIT);
+const BLOCK_GAS_LIMIT: Gas = Gas::new(10_000_000_000);
 
 impl DummyCallManager {
     pub fn new_stub() -> (Self, Rc<RefCell<TestData>>) {
@@ -216,8 +217,8 @@ impl DummyCallManager {
                 nonce: 0,
                 test_data: rc,
                 limits: DummyLimiter::default(),
-                origin_address: Address::new_id(0),
                 gas_premium: TokenAmount::zero(),
+                ipld_traces: vec![],
             },
             cell_ref,
         )
@@ -236,8 +237,8 @@ impl DummyCallManager {
                 nonce: 0,
                 test_data: rc,
                 limits: DummyLimiter::default(),
-                origin_address: Address::new_id(0),
                 gas_premium: TokenAmount::zero(),
+                ipld_traces: vec![],
             },
             cell_ref,
         )
@@ -252,7 +253,7 @@ impl CallManager for DummyCallManager {
         _engine: Engine,
         _gas_limit: u64,
         origin: ActorID,
-        origin_address: Address,
+        _origin_address: Address,
         _receiver: Option<ActorID>,
         _receiver_address: Address,
         nonce: u64,
@@ -267,10 +268,10 @@ impl CallManager for DummyCallManager {
             gas_tracker: GasTracker::new(BLOCK_GAS_LIMIT, Gas::new(0), false),
             gas_premium,
             origin,
-            origin_address,
             nonce,
             test_data: rc,
             limits,
+            ipld_traces: vec![],
         }
     }
 
@@ -403,5 +404,13 @@ impl CallManager for DummyCallManager {
         _value: &TokenAmount,
     ) -> fvm::kernel::Result<()> {
         todo!()
+    }
+
+    fn log(&mut self, _msg: String) {
+        todo!()
+    }
+
+    fn trace_ipld(&mut self, op: IpldOperation, cid: Cid, size: usize) {
+        self.ipld_traces.push((op, cid, size));
     }
 }

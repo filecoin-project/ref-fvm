@@ -10,8 +10,8 @@ use anyhow::Context;
 use num_traits::Zero;
 
 pub use self::charge::GasCharge;
-pub(crate) use self::outputs::GasOutputs;
-pub use self::price_list::{price_list_by_network_version, PriceList, WasmGasPrices};
+pub use self::outputs::GasOutputs;
+pub use self::price_list::{PriceList, WasmGasPrices, price_list_by_network_version};
 pub use self::timer::{GasDuration, GasInstant, GasTimer};
 use crate::kernel::{ClassifyResult, ExecutionError, Result};
 
@@ -282,7 +282,7 @@ impl GasTracker {
 #[inline]
 pub(crate) const fn milligas_to_gas(milligas: u64, round_up: bool) -> u64 {
     let mut div_result = milligas / MILLIGAS_PRECISION;
-    if round_up && milligas % MILLIGAS_PRECISION != 0 {
+    if round_up && !milligas.is_multiple_of(MILLIGAS_PRECISION) {
         div_result = div_result.saturating_add(1);
     }
     div_result
@@ -302,9 +302,10 @@ mod tests {
         assert_eq!(t.gas_used(), Gas::new(15));
         t.apply_charge(GasCharge::new("", Gas::new(5), Gas::zero()))?;
         assert_eq!(t.gas_used(), Gas::new(20));
-        assert!(t
-            .apply_charge(GasCharge::new("", Gas::new(1), Gas::zero()))
-            .is_err());
+        assert!(
+            t.apply_charge(GasCharge::new("", Gas::new(1), Gas::zero()))
+                .is_err()
+        );
         Ok(())
     }
 

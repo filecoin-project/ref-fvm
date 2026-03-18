@@ -18,8 +18,8 @@
 use anyhow::Context;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_encoding::CborStore;
+use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_hamt::Hamt;
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::{ActorID, HAMT_BIT_WIDTH};
@@ -45,7 +45,7 @@ impl State {
     #[allow(unused)]
     pub fn new_test<B: Blockstore>(store: &B) -> Self {
         #[cfg(feature = "m2-native")]
-        use cid::multihash::Code::Blake2b256;
+        use multihash_codetable::Code::Blake2b256;
 
         // Empty hamt Cid used for testing
         let e_cid = Hamt::<_, String>::new_with_bit_width(&store, 5)

@@ -16,9 +16,9 @@ use fvm_shared::receipt::Receipt;
 use num_traits::Zero;
 pub use threaded::ThreadedExecutor;
 
+use crate::Kernel;
 use crate::call_manager::Backtrace;
 use crate::trace::ExecutionTrace;
-use crate::Kernel;
 
 /// An executor executes messages on the underlying machine/kernel. It's responsible for:
 ///
@@ -93,6 +93,8 @@ pub struct ApplyRet {
     pub exec_trace: ExecutionTrace,
     /// Events generated while applying the message.
     pub events: Vec<StampedEvent>,
+    /// The IPLD codec of the return data, if any.
+    pub return_codec: Option<u64>,
 }
 
 impl ApplyRet {
@@ -119,6 +121,7 @@ impl ApplyRet {
             failure_info: Some(ApplyFailure::PreValidation(message.into())),
             exec_trace: vec![],
             events: vec![],
+            return_codec: None,
         }
     }
 }
@@ -126,9 +129,9 @@ impl ApplyRet {
 /// The kind of message being applied:
 ///
 /// 1. Explicit messages may only come from account actors and charge the sending account for gas
-/// consumed.
+///    consumed.
 /// 2. Implicit messages may come from any actor, ignore the nonce, and charge no gas (but still
-/// account for it).
+///    account for it).
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum ApplyKind {
     Explicit,

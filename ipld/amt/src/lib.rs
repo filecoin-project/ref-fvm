@@ -5,7 +5,7 @@
 //! AMT crate for use as rust IPLD data structure
 //!
 //! Data structure reference:
-//! https://github.com/ipld/specs/blob/51fab05b4fe4930d3d851d50cc1e5f1a02092deb/data-structures/vector.md
+//! <https://github.com/ipld/specs/blob/51fab05b4fe4930d3d851d50cc1e5f1a02092deb/data-structures/vector.md>
 
 mod amt;
 mod diff;
@@ -17,7 +17,7 @@ mod value_mut;
 
 pub(crate) use self::amt::AmtImpl;
 pub use self::amt::{Amt, Amtv0};
-pub use self::diff::{diff, Change, ChangeType};
+pub use self::diff::{Change, ChangeType, diff};
 pub use self::error::Error;
 pub(crate) use self::node::Node;
 pub use self::value_mut::ValueMut;
@@ -27,12 +27,12 @@ const MAX_HEIGHT: u32 = 64;
 
 /// MaxIndex is the maximum index for elements in the AMT. This u64::MAX-1 so we
 /// don't overflow u64::MAX when computing the length.
-pub const MAX_INDEX: u64 = std::u64::MAX - 1;
+pub const MAX_INDEX: u64 = u64::MAX - 1;
 
 fn nodes_for_height(bit_width: u32, height: u32) -> u64 {
     let height_log_two = bit_width as u64 * height as u64;
     if height_log_two >= 64 {
-        return std::u64::MAX;
+        return u64::MAX;
     }
     1 << height_log_two
 }

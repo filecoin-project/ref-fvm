@@ -3,9 +3,9 @@
 //! Syscalls for sending messages to other actors.
 
 #[doc(inline)]
-pub use fvm_shared::sys::out::send::*;
-#[doc(inline)]
 pub use fvm_shared::sys::SendFlags;
+#[doc(inline)]
+pub use fvm_shared::sys::out::send::*;
 
 // for documentation links
 #[cfg(doc)]

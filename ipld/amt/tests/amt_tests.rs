@@ -5,9 +5,9 @@
 use fvm_ipld_amt::{Amt, Amtv0, Error, MAX_INDEX};
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
+use fvm_ipld_encoding::BytesDe;
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::ser::Serialize;
-use fvm_ipld_encoding::BytesDe;
 use std::fmt::Debug;
 
 fn assert_get<V, BS>(a: &Amt<V, BS>, i: u64, v: &V)
@@ -352,7 +352,6 @@ fn for_each() {
 
     // Iterate over amt with dirty cache
     let mut x = 0;
-    #[allow(deprecated)]
     a.for_each(|_, _: &BytesDe| {
         x += 1;
         Ok(())
@@ -367,7 +366,6 @@ fn for_each() {
     assert_eq!(new_amt.count(), indexes.len() as u64);
 
     let mut x = 0;
-    #[allow(deprecated)]
     new_amt
         .for_each(|i, _: &BytesDe| {
             if i != indexes[x] {
@@ -382,7 +380,6 @@ fn for_each() {
         .unwrap();
     assert_eq!(x, indexes.len());
 
-    #[allow(deprecated)]
     new_amt.for_each(|_, _: &BytesDe| Ok(())).unwrap();
     assert_eq!(
         c.to_string().as_str(),
@@ -391,6 +388,82 @@ fn for_each() {
 
     #[rustfmt::skip]
     assert_eq!(*db.stats.borrow(), BSStats {r: 1431, w: 1431, br: 88649, bw: 88649});
+}
+
+#[test]
+fn for_each_cacheless() {
+    let mem = MemoryBlockstore::default();
+    let db = TrackingBlockstore::new(&mem);
+    let mut a = Amt::new(&db);
+
+    let mut indexes = Vec::new();
+    for i in 0..10000 {
+        if (i + 1) % 3 == 0 {
+            indexes.push(i);
+        }
+    }
+
+    // Set all indices in the Amt
+    for i in indexes.iter() {
+        a.set(*i, tbytes(b"value")).unwrap();
+    }
+
+    // Ensure all values were added into the amt
+    for i in indexes.iter() {
+        assert_eq!(a.get(*i).unwrap(), Some(&tbytes(b"value")));
+    }
+
+    assert_eq!(a.count(), indexes.len() as u64);
+
+    // Iterate over amt with dirty cache. This should not touch the database at all.
+    let mut x = 0;
+    a.for_each_cacheless(|_, _: &BytesDe| {
+        x += 1;
+        Ok(())
+    })
+    .unwrap();
+    #[rustfmt::skip]
+    assert_eq!(*db.stats.borrow(), BSStats {r: 0, w: 0, br: 0, bw: 0});
+    assert_eq!(x, indexes.len());
+
+    // Flush and regenerate amt
+    let c = a.flush().unwrap();
+    let new_amt = Amt::load(&c, &db).unwrap();
+    assert_eq!(new_amt.count(), indexes.len() as u64);
+
+    let mut x = 0;
+    new_amt
+        .for_each_cacheless(|i, _: &BytesDe| {
+            if i != indexes[x] {
+                panic!(
+                    "for each cacheless found wrong index: expected {} got {}",
+                    indexes[x], i
+                );
+            }
+            x += 1;
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(x, indexes.len());
+
+    // After 1st pass, the amount of block reads should be the same as in the caching iteration.
+    #[rustfmt::skip]
+    assert_eq!(*db.stats.borrow(), BSStats {r: 1431, w: 1431, br: 88649, bw: 88649});
+
+    new_amt.for_each_cacheless(|_, _: &BytesDe| Ok(())).unwrap();
+    assert_eq!(
+        c.to_string().as_str(),
+        "bafy2bzaceanqxtbsuyhqgxubiq6vshtbhktmzp2if4g6kxzttxmzkdxmtipcm"
+    );
+
+    // 2nd pass, no caching so block reads roughly doubled.
+    #[rustfmt::skip]
+    assert_eq!(*db.stats.borrow(), BSStats {r: 2861, w: 1431, br: 177158, bw: 88649});
+
+    // errorr during iteration is propagated
+    let res = new_amt.for_each_cacheless(|_, _: &BytesDe| anyhow::bail!("cthulhu fhtagn"));
+    let err = res.unwrap_err();
+    assert_eq!(err.to_string(), "cthulhu fhtagn");
 }
 
 #[test]
@@ -420,7 +493,6 @@ fn for_each_ranged() {
     // Iterate over amt with dirty cache from different starting values
     for start_val in 0..RANGE {
         let mut retrieved_values = Vec::new();
-        #[allow(deprecated)]
         let (count, next_key) = a
             .for_each_while_ranged(Some(start_val), None, |index, _: &BytesDe| {
                 retrieved_values.push(index);
@@ -436,7 +508,6 @@ fn for_each_ranged() {
 
     // Iterate out of bounds
     for i in [RANGE, RANGE + 1, 2 * RANGE, 8 * RANGE] {
-        #[allow(deprecated)]
         let (count, next_key) = a
             .for_each_while_ranged(Some(i), None, |_, _: &BytesDe| {
                 panic!("didn't expect to iterate")
@@ -449,7 +520,6 @@ fn for_each_ranged() {
     // Iterate over amt with dirty cache with different page sizes
     for page_size in 1..=RANGE {
         let mut retrieved_values = Vec::new();
-        #[allow(deprecated)]
         let (count, next_key) = a
             .for_each_while_ranged(None, Some(page_size), |index, _: &BytesDe| {
                 retrieved_values.push(index);
@@ -471,7 +541,6 @@ fn for_each_ranged() {
     let mut retrieved_values = Vec::new();
     let mut start_cursor = None;
     loop {
-        #[allow(deprecated)]
         let (num_traversed, next_cursor) = a
             .for_each_while_ranged(start_cursor, Some(page_size), |idx, _val| {
                 retrieved_values.push(idx);
@@ -497,7 +566,6 @@ fn for_each_ranged() {
     let mut retrieved_values = Vec::new();
     let mut start_cursor = None;
     loop {
-        #[allow(deprecated)]
         let (num_traversed, next_cursor) = a
             .for_each_ranged(start_cursor, Some(page_size), |idx, _val: &BytesDe| {
                 retrieved_values.push(idx);
@@ -523,7 +591,6 @@ fn for_each_ranged() {
 
     // Iterate over the amt with dirty cache ignoring gaps in the address space including at the
     // beginning of the amt, we should only see the values that were not deleted
-    #[allow(deprecated)]
     let (num_traversed, next_cursor) = a
         .for_each_while_ranged(Some(0), Some(501), |i, _v| {
             assert_eq!((i / 10) % 2, 1); // only "odd" batches of ten 10 - 19, 30 - 39, etc. should be present
@@ -536,7 +603,6 @@ fn for_each_ranged() {
     // flush the amt to the blockstore, reload and repeat the test with a clean cache
     let cid = a.flush().unwrap();
     let a = Amt::load(&cid, &db).unwrap();
-    #[allow(deprecated)]
     let (num_traversed, next_cursor) = a
         .for_each_while_ranged(Some(0), Some(501), |i, _v: &BytesDe| {
             assert_eq!((i / 10) % 2, 1); // only "odd" batches of ten 10 - 19, 30 - 39, etc. should be present
@@ -632,7 +698,6 @@ fn new_from_iter() {
 
     let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
     let mut restored = Vec::new();
-    #[allow(deprecated)]
     a.for_each(|k, v| {
         restored.push((k as usize, v.clone()));
         Ok(())

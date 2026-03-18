@@ -4,7 +4,7 @@
 
 //! # RLE+ Bitset Encoding
 //!
-//! (from https://github.com/filecoin-project/specs/blob/master/src/listings/data_structures.md)
+//! (from <https://github.com/filecoin-project/specs/blob/master/src/listings/data_structures.md>)
 //!
 //! RLE+ is a lossless compression format based on [RLE](https://en.wikipedia.org/wiki/Run-length_encoding).
 //! Its primary goal is to reduce the size in the case of many individual bits, where RLE breaks down quickly,
@@ -69,7 +69,7 @@ mod writer;
 use std::borrow::Cow;
 
 #[cfg(feature = "enable-arbitrary")]
-use arbitrary::{size_hint, Arbitrary, Unstructured};
+use arbitrary::{Arbitrary, Unstructured, size_hint};
 pub use error::Error;
 use fvm_ipld_encoding::strict_bytes;
 pub use reader::BitReader;
@@ -77,7 +77,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use writer::BitWriter;
 
 use super::BitField;
-use crate::{RangeSize, MAX_ENCODED_SIZE};
+use crate::{MAX_ENCODED_SIZE, RangeSize};
 
 impl Serialize for BitField {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -479,7 +479,7 @@ mod tests {
 
         for _i in 0..1000 {
             let len: u64 = rng.gen_range(0..1000);
-            let bits: Vec<_> = (0..len).filter(|_| rng.gen::<bool>()).collect();
+            let bits: Vec<_> = (0..len).filter(|_| rng.r#gen::<bool>()).collect();
 
             let ranges: Vec<_> = ranges_from_bits(bits.clone()).collect();
             let bf = BitField::from_ranges(ranges_from_bits(bits));

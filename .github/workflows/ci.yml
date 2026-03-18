@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checking out fvm
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Check Format
       run: cargo fmt -- --check
     - name: Check license headers
@@ -28,7 +28,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        name: [build, check-m2-native, check-clippy, check-clippy-verify-signature, test-fvm, test, integration, conformance, calibration]
+        name: [build, check-m2-native, check-clippy, check-clippy-verify-signature, test-fvm, test, integration, conformance, calibration, doctest, doc]
         include:
           - name: build
             key: v3
@@ -78,6 +78,16 @@ jobs:
             command: test
             # we disable default features because rust will otherwise unify them and turn on opencl in CI.
             args: --release --test gas_calibration_test --features calibration --no-default-features
+          - name: doctest
+            key: v3
+            command: test
+            # we disable default features because Rust will otherwise unify them and turn on opencl in CI.
+            # we also disable test packages, given they are unlikely to contain any doctests and would double the compilation duration
+            args: --all --no-default-features --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor" --doc
+          - name: doc
+            key: v3
+            command: doc
+            args: --all --no-default-features --exclude fvm_conformance_tests --exclude fvm_integration_tests --exclude "*actor"
         exclude:
           - os: macos-latest
             name: check-m2-native
@@ -91,23 +101,36 @@ jobs:
             name: test-fvm
           - os: macos-latest
             name: calibration
+          - os: macos-latest
+            name: doctest
+          - os: macos-latest
+            name: doc
     env:
       CARGO_INCREMENTAL: 0
       CARGO_TERM_COLOR: always
+      RUSTDOCFLAGS: "-Dwarnings"
     name: ${{matrix.os}} - ${{ matrix.name }}
     steps:
     - name: Checking out fvm
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         submodules: ${{ matrix.submodules }}
     # we don't check the lockfile in; this is needed for cache restoration/saving
     - name: Installing Cargo llvm-cov
       if: ${{ matrix.covname }}
-      uses: taiki-e/install-action@bc0a06a003a8225fe3e896c9ed3a4c3cc2e8416a
+      uses: taiki-e/install-action@f1390fd0d8205ae79e5e57b1d1e300dceeb4163e
       with:
-        tool: cargo-llvm-cov@0.4.5
+        tool: cargo-llvm-cov@0.6.16
+    # Install clang for MacOS tests due to Apple's Clang not supporting `wasm32-unknown-unknown` target.
+    - name: Install clang for MacOS
+      if: ${{ matrix.os == 'macos-latest' && ( matrix.name == 'check-clippy-verify-signature' || matrix.name == 'integration' ) }}
+      run: |
+        brew install llvm
+        echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+        echo "CC=$(brew --prefix llvm)/bin/clang" >> "$GITHUB_ENV"
+        echo "CXX=$(brew --prefix llvm)/bin/clang++" >> "$GITHUB_ENV"
     - name: Setting up cache
-      uses: Swatinem/rust-cache@6fd3edff6979b79f87531400ad694fb7f2c84b1f
+      uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6
       with:
         save-if: ${{ matrix.push == true }}
         # change this to invalidate sccache for this job
@@ -116,7 +139,7 @@ jobs:
       run: cargo ${{ matrix.command }} --locked ${{ matrix.args }}
     - name: Upload coverage to Codecov
       if: ${{ matrix.covname }}
-      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
+      uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574
       with:
         files: ${{ matrix.covname }}
         token: ${{ secrets.CODECOV_TOKEN }}

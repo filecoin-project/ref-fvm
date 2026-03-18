@@ -5,8 +5,8 @@
 use std::cell::RefCell;
 
 use anyhow::Result;
-use cid::multihash::{self, Code};
 use cid::Cid;
+use multihash_codetable::Code;
 
 use super::{Block, Blockstore};
 
@@ -83,7 +83,7 @@ where
     where
         Self: Sized,
         D: AsRef<[u8]>,
-        I: IntoIterator<Item = (multihash::Code, Block<D>)>,
+        I: IntoIterator<Item = (multihash_codetable::Code, Block<D>)>,
     {
         let mut stats = self.stats.borrow_mut();
         self.base.put_many(blocks.into_iter().inspect(|(_, b)| {

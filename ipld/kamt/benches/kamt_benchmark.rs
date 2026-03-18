@@ -2,11 +2,10 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-extern crate serde;
-
 use std::borrow::Cow;
+use std::hint::black_box;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_ipld_kamt::{AsHashedKey, Config, HashedKey, Kamt};
@@ -46,7 +45,7 @@ impl BenchData {
 struct VecKey;
 
 impl AsHashedKey<Vec<u8>, 32> for VecKey {
-    fn as_hashed_key(key: &Vec<u8>) -> Cow<HashedKey<32>> {
+    fn as_hashed_key(key: &Vec<u8>) -> Cow<'_, HashedKey<32>> {
         assert!(key.len() <= 32);
         let mut bytes = [0; 32];
         for (i, b) in key.iter().enumerate() {

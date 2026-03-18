@@ -4,8 +4,8 @@
 
 use std::cell::RefCell;
 
-use anyhow::{anyhow, Context as _};
-use cid::{multihash, Cid};
+use anyhow::{Context as _, anyhow};
+use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use fvm_ipld_hamt::Hamt;
@@ -67,11 +67,14 @@ where
                 return Err(ExecutionError::Fatal(anyhow!(
                     "unsupported state tree version: {:?}",
                     version
-                )))
+                )));
             }
             StateTreeVersion::V5 => {
                 let cid = store
-                    .put_cbor(&StateInfo0::default(), multihash::Code::Blake2b256)
+                    .put_cbor(
+                        &StateInfo0::default(),
+                        multihash_codetable::Code::Blake2b256,
+                    )
                     .context("failed to put state info")
                     .or_fatal()?;
                 Some(cid)
@@ -103,14 +106,14 @@ where
                 return Err(ExecutionError::Fatal(anyhow!(
                     "failed to find state tree {}",
                     c
-                )))
+                )));
             }
             Err(e) => {
                 return Err(ExecutionError::Fatal(anyhow!(
                     "failed to load state tree {}: {}",
                     c,
                     e
-                )))
+                )));
             }
         };
 
@@ -264,7 +267,7 @@ where
         // Set state for init actor in store and update root Cid
         actor.state = self
             .store()
-            .put_cbor(&state, multihash::Code::Blake2b256)
+            .put_cbor(&state, multihash_codetable::Code::Blake2b256)
             .or_fatal()?;
 
         self.set_actor(crate::init_actor::INIT_ACTOR_ID, actor);
@@ -349,7 +352,7 @@ where
                 };
                 let root = self
                     .store()
-                    .put_cbor(obj, multihash::Code::Blake2b256)
+                    .put_cbor(obj, multihash_codetable::Code::Blake2b256)
                     .or_fatal()?;
                 Ok(root)
             }
@@ -361,11 +364,24 @@ where
         self.hamt.into_store()
     }
 
+    /// Iterates over each KV in the Hamt and runs a function on the values with cache.
     pub fn for_each<F>(&self, mut f: F) -> anyhow::Result<()>
     where
         F: FnMut(Address, &ActorState) -> anyhow::Result<()>,
     {
         self.hamt.for_each(|k, v| {
+            let addr = Address::from_bytes(&k.0)?;
+            f(addr, v)
+        })?;
+        Ok(())
+    }
+
+    /// Iterates over each KV in the Hamt and runs a function on the values without cache.
+    pub fn for_each_cacheless<F>(&self, mut f: F) -> anyhow::Result<()>
+    where
+        F: FnMut(Address, &ActorState) -> anyhow::Result<()>,
+    {
+        self.hamt.for_each_cacheless(|k, v| {
             let addr = Address::from_bytes(&k.0)?;
             f(addr, v)
         })?;

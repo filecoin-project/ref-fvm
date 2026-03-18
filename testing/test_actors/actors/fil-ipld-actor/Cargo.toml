@@ -1,16 +1,14 @@
 [package]
 name = "fil_ipld_actor"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 publish = false
+license.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 fvm_ipld_encoding = { workspace = true }
 fvm_sdk = { workspace = true }
 fvm_shared = { workspace = true }
-
-[target.'cfg(coverage)'.dependencies]
-minicov = "0.3"
 
 [lib]
 crate-type = ["cdylib"] ## cdylib is necessary for Wasm build

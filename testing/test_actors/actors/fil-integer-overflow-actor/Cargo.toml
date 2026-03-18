@@ -1,8 +1,9 @@
 [package]
 name = "fil_integer_overflow_actor"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 publish = false
+license.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 fvm_sdk = { workspace = true }
@@ -13,7 +14,7 @@ fvm_ipld_blockstore = { workspace = true }
 anyhow = { workspace = true }
 cid = { workspace = true }
 serde = { workspace = true }
-serde_tuple = { workspace = true }
+multihash-codetable = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"] ## cdylib is necessary for Wasm build

@@ -6,13 +6,13 @@ use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sector::WindowPoStVerifyInfo;
 
-use super::context::Memory;
 use super::Context;
+use super::context::Memory;
 use crate::kernel::ClassifyResult;
-use crate::kernel::{filecoin::FilecoinKernel, Result};
+use crate::kernel::{Result, filecoin::FilecoinKernel};
 use crate::syscall_error;
-use anyhow::anyhow;
 use anyhow::Context as _;
+use anyhow::anyhow;
 use fvm_ipld_encoding::from_slice;
 use fvm_shared::piece::PieceInfo;
 use fvm_shared::sector::{
@@ -100,6 +100,7 @@ pub fn verify_post(
 /// - first header is of the same or lower epoch as the second
 /// - at least one of the headers appears in the current chain at or after epoch `earliest`
 /// - the headers provide evidence of a fault (see the spec for the different fault types).
+///
 /// The parameters are all serialized block headers. The third "extra" parameter is consulted only for
 /// the "parent grinding fault", in which case it must be the sibling of h1 (same parent tipset) and one of the
 /// blocks in the parent of h2 (i.e. h2's grandparent).

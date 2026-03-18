@@ -8,7 +8,7 @@ use wasmtime::{Caller, WasmTy};
 
 use super::context::Memory;
 use super::error::Abort;
-use super::{charge_for_exec, charge_syscall_gas, update_gas_available, Context, InvocationData};
+use super::{Context, InvocationData, charge_for_exec, charge_syscall_gas, update_gas_available};
 use crate::call_manager::backtrace;
 use crate::kernel::{self, ExecutionError, Kernel, SyscallError};
 
@@ -44,9 +44,9 @@ impl<K> Linker<K> {
 /// A [`Syscall`] is a function in the form `fn(Context<'_, K>, I...) -> R` where:
 ///
 /// - `K` is the kernel type. Constrain this to the precise kernel operations you need, or even
-///    a specific kernel implementation.
+///   a specific kernel implementation.
 /// - `I...`, the syscall parameters, are 0-8 types, each one of [`u32`], [`u64`], [`i32`], or
-///    [`i64`].
+///   [`i64`].
 /// - `R` is a type implementing [`IntoControlFlow`]. This is usually one of:
 ///     - [`kernel::Result<T>`] or [`ControlFlow<T>`] where `T`, the return value type, is
 ///       [`SyscallSafe`].

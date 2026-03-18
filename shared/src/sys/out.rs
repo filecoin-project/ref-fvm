@@ -7,7 +7,7 @@
 //! plagued with issues and catch-22 problems, making it unfeasible to use
 //! actual bare multi-value returns in FFI extern definitions.
 //!
-//! Read more at https://github.com/rust-lang/rust/issues/73755.
+//! Read more at <https://github.com/rust-lang/rust/issues/73755>.
 
 // NOTE: When possible, pack fields such that loads will be power-of-two aligned. Un-aligned loads
 // _can_ be done (LLVM will generate the appropriate code) but are slower.

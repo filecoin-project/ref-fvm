@@ -1,6 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use cid::Cid;
 use fvm::call_manager::DefaultCallManager;
 use fvm::engine::EnginePool;
@@ -10,15 +10,16 @@ use fvm::machine::{DefaultMachine, Machine, MachineContext, NetworkConfig};
 use fvm::state_tree::{ActorState, StateTree};
 use fvm::{init_actor, system_actor};
 use fvm_ipld_blockstore::{Block, Blockstore, MemoryBlockstore};
-use fvm_ipld_encoding::{ser, CborStore};
+use fvm_ipld_encoding::{CborStore, ser};
 use fvm_shared::address::{Address, Protocol};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
 use fvm_shared::{ActorID, IPLD_RAW};
+use k256::SecretKey;
+use k256::elliptic_curve::sec1::ToEncodedPoint;
 use lazy_static::lazy_static;
-use libsecp256k1::{PublicKey, SecretKey};
-use multihash::Code;
+use multihash_codetable::Code;
 
 use crate::builtin::{
     fetch_builtin_code_cid, set_burnt_funds_account, set_eam_actor, set_init_actor, set_sys_actor,
@@ -309,8 +310,8 @@ where
 
     /// Get blockstore
     pub fn blockstore(&self) -> &dyn Blockstore {
-        if self.executor.is_some() {
-            self.executor.as_ref().unwrap().blockstore()
+        if let Some(executor) = &self.executor {
+            executor.blockstore()
         } else {
             self.state_tree.as_ref().unwrap().store()
         }
@@ -322,8 +323,8 @@ where
         priv_key: SecretKey,
         init_balance: TokenAmount,
     ) -> Result<Account> {
-        let pub_key = PublicKey::from_secret_key(&priv_key);
-        let pub_key_addr = Address::new_secp256k1(&pub_key.serialize())?;
+        let pub_key = priv_key.public_key();
+        let pub_key_addr = Address::new_secp256k1(pub_key.to_encoded_point(false).as_bytes())?;
 
         let state_tree = self
             .state_tree
@@ -362,11 +363,7 @@ pub struct BasicAccount {
 impl BasicTester {
     pub fn new_basic_tester(bundle_path: String, options: ExecutionOptions) -> Result<BasicTester> {
         let blockstore = MemoryBlockstore::default();
-        let bundle_cid =
-            match crate::bundle::import_bundle_from_path(&blockstore, bundle_path.as_str()) {
-                Ok(cid) => cid,
-                Err(what) => return Err(what),
-            };
+        let bundle_cid = crate::bundle::import_bundle_from_path(&blockstore, bundle_path.as_str())?;
 
         let mut tester = Tester::new(
             NetworkVersion::V20,

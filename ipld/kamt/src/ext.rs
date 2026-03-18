@@ -4,7 +4,7 @@
 
 use std::cmp::min;
 
-use crate::hash_bits::{mkmask, HashBits};
+use crate::hash_bits::{HashBits, mkmask};
 use crate::{Error, HashedKey};
 
 /// An optimization for occasions where we don't use key hashing in the KAMT,
@@ -39,7 +39,7 @@ impl Extension {
         self.length
     }
 
-    pub fn path_bits(&self) -> HashBits {
+    pub fn path_bits(&self) -> HashBits<'_> {
         HashBits::new_from_slice(&self.path, self.length)
     }
 
@@ -198,7 +198,7 @@ impl ExtensionBuilder {
         }
         self.written += i;
 
-        if self.written % 8 == 0 {
+        if self.written.is_multiple_of(8) {
             self.path.push(self.out);
             self.out = 0;
         }
@@ -206,7 +206,7 @@ impl ExtensionBuilder {
 
     /// Build the (possibly empty) extension after the last nibble has been added.
     pub fn build(mut self) -> Extension {
-        if self.written % 8 != 0 {
+        if !self.written.is_multiple_of(8) {
             self.path.push(self.out);
         }
         Extension::new(self.written, self.path)

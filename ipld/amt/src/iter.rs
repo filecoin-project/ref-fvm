@@ -1,14 +1,14 @@
 // Copyright 2021-2023 Protocol Labs
 // Copyright 2019-2023 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
+use crate::MAX_INDEX;
 use crate::node::CollapsedNode;
 use crate::node::{Link, Node};
-use crate::MAX_INDEX;
-use crate::{nodes_for_height, Error};
+use crate::{Error, nodes_for_height};
 use anyhow::anyhow;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::CborStore;
+use fvm_ipld_encoding::ser::Serialize;
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
@@ -209,7 +209,7 @@ where
             let stack = self.stack.last_mut()?;
             match stack.node {
                 Node::Leaf { vals } => {
-                    while stack.idx < vals.len() {
+                    while stack.idx < vals.len() && self.key <= MAX_INDEX {
                         match vals[stack.idx] {
                             Some(ref v) => {
                                 stack.idx += 1;
@@ -256,10 +256,10 @@ where
                         }
                         Some(&None) => {
                             stack.idx += 1;
-                            self.key += nodes_for_height(
+                            self.key = self.key.saturating_add(nodes_for_height(
                                 self.bit_width,
                                 self.height - self.stack.len() as u32 + 1,
-                            );
+                            ));
                         }
                         None => {
                             self.stack.pop();
@@ -276,10 +276,45 @@ where
 mod tests {
     use crate::Amt;
     use crate::MAX_INDEX;
-    use fvm_ipld_blockstore::tracking::TrackingBlockstore;
     use fvm_ipld_blockstore::MemoryBlockstore;
+    use fvm_ipld_blockstore::tracking::TrackingBlockstore;
     use fvm_ipld_encoding::BytesDe;
     use quickcheck_macros::quickcheck;
+
+    // Check for regressions around checked additions when iterating over high-keys.
+    #[test]
+    fn check_iter_high_keys() {
+        let db = fvm_ipld_blockstore::MemoryBlockstore::default();
+        // Test overflowing from last node
+        for c in 0..3 {
+            for i in (MAX_INDEX - 10)..=MAX_INDEX {
+                let mut amt = Amt::new_with_bit_width(&db, 8);
+                for j in (0..c).rev() {
+                    amt.set(i - j, "foo".to_owned()).unwrap();
+                }
+                let mut iter = amt.iter();
+                for j in (0..c).rev() {
+                    let (k, v) = iter.next().unwrap().unwrap();
+                    assert_eq!(k, i - j);
+                    assert_eq!(v, "foo");
+                }
+
+                assert!(iter.next().is_none());
+            }
+        }
+
+        // Test overflowing from second-to-last node
+        {
+            let mut amt = Amt::new_with_bit_width(&db, 8);
+            let idx = 7 * (u64::MAX / 8);
+            amt.set(idx, "foo".to_owned()).unwrap();
+            let mut iter = amt.iter();
+            let (k, v) = iter.next().unwrap().unwrap();
+            assert_eq!(k, idx);
+            assert_eq!(v, "foo");
+            assert!(iter.next().is_none());
+        }
+    }
 
     #[test]
     fn check_iter_empty() {
@@ -343,7 +378,6 @@ mod tests {
         let k = Amt::<&str, _>::new_from_iter(&mem, data.iter().map(|s| &**s)).unwrap();
         let a: Amt<String, _> = Amt::load(&k, &mem).unwrap();
         let mut restored = Vec::new();
-        #[allow(deprecated)]
         a.for_each(|k, v| {
             restored.push((k as usize, v.clone()));
             Ok(())
@@ -381,7 +415,6 @@ mod tests {
         let new_amt = Amt::load(&c, &db).unwrap();
 
         let mut x = 0;
-        #[allow(deprecated)]
         new_amt
             .for_each(|k, _: &BytesDe| {
                 if k != indexes[x] {

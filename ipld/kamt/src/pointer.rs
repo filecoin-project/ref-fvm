@@ -7,13 +7,13 @@ use std::cmp::Ordering;
 use cid::Cid;
 use fvm_ipld_encoding::{BytesDe, BytesSer};
 use once_cell::unsync::OnceCell;
-use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, ser};
 
 use super::node::Node;
 use super::{Error, KeyValuePair};
+use crate::Config;
 use crate::bitfield::Bitfield;
 use crate::ext::Extension;
-use crate::Config;
 
 /// Pointer to index values or a link to another child node.
 #[derive(Debug)]
@@ -73,7 +73,7 @@ where
                 PointerSer::Link(cid, ext.len(), BytesSer(ext.path_bytes()))
             }
             Pointer::Dirty { .. } => {
-                return Err(ser::Error::custom("Cannot serialize cached values"))
+                return Err(ser::Error::custom("Cannot serialize cached values"));
             }
         }
         .serialize(serializer)
@@ -241,12 +241,12 @@ fn unsplit_ext(
 mod test {
     use std::collections::BTreeMap;
 
-    use fvm_ipld_encoding::{to_vec, BytesSer};
+    use fvm_ipld_encoding::{BytesSer, to_vec};
     use serde::Serialize;
 
+    use crate::KeyValuePair;
     use crate::ext::Extension;
     use crate::pointer::Pointer;
-    use crate::KeyValuePair;
 
     fn check_encoding<T, V>(expected: &T, input: &V)
     where

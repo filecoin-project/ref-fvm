@@ -17,21 +17,19 @@ fvm_sdk = { workspace = true }
 
 anyhow = { workspace = true }
 cid = { workspace = true }
-futures = { workspace = true }
-multihash = { workspace = true }
+multihash-codetable = { workspace = true, features = ["blake2b"] }
 num-traits = { workspace = true }
 lazy_static = { workspace = true }
-libsecp256k1 = { workspace = true }
+k256 = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 serde = { workspace = true }
-serde_tuple = { workspace = true }
 thiserror = { workspace = true }
 ambassador = { workspace = true }
 wasmtime = { workspace = true, default-features = false, features = ["cranelift", "parallel-compilation"] }
 
 [dev-dependencies]
-actors-v12 = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "master" }
+actors = { package = "fil_builtin_actors_bundle", git = "https://github.com/filecoin-project/builtin-actors", branch = "master" }
 fvm_test_actors = { workspace = true }
 fvm_gas_calibration_shared = { workspace = true }
 blake2b_simd = { workspace = true }
@@ -39,9 +37,14 @@ serde_json = { workspace = true }
 bls-signatures = { workspace = true }
 hex = { workspace = true }
 minstant =  { workspace = true }
-wat = "1.0.66"
+wat = "1.228.0"
+criterion = { workspace = true }
 
 [features]
 default = []
 m2-native = []
 calibration = ["fvm/gas_calibration"]
+
+[[bench]]
+name = "compile"
+harness = false

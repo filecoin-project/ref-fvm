@@ -8,7 +8,7 @@ use serde::de::{self, Deserialize};
 use serde::ser::{self, Serialize};
 
 use crate::node::CollapsedNode;
-use crate::{init_sized_vec, Node, DEFAULT_BIT_WIDTH};
+use crate::{DEFAULT_BIT_WIDTH, Node, init_sized_vec};
 
 pub(crate) mod version {
     #[derive(PartialEq, Eq, Debug)]

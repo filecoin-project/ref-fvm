@@ -2,17 +2,17 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use cid::multihash::{Code, Multihash, MultihashDigest};
 use cid::Cid;
 use fvm_shared::commcid::*;
-use rand::{thread_rng, Rng};
+use multihash_codetable::{Code, Multihash, MultihashDigest};
+use rand::{Rng, thread_rng};
 
 fn rand_comm() -> Commitment {
     let mut rng = thread_rng();
 
     let mut comm = Commitment::default();
     for b in comm.iter_mut() {
-        *b = rng.gen();
+        *b = rng.r#gen();
     }
     comm
 }

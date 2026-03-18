@@ -5,11 +5,11 @@ mod concurrency;
 mod instance_pool;
 
 use std::any::{Any, TypeId};
-use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::sync::{Arc, Mutex};
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_shared::error::ExitCode;
@@ -21,15 +21,15 @@ use wasmtime::{
     ValType, WasmBacktraceDetails,
 };
 
+use crate::Kernel;
 use crate::gas::{Gas, GasTimer, WasmGasPrices};
 use crate::machine::limiter::MemoryLimiter;
 use crate::machine::{Machine, NetworkConfig};
 use crate::syscalls::error::Abort;
 use crate::syscalls::{
-    charge_for_exec, charge_for_init, record_init_time, update_gas_available, InvocationData,
-    Linker,
+    InvocationData, Linker, charge_for_exec, charge_for_init, record_init_time,
+    update_gas_available,
 };
-use crate::Kernel;
 
 use self::concurrency::EngineConcurrency;
 use self::instance_pool::InstancePool;
@@ -128,11 +128,13 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     let instance_count = ec.instance_pool_size();
     let instance_memory_maximum_size = ec.max_inst_memory_bytes;
-    if instance_memory_maximum_size % wasmtime_environ::WASM_PAGE_SIZE as u64 != 0 {
+    if !instance_memory_maximum_size
+        .is_multiple_of(wasmtime_environ::Memory::DEFAULT_PAGE_SIZE as u64)
+    {
         return Err(anyhow!(
             "requested memory limit {} not a multiple of the WASM_PAGE_SIZE {}",
             instance_memory_maximum_size,
-            wasmtime_environ::WASM_PAGE_SIZE
+            wasmtime_environ::Memory::DEFAULT_PAGE_SIZE,
         ));
     }
 
@@ -147,24 +149,33 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     alloc_strat_cfg.max_memories_per_module(1);
     alloc_strat_cfg.total_tables(instance_count);
     alloc_strat_cfg.max_tables_per_module(1);
+    alloc_strat_cfg.table_elements(20_000);
+    // we don't use components.
+    alloc_strat_cfg.total_component_instances(0);
+    alloc_strat_cfg.max_component_instance_size(0);
+    alloc_strat_cfg.max_core_instances_per_component(0);
+    alloc_strat_cfg.max_memories_per_component(0);
+    alloc_strat_cfg.max_tables_per_component(0);
 
     // Adjust the maximum amount of host memory that can be committed to an instance to
     // match the static linear memory size we reserve for each slot.
-    alloc_strat_cfg
-        .memory_pages(instance_memory_maximum_size / (wasmtime_environ::WASM_PAGE_SIZE as u64));
+    alloc_strat_cfg.max_memory_size(instance_memory_maximum_size as usize);
     c.allocation_strategy(InstanceAllocationStrategy::Pooling(alloc_strat_cfg));
 
+    // Explicitly disable custom page sizes, we always assume 64KiB.
+    c.wasm_custom_page_sizes(false);
+
     // wasmtime default: true
-    // We disable this as we always charge for memory regardless and `memory_init_cow` can baloon compiled wasm modules.
+    // We disable this as we always charge for memory regardless and `memory_init_cow` can balloon
+    // compiled wasm modules.
     c.memory_init_cow(false);
 
-    // wasmtime default: 4GB
-    c.static_memory_maximum_size(instance_memory_maximum_size);
-    c.static_memory_forced(true);
-
     // wasmtime default: true
-    // We don't want threads, there is no way to ensure determinism
-    c.wasm_threads(false);
+    c.memory_may_move(false);
+
+    // Note: Threads are disabled by default.
+    // If we add the "wasmtime/threads" feature in the future,
+    // we would explicitly set c.wasm_threads(false) here.
 
     // wasmtime default: true
     // simd isn't supported in wasm-instrument, but if we add support there, we can probably enable
@@ -175,13 +186,20 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.relaxed_simd_deterministic(true);
 
     // wasmtime default: false
+    // Supports wide instructions (https://github.com/WebAssembly/wide-arithmetic).
+    // We'd like this, but we'll need to (a) update our gas instrumentation logic to support it and
+    // (b) make sure our build pipeline can take advantage of it. We should probably wait for it to
+    // be enabled by default.
+    c.wasm_wide_arithmetic(false);
+
+    // wasmtime default: true
     // We don't support the return_call_* functions.
     c.wasm_tail_call(false);
 
     // wasmtime default: true
     c.wasm_multi_memory(false);
 
-    // wasmtime default: false
+    // wasmtime default: true
     c.wasm_memory64(false);
 
     // wasmtime default: true
@@ -194,15 +212,9 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // handled correctly in wasm-instrument
     c.wasm_multi_value(false);
 
-    // wasmtime default: false
-    // Cool proposal to allow function references, but we don't support it yet.
-    #[cfg(feature = "wasmtime/gc")]
-    c.wasm_function_references(false);
-
-    // wasmtime default: false
-    // Wasmtime function reference proposal.
-    #[cfg(feature = "wasmtime/gc")]
-    c.wasm_gc(false);
+    // Note: GC is disabled by default.
+    // If we add the "wasmtime/gc" feature in the future,
+    // we would explicitly set c.wasm_gc(false) and c.wasm_function_references(false) here.
 
     // wasmtime default: false
     //
@@ -236,16 +248,41 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.guard_before_linear_memory(true);
     c.parallel_compilation(true);
 
-    // Disable caching if some other crate enables it. We do our own caching.
-    #[cfg(feature = "wasmtime/cache")]
-    c.disable_cache();
+    // Note: Caching is disabled by default.
+    // If we add the "wasmtime/cache" feature in the future,
+    // we would explicitly set c.disable_cache() here.
 
-    #[cfg(feature = "wasmtime/async")]
-    c.async_support(false);
+    // Note: Async is disabled by default.
+    // If we add the "wasmtime/async" feature in the future,
+    // we would explicitly set c.async_support(false) here.
 
     // Doesn't seem to have significant impact on the time it takes to load code
     // todo(M2): make sure this is guaranteed to run in linear time.
     c.cranelift_opt_level(Speed);
+
+    // Use traditional unix signal handlers instead of Mach ports on MacOS. The Mach ports signal
+    // handlers don't appear to be capturing all SIGILL signals (when run under lotus) and we're not
+    // entirely sure why. Upstream documentation indicates that this could be due to the use of
+    // `fork`, but we're only using threads, not subprocesses.
+    //
+    // The downside to using traditional signal handlers is that this may interfere with some
+    // debugging tools. But we'll just have to live with that.
+    c.macos_use_mach_ports(false);
+
+    // wasmtime default: true
+    // Disable extended const support. We'll probably enable this in the future but that requires a
+    // FIP.
+    c.wasm_extended_const(false);
+
+    // Note: Component model is disabled by default.
+    // If we add the "wasmtime/component-model" feature in the future,
+    // we would explicitly set c.wasm_component_model(false) here.
+
+    // wasmtime default: true
+    // TODO: Consider disabling this to make performance more deterministic. But we benchmarked with
+    // it on, so we leave it on for now.
+    // https://github.com/filecoin-project/ref-fvm/issues/2129
+    // c.table_lazy_init(false);
 
     Ok(c)
 }
@@ -456,7 +493,7 @@ impl Engine {
         let module = match cache.get(k) {
             Some(m) => m.module.clone(),
             None => {
-                let module = Module::deserialize(&self.inner.engine, compiled)?;
+                let module = unsafe { Module::deserialize(&self.inner.engine, compiled)? };
                 cache.insert(
                     *k,
                     ModuleRecord {
@@ -641,7 +678,7 @@ impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
         desired: usize,
         maximum: Option<usize>,
     ) -> anyhow::Result<bool> {
-        if maximum.map_or(false, |m| desired > m) {
+        if maximum.is_some_and(|m| desired > m) {
             return Ok(false);
         }
 
@@ -650,11 +687,11 @@ impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
 
     fn table_growing(
         &mut self,
-        current: u32,
-        desired: u32,
-        maximum: Option<u32>,
+        current: usize,
+        desired: usize,
+        maximum: Option<usize>,
     ) -> anyhow::Result<bool> {
-        if maximum.map_or(false, |m| desired > m) {
+        if maximum.is_some_and(|m| desired > m) {
             return Ok(false);
         }
         Ok(self.0.grow_instance_table(current, desired))

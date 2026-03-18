@@ -11,7 +11,8 @@ use crate::sys::ErrorNumber::*;
 super::fvm_syscalls! {
     module = "rand";
 
-    /// Gets 32 bytes of randomness from the ticket chain.
+    /// Gets 32 bytes of randomness from the ticket chain,
+    /// there is no lookback limit.
     ///
     /// # Arguments
     ///
@@ -19,15 +20,15 @@ super::fvm_syscalls! {
     ///
     /// # Errors
     ///
-    /// | Error               | Reason                  |
-    /// |---------------------|-------------------------|
-    /// | [`LimitExceeded`]   | lookback exceeds limit. |
-    /// | [`IllegalArgument`] | invalid buffer, etc.    |
+    /// | Error               | Reason                 |
+    /// |---------------------|------------------------|
+    /// | [`IllegalArgument`] | epoch is in the future |
     pub fn get_chain_randomness(
         epoch: i64,
     ) -> Result<[u8; RANDOMNESS_LENGTH]>;
 
-    /// Gets 32 bytes of randomness from the beacon system (currently Drand).
+    /// Gets 32 bytes of randomness from the beacon system
+    /// (currently Drand), there is no lookback limit.
     ///
     /// # Arguments
     ///
@@ -35,10 +36,9 @@ super::fvm_syscalls! {
     ///
     /// # Errors
     ///
-    /// | Error               | Reason                  |
-    /// |---------------------|-------------------------|
-    /// | [`LimitExceeded`]   | lookback exceeds limit. |
-    /// | [`IllegalArgument`] | invalid buffer, etc.    |
+    /// | Error               | Reason                 |
+    /// |---------------------|------------------------|
+    /// | [`IllegalArgument`] | epoch is in the future |
     pub fn get_beacon_randomness(
         epoch: i64,
     ) -> Result<[u8; RANDOMNESS_LENGTH]>;

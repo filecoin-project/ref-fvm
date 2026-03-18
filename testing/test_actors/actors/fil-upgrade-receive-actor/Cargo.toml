@@ -1,8 +1,9 @@
 [package]
 name = "fil_upgrade_receive_actor"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 publish = false
+license.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 fvm_sdk = { workspace = true, features = ["upgrade-actor"] }
@@ -10,7 +11,6 @@ fvm_shared = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 cid = { workspace = true }
 serde = { workspace = true }
-serde_tuple = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"] ## cdylib is necessary for Wasm build

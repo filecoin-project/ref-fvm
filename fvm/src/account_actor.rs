@@ -6,7 +6,7 @@
 //! ## Future direction
 //!
 //! This coupling between the FVM and a concrete actor must eventually be
-//! eliminated. Refer to https://github.com/filecoin-project/fvm/issues/229 for
+//! eliminated. Refer to <https://github.com/filecoin-project/fvm/issues/229> for
 //! details.
 
 use fvm_ipld_encoding::tuple::*;

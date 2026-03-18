@@ -4,11 +4,33 @@ Changes to the FVM's CAR implementation.
 
 ## [Unreleased]
 
-## 0.7.0 [2023-09-06)
+## 0.9.0 [2025-04-11]
+
+- Remove async support, it's overkill for our use-case and leaks complexity.
+- Improve the interfaces:
+  - There's now a separate `CarWriter` struct with methods for writing individual blocks. There's no longer a separate "write from stream" method as feeding an iterator into the writer should be simple enough (now that there's no longer any async stream complexity).
+  - `CarReader` now implements the iterator interface instead of an async `next_block` function.
+
+## 0.8.2 [2025-04-09]
+
+- Updates multiple dependencies (semver breaking internally but not exported).
+
+## 0.8.1 [2024-11-08]
+
+Remove unnecessary features from `multihash-codetable`.
+
+## 0.8.0 [2024-10-31]
+
+- Update `cid` to v0.11 and `multihash` to v0.19.
+- Update to `fvm_ipld_blockstore` 0.3.0 and `fvm_ipld_encoding` 0.5.0.
+
+You will have to update your multihash and cid crates to be compatible, see the [multihash release notes](https://github.com/multiformats/rust-multihash/blob/master/CHANGELOG.md#-2023-06-06) for details on the breaking changes.
+
+## 0.7.1 [2023-09-06]
 
 Replace the internal integer-encoding dependency with unsigned-varint. This won't affect users but cleans up our dependency tree a bit.
 
-## 0.7.0 [2023-06-28)
+## 0.7.0 [2023-06-28]
 
 Breaking Changes:
 

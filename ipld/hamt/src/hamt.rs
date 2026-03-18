@@ -9,14 +9,14 @@ use cid::Cid;
 use forest_hash_utils::BytesKey;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-use multihash::Code;
+use multihash_codetable::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
 use crate::iter::IterImpl;
 use crate::node::Node;
 use crate::pointer::version::Version;
-use crate::{pointer::version, Config, Error, Hash, HashAlgorithm, Sha256};
+use crate::{Config, Error, Hash, HashAlgorithm, Sha256, pointer::version};
 
 /// Implementation of the HAMT data structure for IPLD.
 ///
@@ -336,6 +336,17 @@ where
         self.root.is_empty()
     }
 
+    /// Clears all entries in the HAMT and resets the root to an empty node.
+    pub fn clear(&mut self) {
+        // Check if the HAMT is already empty
+        if self.is_empty() {
+            return; // Avoid unnecessary root reset
+        }
+
+        self.root = Node::default(); // Reset the root to an empty node
+        self.flushed_cid = None; // Invalidate the flushed CID
+    }
+
     /// Iterates over each KV in the Hamt and runs a function on the values.
     ///
     /// This function will constrain all values to be of the same type
@@ -369,6 +380,37 @@ where
             (f)(k, v)?;
         }
         Ok(())
+    }
+
+    /// Iterates over each KV in the Hamt and runs a function on the values. This is a
+    /// non-caching version of [`Self::for_each`]. It can potentially be more efficient, especially memory-wise,
+    /// for large HAMTs or when the iteration occurs only once.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fvm_ipld_hamt::Hamt;
+    ///
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
+    ///
+    /// let mut map: Hamt<_, _, usize> = Hamt::new(store);
+    /// map.set(1, 1).unwrap();
+    /// map.set(4, 2).unwrap();
+    ///
+    /// let mut total = 0;
+    /// map.for_each_cacheless(|_, v: &u64| {
+    ///    total += v;
+    ///    Ok(())
+    /// }).unwrap();
+    /// assert_eq!(total, 3);
+    /// ```
+    pub fn for_each_cacheless<F>(&self, mut f: F) -> Result<(), Error>
+    where
+        V: DeserializeOwned,
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
+    {
+        self.root
+            .for_each_cacheless(&self.store, &self.conf, &mut f)
     }
 
     /// Iterates over each KV in the Hamt and runs a function on the values. If starting key is
@@ -470,7 +512,7 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-    pub fn iter(&self) -> IterImpl<BS, V, K, H, Ver> {
+    pub fn iter(&self) -> IterImpl<'_, BS, V, K, H, Ver> {
         IterImpl::new(&self.store, &self.root, &self.conf)
     }
 
@@ -510,7 +552,7 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-    pub fn iter_from<Q>(&self, key: &Q) -> Result<IterImpl<BS, V, K, H, Ver>, Error>
+    pub fn iter_from<Q>(&self, key: &Q) -> Result<IterImpl<'_, BS, V, K, H, Ver>, Error>
     where
         H: HashAlgorithm,
         K: Borrow<Q>,
@@ -532,5 +574,51 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use fvm_ipld_blockstore::MemoryBlockstore;
+
+    #[test]
+    fn test_clear() {
+        let store = MemoryBlockstore::default();
+        let mut hamt: Hamt<_, _, usize> = Hamt::new_with_config(store, Config::default());
+
+        // Verify the HAMT is initially empty
+        assert!(hamt.is_empty());
+
+        // Call clear on an already empty HAMT
+        hamt.clear();
+
+        // Verify it is still empty
+        assert!(hamt.is_empty());
+
+        // Insert some entries into the HAMT
+        hamt.set(1, "a".to_string()).unwrap();
+        hamt.set(2, "b".to_string()).unwrap();
+
+        // Verify the entries exist
+        assert_eq!(hamt.get(&1).unwrap(), Some(&"a".to_string()));
+        assert_eq!(hamt.get(&2).unwrap(), Some(&"b".to_string()));
+
+        // Verify the HAMT is not empty
+        assert!(!hamt.is_empty());
+
+        // Clear the HAMT
+        hamt.clear();
+
+        // Verify the HAMT is empty
+        assert!(hamt.is_empty());
+
+        // Verify previous entries are gone
+        assert_eq!(hamt.get(&1).unwrap(), None);
+        assert_eq!(hamt.get(&2).unwrap(), None);
+
+        // Ensure subsequent operations still work
+        hamt.set(3, "c".to_string()).unwrap();
+        assert_eq!(hamt.get(&3).unwrap(), Some(&"c".to_string()));
     }
 }

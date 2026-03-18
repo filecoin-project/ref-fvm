@@ -4,8 +4,8 @@ use std::cell::RefCell;
 use std::iter;
 
 use anyhow::Context;
-use fvm_shared::address::{Address, Protocol};
 use fvm_shared::ActorID;
+use fvm_shared::address::{Address, Protocol};
 
 use crate::history_map::HistoryMap;
 use crate::kernel::{ClassifyResult, Result};

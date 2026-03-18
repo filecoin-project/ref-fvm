@@ -4,7 +4,7 @@
 use anyhow::Result;
 use fvm::executor::{ApplyKind, ApplyRet, Executor};
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::{strict_bytes, BytesSer, RawBytes};
+use fvm_ipld_encoding::{BytesSer, RawBytes, strict_bytes};
 use fvm_shared::address::Address;
 use fvm_shared::message::Message;
 use fvm_shared::{ActorID, METHOD_CONSTRUCTOR};

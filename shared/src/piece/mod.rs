@@ -6,8 +6,8 @@
 pub mod zero;
 
 use cid::Cid;
+use fvm_ipld_encoding::tuple::*;
 use serde::{Deserialize, Serialize};
-use serde_tuple::*;
 #[cfg(feature = "proofs")]
 pub use zero::zero_piece_commitment;
 

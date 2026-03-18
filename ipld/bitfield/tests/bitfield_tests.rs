@@ -4,13 +4,13 @@
 
 use std::collections::HashSet;
 
-use fvm_ipld_bitfield::{bitfield, BitField, UnvalidatedBitField};
+use fvm_ipld_bitfield::{BitField, UnvalidatedBitField, bitfield};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
 fn random_indices(range: u64, seed: u64) -> Vec<u64> {
     let mut rng = XorShiftRng::seed_from_u64(seed);
-    (0..range).filter(|_| rng.gen::<bool>()).collect()
+    (0..range).filter(|_| rng.r#gen::<bool>()).collect()
 }
 
 #[test]
@@ -112,32 +112,44 @@ fn subtract_more() {
 
 #[test]
 fn contains_any() {
-    assert!(!BitField::try_from_bits(vec![0, 4])
-        .unwrap()
-        .contains_any(&BitField::try_from_bits(vec![1, 3, 5]).unwrap()));
+    assert!(
+        !BitField::try_from_bits(vec![0, 4])
+            .unwrap()
+            .contains_any(&BitField::try_from_bits(vec![1, 3, 5]).unwrap())
+    );
 
-    assert!(BitField::try_from_bits(vec![0, 2, 5, 6])
-        .unwrap()
-        .contains_any(&BitField::try_from_bits(vec![1, 3, 5]).unwrap()));
+    assert!(
+        BitField::try_from_bits(vec![0, 2, 5, 6])
+            .unwrap()
+            .contains_any(&BitField::try_from_bits(vec![1, 3, 5]).unwrap())
+    );
 
-    assert!(BitField::try_from_bits(vec![1, 2, 3])
-        .unwrap()
-        .contains_any(&BitField::try_from_bits(vec![1, 2, 3]).unwrap()));
+    assert!(
+        BitField::try_from_bits(vec![1, 2, 3])
+            .unwrap()
+            .contains_any(&BitField::try_from_bits(vec![1, 2, 3]).unwrap())
+    );
 }
 
 #[test]
 fn contains_all() {
-    assert!(!BitField::try_from_bits(vec![0, 2, 4])
-        .unwrap()
-        .contains_all(&BitField::try_from_bits(vec![0, 2, 4, 5]).unwrap()));
+    assert!(
+        !BitField::try_from_bits(vec![0, 2, 4])
+            .unwrap()
+            .contains_all(&BitField::try_from_bits(vec![0, 2, 4, 5]).unwrap())
+    );
 
-    assert!(BitField::try_from_bits(vec![0, 2, 4, 5])
-        .unwrap()
-        .contains_all(&BitField::try_from_bits(vec![0, 2, 4]).unwrap()));
+    assert!(
+        BitField::try_from_bits(vec![0, 2, 4, 5])
+            .unwrap()
+            .contains_all(&BitField::try_from_bits(vec![0, 2, 4]).unwrap())
+    );
 
-    assert!(BitField::try_from_bits(vec![1, 2, 3])
-        .unwrap()
-        .contains_all(&BitField::try_from_bits(vec![1, 2, 3]).unwrap()));
+    assert!(
+        BitField::try_from_bits(vec![1, 2, 3])
+            .unwrap()
+            .contains_all(&BitField::try_from_bits(vec![1, 2, 3]).unwrap())
+    );
 }
 
 #[test]

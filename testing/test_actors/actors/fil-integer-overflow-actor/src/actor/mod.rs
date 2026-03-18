@@ -1,13 +1,12 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use cid::multihash::Code;
 use cid::Cid;
 use fvm_ipld_encoding::tuple::*;
-use fvm_ipld_encoding::{to_vec, CborStore, RawBytes, CBOR, DAG_CBOR};
+use fvm_ipld_encoding::{CBOR, CborStore, DAG_CBOR, RawBytes, to_vec};
+use fvm_sdk::NO_DATA_BLOCK_ID;
 use fvm_sdk::message::params_raw;
 use fvm_sdk::vm::abort;
-use fvm_sdk::NO_DATA_BLOCK_ID;
-use fvm_shared::error::ExitCode;
+use fvm_shared::{crypto::hash::SupportedHashes, error::ExitCode};
 mod blockstore;
 use blockstore::Blockstore;
 
@@ -50,7 +49,7 @@ impl State {
             ),
         };
         let cid = match fvm_sdk::ipld::put(
-            Code::Blake2b256.into(),
+            SupportedHashes::Blake2b256.into(),
             32,
             DAG_CBOR,
             serialized.as_slice(),
@@ -71,7 +70,7 @@ impl State {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(params_pointer: u32) -> u32 {
     // Conduct method dispatch. Handle input parameters and return data.
     let ret: Option<RawBytes> = match fvm_sdk::message::method_number() {
@@ -86,11 +85,11 @@ pub fn invoke(params_pointer: u32) -> u32 {
 
             None
         }
-        // Overflow value
+        // Overflow value, wrapping
         2 => {
             let mut state = State::load();
 
-            state.value = (state.value >> 1i64) * (state.value + 1);
+            state.value = (state.value >> 1i64).wrapping_mul(state.value.wrapping_add(1));
             state.save();
 
             None
@@ -108,6 +107,15 @@ pub fn invoke(params_pointer: u32) -> u32 {
                     );
                 }
             }
+        }
+        // Overflow value, default
+        4 => {
+            let mut state = State::load();
+
+            state.value = (state.value >> 1i64) * (state.value + 1);
+            state.save();
+
+            None
         }
         _ => abort(
             ExitCode::USR_UNHANDLED_MESSAGE.value(),

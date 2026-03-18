@@ -1,6 +1,6 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-use crate::{sys, SyscallResult};
+use crate::{SyscallResult, sys};
 use fvm_shared::event::ActorEvent;
 
 pub fn emit_event(evt: &ActorEvent) -> SyscallResult<()> {

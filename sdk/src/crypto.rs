@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
 use fvm_ipld_encoding::to_vec;
+use fvm_shared::MAX_CID_LEN;
 use fvm_shared::address::Address;
 use fvm_shared::consensus::ConsensusFault;
 use fvm_shared::crypto::{
     hash::SupportedHashes,
     signature::{
-        Signature, BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE,
+        BLS_PUB_LEN, BLS_SIG_LEN, SECP_PUB_LEN, SECP_SIG_LEN, SECP_SIG_MESSAGE_HASH_SIZE, Signature,
     },
 };
 use fvm_shared::error::ErrorNumber;
@@ -16,10 +17,9 @@ use fvm_shared::sector::{
     AggregateSealVerifyProofAndInfos, RegisteredSealProof, ReplicaUpdateInfo, SealVerifyInfo,
     WindowPoStVerifyInfo,
 };
-use fvm_shared::MAX_CID_LEN;
 use num_traits::FromPrimitive;
 
-use crate::{status_code_to_bool, sys, SyscallResult};
+use crate::{SyscallResult, status_code_to_bool, sys};
 
 #[cfg(feature = "verify-signature")]
 /// Verifies that a signature is valid for an address and plaintext.
@@ -238,6 +238,7 @@ pub fn verify_post(info: &WindowPoStVerifyInfo) -> SyscallResult<bool> {
 /// - first header is of the same or lower epoch as the second
 /// - at least one of the headers appears in the current chain at or after epoch `earliest`
 /// - the headers provide evidence of a fault (see the spec for the different fault types).
+///
 /// The parameters are all serialized block headers. The third "extra" parameter is consulted only for
 /// the "parent grinding fault", in which case it must be the sibling of h1 (same parent tipset) and one of the
 /// blocks in the parent of h2 (i.e. h2's grandparent).

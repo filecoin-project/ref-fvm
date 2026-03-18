@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::ops::RangeInclusive;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::{Block, Blockstore, Buffered};
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
 use fvm_shared::version::NetworkVersion;
 use log::debug;
-use multihash::Code::Blake2b256;
+use multihash_codetable::Code::Blake2b256;
 
 use super::{Machine, MachineContext};
 use crate::blockstore::BufferedBlockstore;
 use crate::externs::Externs;
 use crate::kernel::{ClassifyResult, Result};
-use crate::machine::limiter::DefaultMemoryLimiter;
 use crate::machine::Manifest;
+use crate::machine::limiter::DefaultMemoryLimiter;
 use crate::state_tree::StateTree;
 use crate::system_actor::State as SystemActorState;
 
@@ -47,12 +47,16 @@ where
     /// # Arguments
     ///
     /// * `context`: Machine execution [context][`MachineContext`] (system params, epoch, network
-    ///    version, etc.).
+    ///   version, etc.).
     /// * `blockstore`: The underlying [blockstore][`Blockstore`] for reading/writing state.
     /// * `externs`: Client-provided ["external"][`Externs`] methods for accessing chain state.
     pub fn new(context: &MachineContext, blockstore: B, externs: E) -> anyhow::Result<Self> {
+        #[cfg(not(feature = "nv28-dev"))]
         const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
-            NetworkVersion::V21..=NetworkVersion::V23;
+            NetworkVersion::V21..=NetworkVersion::V27;
+        #[cfg(feature = "nv28-dev")]
+        const SUPPORTED_VERSIONS: RangeInclusive<NetworkVersion> =
+            NetworkVersion::V21..=NetworkVersion::V28;
 
         debug!(
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
@@ -157,9 +161,16 @@ where
     /// This method also flushes all new blocks (reachable from this new root CID) from the write
     /// buffer into the underlying blockstore (the blockstore with which the machine was
     /// constructed).
+    ///
+    /// If an intermediate blockstore was provided, all intermediate blocks created during message
+    /// execution are flushed to it.
     fn flush(&mut self) -> Result<Cid> {
         let root = self.state_tree_mut().flush()?;
-        self.blockstore().flush(&root).or_fatal()?;
+        if self.context.flush_all_blocks {
+            self.blockstore().flush_all().or_fatal()?;
+        } else {
+            self.blockstore().flush(&root).or_fatal()?;
+        }
         Ok(root)
     }
 

@@ -3,14 +3,14 @@
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_blockstore::Blockstore;
+use fvm_shared::ActorID;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::ActorID;
 use num_traits::Zero;
 
 use crate::externs::Externs;
-use crate::gas::{price_list_by_network_version, PriceList};
+use crate::gas::{PriceList, price_list_by_network_version};
 use crate::kernel::Result;
 use crate::state_tree::StateTree;
 
@@ -192,8 +192,11 @@ impl NetworkConfig {
             epoch,
             timestamp,
             initial_state_root: initial_state,
-            circ_supply: fvm_shared::TOTAL_FILECOIN.clone(),
+            // This is just the default. The previous default of "total FIL supply" was incorrect as
+            // well, so we might as well be more neutral.
+            circ_supply: TokenAmount::zero(),
             tracing: false,
+            flush_all_blocks: false,
         }
     }
 
@@ -240,12 +243,22 @@ pub struct MachineContext {
     /// Whether or not to produce execution traces in the returned result.
     /// Not consensus-critical, but has a performance impact.
     pub tracing: bool,
+
+    /// When true, flush() will write all blocks created during execution to the
+    /// blockstore, not just those reachable from the final state root.
+    pub flush_all_blocks: bool,
 }
 
 impl MachineContext {
     /// Sets [`MachineContext::base_fee`].
     pub fn set_base_fee(&mut self, amt: TokenAmount) -> &mut Self {
         self.base_fee = amt;
+        self
+    }
+
+    /// Sets [`MachineContext::epoch`].
+    pub fn set_epoch(&mut self, epoch: ChainEpoch) -> &mut Self {
+        self.epoch = epoch;
         self
     }
 
@@ -258,6 +271,12 @@ impl MachineContext {
     /// Enable execution traces. [`MachineContext::tracing`].
     pub fn enable_tracing(&mut self) -> &mut Self {
         self.tracing = true;
+        self
+    }
+
+    /// Enable flushing all blocks. [`MachineContext::flush_all_blocks`].
+    pub fn enable_flush_all_blocks(&mut self) -> &mut Self {
+        self.flush_all_blocks = true;
         self
     }
 }

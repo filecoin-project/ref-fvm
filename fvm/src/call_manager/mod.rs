@@ -1,19 +1,19 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
-use fvm_ipld_encoding::{to_vec, CBOR};
+use fvm_ipld_encoding::{CBOR, to_vec};
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ExitCode;
 use fvm_shared::upgrade::UpgradeInfo;
-use fvm_shared::{ActorID, MethodNum, METHOD_CONSTRUCTOR};
+use fvm_shared::{ActorID, METHOD_CONSTRUCTOR, MethodNum};
 
+use crate::Kernel;
 use crate::engine::Engine;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
 use crate::kernel::{self, BlockRegistry, ClassifyResult, Context, Result};
 use crate::machine::{Machine, MachineContext};
 use crate::state_tree::ActorState;
-use crate::Kernel;
 
 pub mod backtrace;
 mod state_access_tracker;
@@ -24,7 +24,7 @@ mod default;
 pub use default::DefaultCallManager;
 use fvm_shared::event::StampedEvent;
 
-use crate::trace::ExecutionTrace;
+use crate::trace::{ExecutionTrace, IpldOperation};
 
 /// BlockID representing nil parameters or return data.
 pub const NO_DATA_BLOCK_ID: u32 = 0;
@@ -87,6 +87,7 @@ pub trait CallManager: 'static {
 
     /// Returns a reference to the machine.
     fn machine(&self) -> &Self::Machine;
+
     /// Returns a mutable reference to the machine.
     fn machine_mut(&mut self) -> &mut Self::Machine;
 
@@ -174,6 +175,11 @@ pub trait CallManager: 'static {
 
     /// Appends an event to the event accumulator.
     fn append_event(&mut self, evt: StampedEvent);
+
+    /// log
+    fn log(&mut self, msg: String);
+
+    fn trace_ipld(&mut self, op: IpldOperation, cid: Cid, size: usize);
 }
 
 /// The result of calling actor's entrypoint

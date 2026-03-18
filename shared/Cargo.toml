@@ -12,34 +12,32 @@ blake2b_simd = { workspace = true }
 thiserror = { workspace = true }
 num-traits = { workspace = true }
 num-derive = { workspace = true }
-lazy_static = { workspace = true }
 cid = { workspace = true, features = ["serde-codec", "std"] }
-multihash = { workspace = true }
 unsigned-varint = { workspace = true }
 anyhow = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 serde = { workspace = true, default-features = false }
-serde_tuple = { workspace = true }
 arbitrary = { workspace = true, optional = true, features = ["derive"] }
 quickcheck = { workspace = true, optional = true }
 
 num-bigint = "0.4"
 num-integer = "0.1"
-data-encoding = "2.4.0"
-data-encoding-macro = "0.1.13"
-bitflags = { version = "2.3.3", features = ["serde"] }
+data-encoding = "2.8.0"
+data-encoding-macro = "0.1.17"
+bitflags = { version = "2.9.0", features = ["serde"] }
 
 ## non-wasm dependencies; these dependencies and the respective code is
 ## only activated through non-default features, which the Kernel enables, but
 ## not the actors.
-filecoin-proofs-api = { version = "18", default-features = false, optional = true }
-libsecp256k1 = { workspace = true, optional = true }
+filecoin-proofs-api = { version = "19", default-features = false, optional = true }
+k256 = { workspace = true, optional = true }
 bls-signatures = { workspace = true, default-features = false, optional = true }
 
 [dev-dependencies]
+hex = { workspace = true }
 rand = { workspace = true }
 serde_json = { workspace = true }
-multihash = { workspace = true, features = ["multihash-impl", "sha2", "sha3", "ripemd"] }
+multihash-codetable = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
 quickcheck_macros = { workspace = true }
 coverage-helper = { workspace = true }
 fvm_shared = { path = ".", features = ["arb"] }
@@ -48,9 +46,13 @@ rusty-fork = { version = "0.3.0", default-features = false }
 
 [features]
 default = []
-crypto = ["libsecp256k1", "blst", "proofs"]
+crypto = ["secp256k1", "blst", "proofs"]
 proofs = ["filecoin-proofs-api"]
-secp256k1 = ["libsecp256k1"]
+secp256k1 = ["k256"]
 blst = ["bls-signatures/blst"]
 testing = []
 arb = ["arbitrary", "dep:quickcheck", "num-bigint/quickcheck", "cid/arb"]
+
+# Allow coverage attribute.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

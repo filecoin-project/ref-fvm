@@ -6,10 +6,10 @@ use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 
 use cid::Cid;
-use libipld_core::ipld::Ipld;
+use ipld_core::ipld::Ipld;
 use once_cell::unsync::OnceCell;
 use serde::de::{self, DeserializeOwned};
-use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, ser};
 
 use super::node::Node;
 use super::{Error, Hash, HashAlgorithm, KeyValuePair};

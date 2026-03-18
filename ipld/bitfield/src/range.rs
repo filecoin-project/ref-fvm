@@ -14,11 +14,7 @@ impl RangeSize for Range<u64> {
     type Idx = u64;
 
     fn size(&self) -> Self::Idx {
-        if self.end <= self.start {
-            0
-        } else {
-            self.end - self.start
-        }
+        self.end.saturating_sub(self.start)
     }
 }
 
@@ -26,10 +22,6 @@ impl RangeSize for Range<u32> {
     type Idx = u32;
 
     fn size(&self) -> Self::Idx {
-        if self.end <= self.start {
-            0
-        } else {
-            self.end - self.start
-        }
+        self.end.saturating_sub(self.start)
     }
 }

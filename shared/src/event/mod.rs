@@ -1,9 +1,8 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use bitflags::bitflags;
-use fvm_ipld_encoding::strict_bytes;
+use fvm_ipld_encoding::{strict_bytes, tuple::*};
 use serde::{Deserialize, Serialize};
-use serde_tuple::*;
 
 use crate::ActorID;
 

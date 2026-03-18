@@ -4,6 +4,32 @@ Changes to the reference FVM's HAMT implementation.
 
 ## [Unreleased]
 
+- Added `for_each_cacheless` method to iterate over the HAMT without caching the values. This is lowers memory requirements usage and is useful for single-pass, read-only operations over large HAMTs.
+
+## 0.10.4 [2025-04-09]
+
+- Updates multiple dependencies (semver breaking internally but not exported).
+
+## 0.10.3 [2024-12-04]
+
+- Add a `.clear()` method for resetting the HAMT to empty.
+
+## 0.10.2 [2024-11-20]
+
+Empty-release intended to un-deprecate `.for_each` but it was never actually deprecated in this crate.
+
+## 0.10.1 [2024-11-08]
+
+Remove unnecessary features from `multihash-codetable`.
+
+## 0.10.0 [2024-10-31]
+
+- Update `cid` to v0.11 and `multihash` to v0.19.
+- Update to `fvm_ipld_blockstore` 0.3.0 and `fvm_ipld_encoding` 0.5.0.
+- Switch from [libipld](https://github.com/ipld/libipld) to [rust-ipld-core](https://github.com/ipld/rust-ipld-core/).
+
+You will have to update your multihash and cid crates to be compatible, see the [multihash release notes](https://github.com/multiformats/rust-multihash/blob/master/CHANGELOG.md#-2023-06-06) for details on the breaking changes.
+
 ## 0.9.0 (2023-10-25)
 
 Breaking Changes:

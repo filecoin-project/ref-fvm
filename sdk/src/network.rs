@@ -1,13 +1,13 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use cid::Cid;
+use fvm_shared::MAX_CID_LEN;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::sys::out::network::NetworkContext;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::MAX_CID_LEN;
 
 use crate::error::EpochBoundsError;
 use crate::sys;

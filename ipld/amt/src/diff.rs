@@ -7,7 +7,7 @@ use std::borrow::Borrow;
 use anyhow::Context;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::iter::Iter;
 use crate::node::{CollapsedNode, Link};
@@ -46,7 +46,7 @@ struct NodeContext<'bs, BS> {
     pub store: &'bs BS,
 }
 
-impl<'bs, BS> NodeContext<'bs, BS> {
+impl<BS> NodeContext<'_, BS> {
     fn nodes_at_height(&self) -> u64 {
         nodes_for_height(self.bit_width, self.height)
     }
@@ -353,12 +353,11 @@ where
                                 node::Link::Dirty(n) => (None, Either::Borrowed(n.borrow())),
                             };
 
-                            if let Some(prev_cid) = &prev_cid {
-                                if let Some(curr_cid) = &curr_cid {
-                                    if prev_cid == curr_cid {
-                                        continue;
-                                    }
-                                }
+                            if let Some(prev_cid) = &prev_cid
+                                && let Some(curr_cid) = &curr_cid
+                                && prev_cid == curr_cid
+                            {
+                                continue;
                             }
 
                             let prev_sub_ctx = NodeContext {

@@ -2,11 +2,97 @@
 
 ## [Unreleased]
 
-## 4.3.1 [2023-06-26]
+## 4.7.5 [2025-11-15]
+
+## 4.7.4 [2025-10-06]
+
+- feat: nv28 skeleton [#2220](https://github.com/filecoin-project/ref-fvm/pull/2220)
+- fix: propagate errors in Amt::for_each_cacheless [#2218](https://github.com/filecoin-project/ref-fvm/pull/2218)
+- chore(deps): bump serde_ipld_dagcbor from 0.6.3 to 0.6.4 [#2222](https://github.com/filecoin-project/ref-fvm/pull/2222)
+- chore(deps): bump serde_tuple from 0.5.0 to 1.1.2 [#2199](https://github.com/filecoin-project/ref-fvm/pull/2199)
+- chore(deps): bump criterion [#2217](https://github.com/filecoin-project/ref-fvm/pull/2217)
+
+## 4.7.3 [2025-08-22]
+
+- chore(deps): update replace_with and slab transitive dependencies [#2197](https://github.com/filecoin-project/ref-fvm/pull/2197)
+- chore(deps): bump filecoin-proofs-api from 18.1.0 to 19.0.0 [#2200](https://github.com/filecoin-project/ref-fvm/pull/2200)
+- chore(deps): bump serde_ipld_dagcbor from 0.6.2 to 0.6.3 [#2201](https://github.com/filecoin-project/ref-fvm/pull/2201)
+- chore: remove the nv27-dev feature flag [#2202](https://github.com/filecoin-project/ref-fvm/pull/2202)
+
+## 4.7.2 [2025-05-01]
+
+- feat: add nv27-skeleton [#2175](https://github.com/filecoin-project/ref-fvm/pull/2175)
+- chore: use workspace fields for license & repository url [#2172](https://github.com/filecoin-project/ref-fvm/pull/2172)
+- Update to 2024 edition everywhere else [#2170](https://github.com/filecoin-project/ref-fvm/pull/2170)
+- fix: correctly deserialize test vectors [#2168](https://github.com/filecoin-project/ref-fvm/pull/2168)
+- Switch to rust 2024 edition [#2162](https://github.com/filecoin-project/ref-fvm/pull/2162)
+
+## 4.7.1 [2025-04-15]
+
+- Upgrade to fvm_shared@v4.7.1 to fix: accept malleable secp256k1 signatures (per EVM, etc.) [#2156](https://github.com/filecoin-project/ref-fvm/pull/2156)
+
+## 4.7.0 [2025-04-09]
+
+- Update dependencies [#2136](https://github.com/filecoin-project/ref-fvm/pull/2136), [#2145](https://github.com/filecoin-project/ref-fvm/pull/2145), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146)
+- Update to Rust 1.86.0
+
+## 4.6.0 [2025-03-14]
+
+- feat: add Tock / nv26 and nv27 TBD [#2107](https://github.com/filecoin-project/ref-fvm/pull/2107)
+- chore: update ipld-core and serde_ipld_dagcbor [#2104](https://github.com/filecoin-project/ref-fvm/pull/2104)
+- feat: Teep pricing changes [#2103](https://github.com/filecoin-project/ref-fvm/pull/2103)
+- chore: remove the hash-utils dependency from the KAMT [#2099](https://github.com/filecoin-project/ref-fvm/pull/2099)
+- chore: move the actor logs into the trace [#2098](https://github.com/filecoin-project/ref-fvm/pull/2098)
+- chore: release kamt/hamt to add a clear method [#2096](https://github.com/filecoin-project/ref-fvm/pull/2096)
+- feat: hamt: Add public fn clear to reset and clear all entries in HAMT [#2095](https://github.com/filecoin-project/ref-fvm/pull/2095)
+
+## 4.5.3 [2024-12-04]
+
+- chore: remove the nv25-dev feature flag [#2093](https://github.com/filecoin-project/ref-fvm/pull/2093)
+
+## 4.5.2 [2024-11-21]
+
+- feat: add `nv25-dev` feature flag [#2076](https://github.com/filecoin-project/ref-fvm/pull/2076)
+
+## 4.5.1 [2024-11-08]
+
+Remove unnecessary features from `multihash-codetable`.
+
+## 4.5.0 [2024-10-31]
+
+- Update `cid` to v0.11 and `multihash` to v0.19.
+- Update to `fvm_ipld_blockstore` 0.3.0 and `fvm_ipld_encoding` 0.5.0.
+
+You will have to update your multihash and cid crates to be compatible, see the [multihash release notes](https://github.com/multiformats/rust-multihash/blob/master/CHANGELOG.md#-2023-06-06) for details on the breaking changes.
+
+## 4.4.3 [2024-10-21]
+
+- Update wasmtime to 25.0.2.
+- Fixes long wasm compile times with wasmtime 24.
+
+## 4.4.2 [2024-10-09]
+
+- Update wasmtime to 24.0.1.
+
+## 4.4.1 [2024-10-04]
+
+- chore: remove the `nv24-dev` feature flag [#2051](https://github.com/filecoin-project/ref-fvm/pull/2051)
+
+## 4.4.0 [2024-09-12]
+
+- Update to wasmtime 24.
+- Switch from mach ports to unix signal handlers on macos.
+- Update misc dependencies.
+
+## 4.3.2 [2024-08-16]
+
+- feat: add `nv24-dev` feature flag [#2029](https://github.com/filecoin-project/ref-fvm/pull/2029)
+
+## 4.3.1 [2024-06-26]
 
 - chore: remove the `nv23-dev` feature flag [#2022](https://github.com/filecoin-project/ref-fvm/pull/2022)
 
-## 4.3.0 [2023-06-12]
+## 4.3.0 [2024-06-12]
 
 - feat: FIP-0079: syscall for aggregated bls verification [#2003](https://github.com/filecoin-project/ref-fvm/pull/2003)
 - fix: install rust nightly toolchain for clusterfuzzlite [#2007](https://github.com/filecoin-project/ref-fvm/pull/2007)
@@ -15,22 +101,22 @@
 - Small tidy-ups in CONTRIBUTING.md [#2012](https://github.com/filecoin-project/ref-fvm/pull/2012)
 - NI-PoRep support [#2010](https://github.com/filecoin-project/ref-fvm/pull/2010)
 
-## 4.2.0 [2023-04-29]
+## 4.2.0 [2024-04-29]
 
 - chore: update to wasmtime 19.0.1 [#1993](https://github.com/filecoin-project/ref-fvm/pull/1993)
 - Enable nv23 support behind the `nv23-dev` feature flag [#2000](https://github.com/filecoin-project/ref-fvm/pull/2000)
 - feat: fvm: remove once_cell [#1989](https://github.com/filecoin-project/ref-fvm/pull/1989)
 - feat: shared: check bls zero address without lazy_static [#1984](https://github.com/filecoin-project/ref-fvm/pull/1984)
 
-## 4.1.2 [2023-01-31]
+## 4.1.2 [2024-01-31]
 
 feat: allow CBOR events
 
-## 4.1.1 [2023-01-25]
+## 4.1.1 [2024-01-25]
 
 Enable nv22 support by default.
 
-## 4.1.0 [2023-01-24]
+## 4.1.0 [2024-01-24]
 
 - Add a syscall to upgrade the running actor's code-CID (behind the "actor-upgrade" feature flag).
 - Export the `fvm_syscalls` macro for defining syscall bindings (needed for custom syscall implementers).

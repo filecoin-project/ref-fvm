@@ -1,6 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-extern crate criterion;
+
+use std::hint::black_box;
 
 use criterion::*;
 use fvm::engine::MultiEngine;
@@ -65,7 +66,7 @@ pub fn bench_vector_variant(
                     DefaultExecutor::new(engine, machine).unwrap();
                 (messages_with_lengths.clone(), exec)
             },
-            |(messages, exec)| apply_messages(criterion::black_box(messages), exec),
+            |(messages, exec)| apply_messages(black_box(messages), exec),
             BatchSize::LargeInput,
         )
     });
@@ -99,7 +100,7 @@ pub fn bench_vector_file(
     name: &str,
     engines: &MultiEngine,
 ) -> anyhow::Result<()> {
-    let (bs, _) = async_std::task::block_on(vector.seed_blockstore()).unwrap();
+    let (bs, _) = vector.seed_blockstore().unwrap();
 
     for variant in vector.preconditions.variants.iter() {
         let name = format!("{} | {}", name, variant.id);
@@ -145,7 +146,11 @@ pub fn bench_vector_file(
                 engines,
             );
         } else {
-            return Err(anyhow::anyhow!("a test failed, get the tests passing/running before running benchmarks in {:?} mode: {}", check_strength, name));
+            return Err(anyhow::anyhow!(
+                "a test failed, get the tests passing/running before running benchmarks in {:?} mode: {}",
+                check_strength,
+                name
+            ));
         };
     }
     Ok(())

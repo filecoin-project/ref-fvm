@@ -4,7 +4,7 @@
 use fvm_shared::econ::TokenAmount;
 
 #[derive(Clone, Default)]
-pub(crate) struct GasOutputs {
+pub struct GasOutputs {
     pub base_fee_burn: TokenAmount,
     pub over_estimation_burn: TokenAmount,
     pub miner_penalty: TokenAmount,

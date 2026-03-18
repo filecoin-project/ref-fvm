@@ -7,7 +7,7 @@ use std::borrow::Borrow;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
-use multihash::Code;
+use multihash_codetable::Code;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
 
@@ -101,6 +101,7 @@ where
     /// Sets the root based on the Cid of the root node using the Kamt store
     pub fn set_root(&mut self, cid: &Cid) -> Result<(), Error> {
         self.root = Node::load(&self.conf, &self.store, cid, 0)?;
+        self.flushed_cid = Some(*cid);
 
         Ok(())
     }
@@ -129,6 +130,17 @@ where
     /// Returns true if the KAMT has no entries
     pub fn is_empty(&self) -> bool {
         self.root.is_empty()
+    }
+
+    /// Clears all entries in the KAMT and resets the root to an empty node.
+    pub fn clear(&mut self) {
+        // Check if the KAMT is already empty
+        if self.is_empty() {
+            return; // Avoid unnecessary root reset
+        }
+
+        self.root = Node::default(); // Reset the root to an empty node
+        self.flushed_cid = None; // Invalidate the flushed CID
     }
 }
 
@@ -339,7 +351,6 @@ where
     /// assert_eq!(total, 3);
     /// ```
     #[inline]
-    #[deprecated = "use `.iter()` instead"]
     pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
     where
         V: DeserializeOwned,
@@ -383,7 +394,7 @@ where
     /// }
     /// assert_eq!(x,2)
     /// ```
-    pub fn iter(&self) -> Iter<BS, V, K, H, N> {
+    pub fn iter(&self) -> Iter<'_, BS, V, K, H, N> {
         Iter::new(&self.store, &self.root, &self.conf)
     }
 
@@ -414,7 +425,7 @@ where
     /// println!("{:?}", results);
     /// assert_eq!(results.len(), 4);
     /// ```
-
+    ///
     /// Iterate over the KAMT starting at the given key. This can be used to implement "ranged" iteration:
     ///
     /// ```rust
@@ -454,8 +465,7 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-
-    pub fn iter_from<Q>(&self, key: &Q) -> Result<Iter<BS, V, K, H, N>, Error>
+    pub fn iter_from<Q>(&self, key: &Q) -> Result<Iter<'_, BS, V, K, H, N>, Error>
     where
         K: Borrow<Q>,
         Q: PartialEq,
@@ -469,7 +479,6 @@ impl<'a, BS, V, K, H, const N: usize> IntoIterator for &'a Kamt<BS, K, V, H, N>
 where
     K: DeserializeOwned + PartialOrd,
     V: DeserializeOwned,
-
     BS: Blockstore,
 {
     type Item = Result<(&'a K, &'a V), Error>;
@@ -549,5 +558,46 @@ mod tests {
         assert_eq!(kvs, results);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_clear() {
+        let store = MemoryBlockstore::default();
+        let mut kamt: Kamt<_, u32, String, Identity> =
+            Kamt::new_with_config(store, Config::default());
+
+        // Verify the KAMT is initially empty
+        assert!(kamt.is_empty());
+
+        // Call clear on an already empty KAMT
+        kamt.clear();
+
+        // Verify it is still empty
+        assert!(kamt.is_empty());
+
+        // Insert some entries into the KAMT
+        kamt.set(1, "a".to_string()).unwrap();
+        kamt.set(2, "b".to_string()).unwrap();
+
+        // Verify the entries exist
+        assert_eq!(kamt.get(&1).unwrap(), Some(&"a".to_string()));
+        assert_eq!(kamt.get(&2).unwrap(), Some(&"b".to_string()));
+
+        // Verify the KAMT is not empty
+        assert!(!kamt.is_empty());
+
+        // Clear the KAMT
+        kamt.clear();
+
+        // Verify the KAMT is empty
+        assert!(kamt.is_empty());
+
+        // Verify previous entries are gone
+        assert_eq!(kamt.get(&1).unwrap(), None);
+        assert_eq!(kamt.get(&2).unwrap(), None);
+
+        // Ensure subsequent operations still work
+        kamt.set(3, "c".to_string()).unwrap();
+        assert_eq!(kamt.get(&3).unwrap(), Some(&"c".to_string()));
     }
 }

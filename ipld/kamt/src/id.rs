@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::borrow::Cow;
 
-use forest_hash_utils::Hash;
-
 use crate::{AsHashedKey, HashedKey};
 
 /// Convenience hasher for docstrings and tests,
@@ -16,7 +14,7 @@ macro_rules! identity_arr {
     ($($n:literal),*) => {
         $(
             impl AsHashedKey<[u8; $n], $n> for Identity {
-                fn as_hashed_key(key: &[u8; $n]) -> Cow<HashedKey<$n>> {
+                fn as_hashed_key(key: &[u8; $n]) -> Cow<'_, HashedKey<$n>> {
                     Cow::Borrowed(key)
                 }
             }
@@ -29,8 +27,11 @@ macro_rules! identity_hash {
     ($($t:ty),*) => {
         $(
             impl AsHashedKey<$t, 32> for Identity {
-                fn as_hashed_key(key: &$t) -> Cow<HashedKey<32>> {
-                    Cow::Owned(IdentityHasher::hash(key))
+                fn as_hashed_key(key: &$t) -> Cow<'_, HashedKey<32>> {
+                    const BYTES: usize = <$t>::BITS as usize / 8;
+                    let mut output = [0u8; 32];
+                    output[..BYTES].copy_from_slice(&<$t>::to_ne_bytes(*key));
+                    Cow::Owned(output)
                 }
             }
         )*
@@ -39,29 +40,3 @@ macro_rules! identity_hash {
 
 identity_arr!(20, 32, 64);
 identity_hash!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);
-
-/// Take the first 32 bytes as is.
-#[derive(Default)]
-struct IdentityHasher {
-    bz: HashedKey<32>,
-}
-
-impl IdentityHasher {
-    pub fn hash<K: Hash>(key: K) -> HashedKey<32> {
-        let mut hasher = Self::default();
-        key.hash(&mut hasher);
-        hasher.bz
-    }
-}
-
-impl std::hash::Hasher for IdentityHasher {
-    fn finish(&self) -> u64 {
-        0
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        for (i, byte) in bytes.iter().take(self.bz.len()).enumerate() {
-            self.bz[i] = *byte;
-        }
-    }
-}

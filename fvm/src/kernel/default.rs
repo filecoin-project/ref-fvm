@@ -3,7 +3,7 @@
 use std::convert::{TryFrom, TryInto};
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{CBOR, IPLD_RAW};
@@ -12,21 +12,22 @@ use fvm_shared::error::ErrorNumber;
 use fvm_shared::event::{ActorEvent, Entry, Flags};
 use fvm_shared::sys::out::vm::ContextFlags;
 use fvm_shared::upgrade::UpgradeInfo;
-use multihash::MultihashDigest;
+use multihash_codetable::MultihashDigest;
 
 use super::blocks::{Block, BlockRegistry};
 use super::error::Result;
 use super::hash::SupportedHashes;
 use super::*;
 use crate::call_manager::{
-    CallManager, Entrypoint, InvocationResult, INVOKE_FUNC_NAME, NO_DATA_BLOCK_ID,
+    CallManager, Entrypoint, INVOKE_FUNC_NAME, InvocationResult, NO_DATA_BLOCK_ID,
     UPGRADE_FUNC_NAME,
 };
 use crate::externs::{Chain, Rand};
 use crate::gas::GasTimer;
 use crate::init_actor::INIT_ACTOR_ID;
-use crate::machine::{MachineContext, NetworkConfig, BURNT_FUNDS_ACTOR_ID};
+use crate::machine::{BURNT_FUNDS_ACTOR_ID, MachineContext, NetworkConfig};
 use crate::state_tree::ActorState;
+use crate::trace::IpldOperation;
 use crate::{ipld, syscall_error};
 
 const BLAKE2B_256: u64 = 0xb220;
@@ -409,6 +410,9 @@ where
 
         t.stop();
 
+        self.call_manager
+            .trace_ipld(IpldOperation::Get, *cid, data.len());
+
         // This can fail because we can run out of gas.
         let children = ipld::scan_for_reachable_links(
             cid.codec(),
@@ -483,9 +487,13 @@ where
             // TODO: This is really "super fatal". It means we failed to store state, and should
             // probably abort the entire block.
             .or_fatal()?;
+        let size = block.data().len();
         self.blocks.mark_reachable(&k);
 
         t.stop_with(start);
+
+        self.call_manager.trace_ipld(IpldOperation::Put, k, size);
+
         Ok(k)
     }
 
@@ -684,21 +692,14 @@ where
 
         t.record(
             signature::ops::recover_secp_public_key(hash, signature)
-                .map(|pubkey| pubkey.serialize())
-                .map_err(|e| {
-                    syscall_error!(IllegalArgument; "public key recovery failed: {}", e).into()
-                }),
+                .or_illegal_argument()
+                .context("public key recovery failed"),
         )
     }
 
     fn hash(&self, code: u64, data: &[u8]) -> Result<Multihash> {
-        let hasher = SupportedHashes::try_from(code).map_err(|e| {
-            if let multihash::Error::UnsupportedCode(code) = e {
-                syscall_error!(IllegalArgument; "unsupported hash code {}", code)
-            } else {
-                syscall_error!(AssertionFailed; "hash expected unsupported code, got {}", e)
-            }
-        })?;
+        let hasher = SupportedHashes::try_from(code)
+            .map_err(|err| syscall_error!(IllegalArgument; "unsupported hash code {}", err.0))?;
 
         let t = self.call_manager.charge_gas(
             self.call_manager
@@ -885,6 +886,7 @@ where
 
     fn install_actor(&mut self, code_id: Cid) -> Result<()> {
         let start = GasTimer::start();
+
         let size = self
             .call_manager
             .engine()
@@ -896,6 +898,9 @@ where
             .call_manager
             .charge_gas(self.call_manager.price_list().on_install_actor(size))?;
         t.stop_with(start);
+
+        self.call_manager
+            .trace_ipld(IpldOperation::Get, code_id, size);
 
         Ok(())
     }
@@ -956,8 +961,8 @@ impl<C> DebugOps for DefaultKernel<C>
 where
     C: CallManager,
 {
-    fn log(&self, msg: String) {
-        println!("{}", msg)
+    fn log(&mut self, msg: String) {
+        self.call_manager.log(msg)
     }
 
     fn debug_enabled(&self) -> bool {

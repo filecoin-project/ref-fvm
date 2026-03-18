@@ -1,17 +1,17 @@
 [package]
 name = "fvm_ipld_hamt"
 description = "Sharded IPLD HashMap implementation."
-version = "0.9.0"
-license = "MIT OR Apache-2.0"
+version = "0.10.4"
+license.workspace = true
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
-edition = "2021"
-repository = "https://github.com/filecoin-project/ref-fvm"
+edition.workspace = true
+repository.workspace = true
 
 [dependencies]
 serde = { workspace = true }
 byteorder = { workspace = true }
-cid = { workspace = true, features = ["serde-codec"] }
-multihash = { workspace = true }
+cid = { workspace = true, features = ["serde"] }
+multihash-codetable = { workspace = true }
 thiserror = { workspace = true }
 once_cell = { workspace = true }
 anyhow = { workspace = true }
@@ -19,7 +19,7 @@ fvm_ipld_encoding = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
 sha2 = "0.10"
 forest_hash_utils = "0.1"
-libipld-core = { workspace = true }
+ipld-core = { workspace = true }
 
 
 [features]
@@ -32,6 +32,7 @@ unsigned-varint = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 rand = { workspace = true }
+itertools = { workspace = true }
 
 [[bench]]
 name = "hamt_beckmark"

@@ -6,11 +6,10 @@
 use std::array::from_fn;
 use std::convert::TryInto;
 use std::hash::Hash;
-use std::u64;
 
 use super::{
-    from_leb_bytes, to_leb_bytes, Error, Protocol, BLS_PUB_LEN, MAX_SUBADDRESS_LEN,
-    PAYLOAD_HASH_LEN,
+    BLS_PUB_LEN, Error, MAX_SUBADDRESS_LEN, PAYLOAD_HASH_LEN, Protocol, from_leb_bytes,
+    to_leb_bytes,
 };
 use crate::ActorID;
 

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::ptr;
 
-use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_ipld_encoding::IPLD_RAW;
+use fvm_ipld_encoding::ipld_block::IpldBlock;
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::bigint::Zero;
@@ -11,7 +11,7 @@ use fvm_shared::error::ErrorNumber::*;
 use fvm_shared::error::ExitCode;
 use fvm_shared::event::{Entry, Flags};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(params: u32) -> u32 {
     sdk::initialize();
 

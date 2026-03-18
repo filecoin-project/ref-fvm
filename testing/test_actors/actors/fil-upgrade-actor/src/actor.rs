@@ -1,13 +1,13 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::ipld_block::IpldBlock;
-use fvm_ipld_encoding::{to_vec, CBOR};
+use fvm_ipld_encoding::{CBOR, to_vec, tuple::*};
 use fvm_sdk as sdk;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::ErrorNumber;
 use fvm_shared::upgrade::UpgradeInfo;
-use serde_tuple::*;
+
 #[derive(Serialize_tuple, Deserialize_tuple, PartialEq, Eq, Clone, Debug)]
 struct SomeStruct {
     value: u64,
@@ -15,7 +15,7 @@ struct SomeStruct {
 
 const UPGRADE_FAILED_EXIT_CODE: u32 = 19;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
     sdk::initialize();
 
@@ -67,7 +67,7 @@ pub fn upgrade(params_id: u32, upgrade_info_id: u32) -> u32 {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn invoke(_: u32) -> u32 {
     sdk::initialize();
 

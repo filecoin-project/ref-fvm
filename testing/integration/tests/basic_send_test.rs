@@ -9,12 +9,12 @@ use fvm::gas::GasCharge;
 use fvm::machine::Machine;
 use fvm_integration_tests::dummy::DummyExterns;
 use fvm_ipld_blockstore::MemoryBlockstore;
+use fvm_shared::METHOD_SEND;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::message::Message;
 use fvm_shared::state::StateTreeVersion;
 use fvm_shared::version::NetworkVersion;
-use fvm_shared::METHOD_SEND;
 
 #[test]
 fn basic_send() {

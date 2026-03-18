@@ -5,16 +5,16 @@
 use std::convert::{TryFrom, TryInto};
 
 use anyhow::anyhow;
-use cid::multihash::Code;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{strict_bytes, BytesSer, CborStore};
+use fvm_ipld_encoding::{BytesSer, CborStore, strict_bytes};
+use multihash_codetable::Code;
 use once_cell::unsync::OnceCell;
 use serde::de::{self, DeserializeOwned};
-use serde::{ser, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, ser};
 
 use super::ValueMut;
-use crate::{bmap_bytes, init_sized_vec, nodes_for_height, Error};
+use crate::{Error, bmap_bytes, init_sized_vec, nodes_for_height};
 
 /// This represents a link to another Node
 #[derive(Debug)]
@@ -317,7 +317,7 @@ where
                     Some(Link::Dirty(Box::new(node)))
                 }
                 Some(Link::Dirty(node)) => {
-                    return node.set(bs, height - 1, bit_width, i % nfh, val)
+                    return node.set(bs, height - 1, bit_width, i % nfh, val);
                 }
             };
 
@@ -333,13 +333,10 @@ where
 
     fn set_leaf(&mut self, i: u64, val: V) -> Option<V> {
         match self {
-            Node::Leaf { vals } => {
-                let prev = std::mem::replace(
-                    vals.get_mut(usize::try_from(i).unwrap()).unwrap(),
-                    Some(val),
-                );
-                prev
-            }
+            Node::Leaf { vals } => vals
+                .get_mut(usize::try_from(i).unwrap())
+                .unwrap()
+                .replace(val),
             Node::Link { .. } => panic!("set_leaf should never be called on a shard of links"),
         }
     }
@@ -418,6 +415,52 @@ where
                 Ok(deleted)
             }
         }
+    }
+
+    /// Non-caching iteration over the values in the node.
+    pub(super) fn for_each_cacheless<S, F>(
+        &self,
+        bs: &S,
+        height: u32,
+        bit_width: u32,
+        offset: u64,
+        f: &mut F,
+    ) -> Result<(), Error>
+    where
+        F: FnMut(u64, &V) -> anyhow::Result<()>,
+        S: Blockstore,
+    {
+        match self {
+            Node::Leaf { vals } => {
+                for (i, v) in (0..).zip(vals.iter()) {
+                    if let Some(v) = v {
+                        f(offset + i, v)?;
+                    }
+                }
+            }
+            Node::Link { links } => {
+                for (i, l) in (0..).zip(links.iter()) {
+                    if let Some(link) = l {
+                        let offs = offset + (i * nodes_for_height(bit_width, height));
+                        match link {
+                            Link::Dirty(sub) => {
+                                sub.for_each_cacheless(bs, height - 1, bit_width, offs, f)?;
+                            }
+                            Link::Cid { cid, cache: _ } => {
+                                let node = bs
+                                    .get_cbor::<CollapsedNode<V>>(cid)?
+                                    .ok_or_else(|| Error::CidNotFound(cid.to_string()))?
+                                    .expand(bit_width)?;
+
+                                node.for_each_cacheless(bs, height - 1, bit_width, offs, f)?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Returns a `(keep_going, did_mutate)` pair. `keep_going` will be `false` iff

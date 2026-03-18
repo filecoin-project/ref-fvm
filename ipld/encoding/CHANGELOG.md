@@ -4,6 +4,20 @@ Changes to the FVM's shared encoding utilities.
 
 ## [Unreleased]
 
+## 0.5.2 [2025-03-14]
+
+Update `ipld-core` and `serde_ipld_dagcbor` to support optional fields in tuple-encoded structs.
+
+## 0.5.1 [2024-11-08]
+
+Remove unnecessary features from `multihash-codetable`.
+
+## 0.5.0 [2024-10-31]
+
+Update `cid` to v0.11 and `multihash` to v0.19.
+
+You will have to update your multihash and cid crates to be compatible, see the [multihash release notes](https://github.com/multiformats/rust-multihash/blob/master/CHANGELOG.md#-2023-06-06) for details on the breaking changes.
+
 ## 0.4.0 [2023-06-28)
 
 Breaking Changes:

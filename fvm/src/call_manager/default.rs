@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::rc::Rc;
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use cid::Cid;
 use derive_more::{Deref, DerefMut};
 use fvm_ipld_amt::Amt;
-use fvm_ipld_encoding::{to_vec, CBOR};
+use fvm_ipld_encoding::{CBOR, to_vec};
 use fvm_shared::address::{Address, Payload};
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::error::{ErrorNumber, ExitCode};
@@ -18,16 +18,16 @@ use num_traits::Zero;
 use super::state_access_tracker::{ActorAccessState, StateAccessTracker};
 use super::{Backtrace, CallManager, Entrypoint, InvocationResult, NO_DATA_BLOCK_ID};
 use crate::blockstore::DiscardBlockstore;
-use crate::call_manager::backtrace::Frame;
 use crate::call_manager::FinishRet;
+use crate::call_manager::backtrace::Frame;
 use crate::eam_actor::EAM_ACTOR_ID;
 use crate::engine::Engine;
 use crate::gas::{Gas, GasTracker};
 use crate::kernel::{
     Block, BlockRegistry, ClassifyResult, ExecutionError, Kernel, Result, SyscallError,
 };
-use crate::machine::limiter::MemoryLimiter;
 use crate::machine::Machine;
+use crate::machine::limiter::MemoryLimiter;
 use crate::state_tree::ActorState;
 use crate::syscalls::error::Abort;
 use crate::syscalls::{charge_for_exec, update_gas_available};
@@ -182,21 +182,21 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        if self.machine.context().tracing {
-            if let Entrypoint::Invoke(method) = &entrypoint {
-                self.trace(ExecutionEvent::Call {
-                    from,
-                    to,
-                    method: *method,
-                    params: params.as_ref().map(Into::into),
-                    value: value.clone(),
-                    gas_limit: std::cmp::min(
-                        gas_limit.unwrap_or(Gas::from_milligas(u64::MAX)).round_up(),
-                        self.gas_tracker.gas_available().round_up(),
-                    ),
-                    read_only,
-                });
-            }
+        if self.machine.context().tracing
+            && let Entrypoint::Invoke(method) = &entrypoint
+        {
+            self.trace(ExecutionEvent::Call {
+                from,
+                to,
+                method: *method,
+                params: params.as_ref().map(Into::into),
+                value: value.clone(),
+                gas_limit: std::cmp::min(
+                    gas_limit.unwrap_or(Gas::from_milligas(u64::MAX)).round_up(),
+                    self.gas_tracker.gas_available().round_up(),
+                ),
+                read_only,
+            });
         }
 
         // If a specific gas limit has been requested, push a new limit into the gas tracker.
@@ -512,6 +512,14 @@ where
         log::trace!("transferred {} from {} to {}", value, from, to);
 
         Ok(())
+    }
+
+    fn log(&mut self, msg: String) {
+        self.trace(ExecutionEvent::Log(msg))
+    }
+
+    fn trace_ipld(&mut self, op: crate::trace::IpldOperation, cid: Cid, size: usize) {
+        self.trace(ExecutionEvent::Ipld { op, cid, size })
     }
 }
 
@@ -889,14 +897,13 @@ where
                 .ok()
                 .and_then(|r| r.value.as_ref())
                 .map(|v| (v.size(), v.links().len()))
-            {
-                if let Err(e) = cm.charge_gas(cm.price_list().on_method_return(
+                && let Err(e) = cm.charge_gas(cm.price_list().on_method_return(
                     cm.call_stack_depth,
                     ret_size,
                     link_count,
-                )) {
-                    ret = Err(e);
-                }
+                ))
+            {
+                ret = Err(e);
             }
 
             // Log the results if tracing is enabled.

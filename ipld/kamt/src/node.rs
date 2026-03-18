@@ -8,7 +8,7 @@ use std::fmt::Debug;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::{CborStore, DAG_CBOR};
-use multihash::Code;
+use multihash_codetable::Code;
 use once_cell::unsync::OnceCell;
 use serde::de::DeserializeOwned;
 use serde::{Serialize, Serializer};
@@ -102,12 +102,7 @@ where
                             conf.max_array_width,
                         )));
                     }
-                    if !kvs.windows(2).all(|window| {
-                        let [a, b] = window else {
-                            panic!("invalid window length")
-                        };
-                        a.key() < b.key()
-                    }) {
+                    if !kvs.is_sorted_by(|a, b| a.key() < b.key()) {
                         return Err(Error::Dynamic(anyhow::anyhow!(
                             "duplicate or unsorted keys in bucket"
                         )));
@@ -709,7 +704,7 @@ pub(crate) struct PartialMatch<'a> {
     matched: u32,
 }
 
-impl<'a> PartialMatch<'a> {
+impl PartialMatch<'_> {
     /// Split the extension into the part before the match (which could be empty)
     /// the next nibble where the link pointing to the tail needs to be inserted
     /// into the new midway node, and the part after (which again could be empty).

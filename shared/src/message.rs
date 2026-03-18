@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::anyhow;
+use fvm_ipld_encoding::RawBytes;
 use fvm_ipld_encoding::de::{Deserialize, Deserializer};
 use fvm_ipld_encoding::ser::{Serialize, Serializer};
-use fvm_ipld_encoding::RawBytes;
 
+use crate::MethodNum;
 use crate::address::Address;
 use crate::econ::TokenAmount;
-use crate::MethodNum;
 
 /// Default Unsigned VM message type which includes all data needed for a state transition
 #[cfg_attr(feature = "testing", derive(Default))]

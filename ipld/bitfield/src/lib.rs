@@ -15,7 +15,7 @@ mod unvalidated;
 use std::collections::BTreeSet;
 use std::ops::Range;
 
-use iter::{ranges_from_bits, RangeIterator};
+use iter::{RangeIterator, ranges_from_bits};
 pub(crate) use range::RangeSize;
 pub use rleplus::Error;
 use thiserror::Error;

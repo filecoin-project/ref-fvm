@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
@@ -32,8 +32,8 @@ pub struct Manifest {
 const fn id_cid(name: &[u8]) -> Cid {
     use std::mem;
 
+    use cid::multihash::Multihash;
     use fvm_shared::{IDENTITY_HASH, IPLD_RAW};
-    use multihash::Multihash;
 
     // This code is ugly because const fns are a bit ugly right now:
     //

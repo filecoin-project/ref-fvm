@@ -6,13 +6,10 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use cid::Cid;
 use flate2::bufread::GzDecoder;
-use futures::AsyncRead;
 use fvm_ipld_blockstore::MemoryBlockstore;
 use fvm_ipld_car::load_car;
 use fvm_ipld_encoding::tuple::*;
@@ -45,7 +42,8 @@ pub struct MetaData {
     pub description: String,
     #[serde(default)]
     pub comment: String,
-    pub gen: Vec<GenerationData>,
+    #[serde(rename = "gen")]
+    pub generation: Vec<GenerationData>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -177,33 +175,21 @@ impl MessageVector {
 
     /// Returns true if the vector is supported.
     pub fn is_supported(&self) -> bool {
-        self.selector.as_ref().map_or(true, Selector::supported)
+        self.selector.as_ref().is_none_or(Selector::supported)
     }
 }
 
 impl MessageVector {
     /// Seeds a new blockstore with the CAR encoded in the test vector and all available bundled
     /// actors. Returns the blockstore and the root CID.
-    pub async fn seed_blockstore(&self) -> anyhow::Result<(MemoryBlockstore, Vec<Cid>)> {
+    pub fn seed_blockstore(&self) -> anyhow::Result<(MemoryBlockstore, Vec<Cid>)> {
         let blockstore = MemoryBlockstore::new();
         load_actors(&blockstore)?;
 
         let bytes = self.car.as_slice();
-        let decoder = GzipDecoder(GzDecoder::new(bytes));
-        let cid = load_car(&blockstore, decoder).await?;
+        let decoder = GzDecoder::new(bytes);
+        let cid = load_car(&blockstore, decoder)?;
         Ok((blockstore, cid))
-    }
-}
-
-struct GzipDecoder<R>(GzDecoder<R>);
-
-impl<R: std::io::Read + Unpin + std::io::BufRead> AsyncRead for GzipDecoder<R> {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<Result<usize, std::io::Error>> {
-        Poll::Ready(std::io::Read::read(&mut self.0, buf))
     }
 }
 

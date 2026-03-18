@@ -3,21 +3,22 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use std::collections::{HashMap, HashSet};
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use cid::Cid;
 use fvm_ipld_blockstore::tracking::{BSStats, TrackingBlockstore};
 use fvm_ipld_blockstore::{Blockstore, MemoryBlockstore};
+use fvm_ipld_encoding::CborStore;
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::strict_bytes::ByteBuf;
-use fvm_ipld_encoding::CborStore;
 #[cfg(feature = "identity")]
 use fvm_ipld_hamt::Identity;
 use fvm_ipld_hamt::{BytesKey, Config, Error, Hamt, Hash};
-use multihash::Code;
+use itertools::Itertools as _;
+use multihash_codetable::Code;
 use quickcheck::Arbitrary;
-use rand::seq::SliceRandom;
 use rand::SeedableRng;
+use rand::seq::SliceRandom;
 use serde::Serialize;
 
 // Redeclaring max array size of Hamt to avoid exposing value
@@ -84,44 +85,61 @@ impl HamtFactory {
     }
 }
 
-/// Check hard-coded CIDs during testing.
-struct CidChecker {
+type CidChecker = Checker<Cid>;
+
+type BSStatsChecker = Checker<BSStats>;
+
+/// Check hard-coded values during testing.
+struct Checker<T> {
     checked: usize,
-    cids: Option<Vec<&'static str>>,
+    expected_values: Option<Vec<T>>,
 }
 
-impl CidChecker {
-    pub fn new(cids: Vec<&'static str>) -> Self {
+impl<T> Checker<T>
+where
+    T: Debug + PartialEq,
+{
+    pub fn new<V>(expected_values: impl IntoIterator<Item = V>) -> Self
+    where
+        T: TryFrom<V>,
+        <T as TryFrom<V>>::Error: Debug,
+    {
         Self {
-            cids: Some(cids),
+            expected_values: Some(
+                expected_values
+                    .into_iter()
+                    .map(T::try_from)
+                    .try_collect()
+                    .unwrap(),
+            ),
             checked: 0,
         }
     }
 
     pub fn empty() -> Self {
         Self {
-            cids: None,
+            expected_values: None,
             checked: 0,
         }
     }
 
-    pub fn check_next(&mut self, cid: Cid) {
-        if let Some(cids) = &self.cids {
-            assert_ne!(self.checked, cids.len());
-            assert_eq!(cid.to_string().as_str(), cids[self.checked]);
+    pub fn check_next(&mut self, actual_value: &T) {
+        if let Some(expected_values) = &self.expected_values {
+            assert_ne!(self.checked, expected_values.len());
+            assert_eq!(actual_value, &expected_values[self.checked]);
             self.checked += 1;
         }
     }
 }
 
-impl Drop for CidChecker {
+impl<T> Drop for Checker<T> {
     fn drop(&mut self) {
         if std::thread::panicking() {
             // Already failed, don't double-panic.
             return;
         }
-        if let Some(cids) = &self.cids {
-            assert_eq!(self.checked, cids.len())
+        if let Some(expected_values) = &self.expected_values {
+            assert_eq!(self.checked, expected_values.len())
         }
     }
 }
@@ -129,11 +147,76 @@ impl Drop for CidChecker {
 fn test_basics(factory: HamtFactory) {
     let store = MemoryBlockstore::default();
     let mut hamt = factory.new(&store);
-    hamt.set(1, "world".to_string()).unwrap();
 
+    hamt.set(1, "world".to_string()).unwrap();
     assert_eq!(hamt.get(&1).unwrap(), Some(&"world".to_string()));
+    assert!(hamt.contains_key(&1).unwrap());
+
     hamt.set(1, "world2".to_string()).unwrap();
     assert_eq!(hamt.get(&1).unwrap(), Some(&"world2".to_string()));
+    assert!(hamt.contains_key(&1).unwrap());
+
+    assert_eq!(hamt.get(&2).unwrap(), None);
+    assert!(!hamt.contains_key(&2).unwrap());
+}
+
+fn test_n_keys(factory: HamtFactory) {
+    const KEY_LEN: usize = 32;
+    let store = MemoryBlockstore::default();
+    // Test increasing numbers of sequential keys.
+    fn key(j: u64) -> BytesKey {
+        let mut k = [0; KEY_LEN];
+        let encoded = j.to_be_bytes();
+        k[(KEY_LEN - encoded.len())..].copy_from_slice(&encoded[..]);
+        BytesKey(k.to_vec())
+    }
+
+    for do_flush in [true, false] {
+        for i in 0..=300 {
+            let mut hamt: Hamt<_, _, BytesKey> = factory.new(&store);
+            let k_too_big = key(i + 1);
+            for j in 0..i {
+                // Maybe try flushing/reloading (clearing the cache and/or dirty bits).
+                if do_flush {
+                    if j == i / 3 {
+                        // Flush but don't reload.
+                        hamt.flush().unwrap();
+                    } else if j == (2 * i) / 3 {
+                        // Flush and reload.
+                        let new_root = hamt.flush().unwrap();
+                        hamt.set(key(0), "yolo".to_string()).unwrap();
+                        hamt.set_root(&new_root).unwrap();
+                    }
+                }
+
+                let k = key(j);
+                hamt.set(k, format!("{j}")).unwrap();
+            }
+
+            // Fail to get an item out of range.
+            assert_eq!(hamt.get(&k_too_big).unwrap(), None);
+
+            // Make sure we get what we expect after reloading.
+            let root = hamt.flush().unwrap();
+            let new_hamt = factory.load(&root, &store).unwrap();
+            assert_eq!(hamt, new_hamt);
+
+            // And the items are the same.
+            let old_items = hamt.iter().collect::<Result<Vec<_>, _>>().unwrap();
+            let new_items = new_hamt.iter().collect::<Result<Vec<_>, _>>().unwrap();
+            assert_eq!(old_items, new_items);
+
+            // And we still fail to get an item out of range.
+            assert_eq!(new_hamt.get(&k_too_big).unwrap(), None);
+
+            // Assert we can independently look up every key when load a fresh hamt.
+            for j in 0..i {
+                let hamt: Hamt<_, _, BytesKey> = factory.load(&root, &store).unwrap();
+                let k = key(j);
+                assert_eq!(hamt.get(&k).unwrap(), Some(&format!("{j}")));
+            }
+        }
+    }
 }
 
 fn test_load(factory: HamtFactory) {
@@ -164,13 +247,46 @@ fn test_load(factory: HamtFactory) {
 
     // loading from an empty store does not work
     let empty_store = MemoryBlockstore::default();
-    assert!(factory
-        .load::<_, usize, BytesKey>(&c2, &empty_store)
-        .is_err());
+    assert!(
+        factory
+            .load::<_, usize, BytesKey>(&c2, &empty_store)
+            .is_err()
+    );
 
     // storing the hamt should produce the same cid as storing the root
     let c3 = hamt.flush().unwrap();
     assert_eq!(c3, c2);
+}
+
+// Make sure we correctly set the root _and_ the cached root cid.
+fn test_set_root(factory: HamtFactory) {
+    let store = MemoryBlockstore::default();
+
+    let mut hamt: Hamt<_, _, usize> = factory.new(&store);
+    hamt.set(1, "world".to_string()).unwrap();
+
+    // Record a hamt root with one entry.
+    assert_eq!(hamt.get(&1).unwrap(), Some(&"world".to_string()));
+    let c1 = hamt.flush().unwrap();
+
+    // Record a second hamt root with 2 entries.
+    hamt.set(2, "world2".to_string()).unwrap();
+    assert_eq!(hamt.get(&2).unwrap(), Some(&"world2".to_string()));
+
+    let c2 = hamt.flush().unwrap();
+
+    // Re-load the original hamt with one entry.
+    let mut new_hamt: Hamt<_, String, usize> = factory.load(&c1, &store).unwrap();
+    assert_eq!(new_hamt.get(&1).unwrap(), Some(&"world".to_string()));
+    assert_eq!(new_hamt.get(&2).unwrap(), None);
+
+    // Try to update it to the new hamt by setting its root manually.
+    new_hamt.set_root(&c2).unwrap();
+    assert_eq!(new_hamt.get(&2).unwrap(), Some(&"world2".to_string()));
+
+    // Flush the new hamt and make sure it matches the root we just set.
+    let c3 = new_hamt.flush().unwrap();
+    assert_eq!(c2, c3);
 }
 
 fn test_set_if_absent(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
@@ -178,27 +294,33 @@ fn test_set_if_absent(factory: HamtFactory, stats: Option<BSStats>, mut cids: Ci
     let store = TrackingBlockstore::new(&mem);
 
     let mut hamt: Hamt<_, _> = factory.new(&store);
-    assert!(hamt
-        .set_if_absent(tstring("favorite-animal"), tstring("owl bear"))
-        .unwrap());
+    assert!(
+        hamt.set_if_absent(tstring("favorite-animal"), tstring("owl bear"))
+            .unwrap()
+    );
 
     // Next two are negatively asserted, shouldn't change
-    assert!(!hamt
-        .set_if_absent(tstring("favorite-animal"), tstring("bright green bear"))
-        .unwrap());
-    assert!(!hamt
-        .set_if_absent(tstring("favorite-animal"), tstring("owl bear"))
-        .unwrap());
+    assert!(
+        !hamt
+            .set_if_absent(tstring("favorite-animal"), tstring("bright green bear"))
+            .unwrap()
+    );
+    assert!(
+        !hamt
+            .set_if_absent(tstring("favorite-animal"), tstring("owl bear"))
+            .unwrap()
+    );
 
     let c = hamt.flush().unwrap();
 
     let mut h2 = factory.load(&c, &store).unwrap();
     // Reloading should still have same effect
-    assert!(!h2
-        .set_if_absent(tstring("favorite-animal"), tstring("bright green bear"))
-        .unwrap());
+    assert!(
+        !h2.set_if_absent(tstring("favorite-animal"), tstring("bright green bear"))
+            .unwrap()
+    );
 
-    cids.check_next(c);
+    cids.check_next(&c);
 
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
@@ -220,12 +342,12 @@ fn set_with_no_effect_does_not_put(
     }
 
     let c = begn.flush().unwrap();
-    cids.check_next(c);
+    cids.check_next(&c);
 
     begn.set(tstring("favorite-animal"), tstring("bright green bear"))
         .unwrap();
     let c2 = begn.flush().unwrap();
-    cids.check_next(c2);
+    cids.check_next(&c2);
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
@@ -233,7 +355,7 @@ fn set_with_no_effect_does_not_put(
     begn.set(tstring("favorite-animal"), tstring("bright green bear"))
         .unwrap();
     let c3 = begn.flush().unwrap();
-    cids.check_next(c3);
+    cids.check_next(&c3);
 
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
@@ -249,17 +371,22 @@ fn delete(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecker) {
     hamt.set(tstring("bar"), tstring("cat dog")).unwrap();
     hamt.set(tstring("baz"), tstring("cat")).unwrap();
     assert!(hamt.get(&tstring("foo")).unwrap().is_some());
+    assert!(hamt.contains_key(&tstring("foo")).unwrap());
 
     let c = hamt.flush().unwrap();
-    cids.check_next(c);
+    cids.check_next(&c);
 
     let mut h2: Hamt<_, BytesKey> = factory.load(&c, &store).unwrap();
     assert!(h2.get(&b"foo".to_vec()).unwrap().is_some());
     assert!(h2.delete(&b"foo".to_vec()).unwrap().is_some());
     assert_eq!(h2.get(&b"foo".to_vec()).unwrap(), None);
+    assert!(!h2.contains_key(&b"foo".to_vec()).unwrap());
+
+    // Delete a non-existent key
+    assert!(h2.delete(&b"nonexistent".to_vec()).unwrap().is_none());
 
     let c2 = h2.flush().unwrap();
-    cids.check_next(c2);
+    cids.check_next(&c2);
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
@@ -275,14 +402,14 @@ fn delete_case(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidChecke
         .unwrap();
 
     let c = hamt.flush().unwrap();
-    cids.check_next(c);
+    cids.check_next(&c);
 
     let mut h2: Hamt<_, ByteBuf> = factory.load(&c, &store).unwrap();
     assert!(h2.delete(&[0].to_vec()).unwrap().is_some());
     assert_eq!(h2.get(&[0].to_vec()).unwrap(), None);
 
     let c2 = h2.flush().unwrap();
-    cids.check_next(c2);
+    cids.check_next(&c2);
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
@@ -298,7 +425,7 @@ fn reload_empty(factory: HamtFactory, stats: Option<BSStats>, mut cids: CidCheck
     let h2: Hamt<_, ()> = factory.load(&c, &store).unwrap();
     let c2 = store.put_cbor(&h2, Code::Blake2b256).unwrap();
     assert_eq!(c, c2);
-    cids.check_next(c);
+    cids.check_next(&c);
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
@@ -321,14 +448,14 @@ fn set_delete_many(
     }
 
     let c1 = hamt.flush().unwrap();
-    cids.check_next(c1);
+    cids.check_next(&c1);
 
     for i in size_factor..(size_factor * 2) {
         hamt.set(tstring(i), tstring(i)).unwrap();
     }
 
     let cid_all = hamt.flush().unwrap();
-    cids.check_next(cid_all);
+    cids.check_next(&cid_all);
 
     for i in size_factor..(size_factor * 2) {
         assert!(hamt.delete(&tstring(i)).unwrap().is_some());
@@ -336,20 +463,22 @@ fn set_delete_many(
     // Ensure first size_factor keys still exist
     for i in 0..size_factor {
         assert_eq!(hamt.get(&tstring(i)).unwrap(), Some(&tstring(i)));
+        assert!(hamt.contains_key(&tstring(i)).unwrap());
     }
 
     let cid_d = hamt.flush().unwrap();
-    cids.check_next(cid_d);
+    cids.check_next(&cid_d);
 
     // Assert that we can empty it.
     for i in 0..size_factor {
         assert!(hamt.delete(&tstring(i)).unwrap().is_some());
+        assert!(!hamt.contains_key(&tstring(i)).unwrap());
     }
 
     assert_eq!(hamt.iter().count(), 0);
 
     let cid_d = hamt.flush().unwrap();
-    cids.check_next(cid_d);
+    cids.check_next(&cid_d);
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
@@ -385,7 +514,7 @@ fn for_each(
     assert_eq!(count, size_factor);
 
     let c = hamt.flush().unwrap();
-    cids.check_next(c);
+    cids.check_next(&c);
 
     let mut hamt: Hamt<_, BytesKey> = factory.load_with_bit_width(&c, &store, 5).unwrap();
 
@@ -409,11 +538,183 @@ fn for_each(
     .unwrap();
     assert_eq!(count, size_factor);
 
+    {
+        let c = hamt.flush().unwrap();
+        cids.check_next(&c);
+    }
+
+    // Iterate with a few modified nodes.
+    if size_factor > 10 {
+        hamt.set(tstring(10), tstring("modified-10")).unwrap();
+    }
+    if size_factor > 80 {
+        hamt.set(tstring(80), tstring("modified-80")).unwrap();
+        hamt.set(tstring(81), tstring("modified-81")).unwrap();
+    }
+    if size_factor > 30 {
+        assert!(hamt.delete(&tstring(30)).unwrap().is_some());
+    }
+
+    // Delete a non-existent value
+    assert!(hamt.delete(&tstring(size_factor + 100)).unwrap().is_none());
+
+    // Iterate and verify modifications
+    let mut count = 0;
+    hamt.for_each(|k, v| {
+        if size_factor > 30 {
+            // Should not see deleted key
+            assert_ne!(k, &tstring(30));
+        }
+
+        if size_factor > 10 && k == &tstring(10) {
+            assert_eq!(v, &tstring("modified-10"));
+        } else if size_factor > 80 && k == &tstring(80) {
+            assert_eq!(v, &tstring("modified-80"));
+        } else if size_factor > 80 && k == &tstring(81) {
+            assert_eq!(v, &tstring("modified-81"));
+        } else if k != &tstring(30) {
+            // Normal key-value equality except for modified keys
+            assert_eq!(k, v);
+        }
+
+        count += 1;
+        Ok(())
+    })
+    .unwrap();
+
+    // Verify count matches expectation: original size - deleted + new entries
+    let expected_count = if size_factor > 30 {
+        size_factor - 1
+    } else {
+        size_factor
+    };
+    assert_eq!(count, expected_count);
+
     let c = hamt.flush().unwrap();
-    cids.check_next(c);
+    cids.check_next(&c);
 
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
+    }
+}
+
+fn for_each_cacheless(
+    size_factor: usize,
+    factory: HamtFactory,
+    mut stats: Option<BSStatsChecker>,
+    mut cids: CidChecker,
+) {
+    let mem = MemoryBlockstore::default();
+    let store = TrackingBlockstore::new(&mem);
+
+    let mut hamt: Hamt<_, BytesKey> = factory.new_with_bit_width(&store, 5);
+    let store2 = MemoryBlockstore::default();
+    let mut hamt2: Hamt<_, BytesKey> = factory.new_with_bit_width(&store2, 5);
+
+    for i in 0..size_factor {
+        hamt.set(tstring(i), tstring(i)).unwrap();
+        hamt2.set(tstring(i), tstring(i)).unwrap();
+    }
+
+    // Iterating through hamt with dirty caches.
+    let mut count = 0;
+    let mut keys = Vec::with_capacity(size_factor);
+    hamt.for_each_cacheless(|k, v| {
+        assert_eq!(k, v);
+        keys.push(k.0.clone());
+        count += 1;
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(count, size_factor);
+
+    // Ensure parity between `for_each_cacheless` and `for_each`
+    let mut expected_keys = Vec::with_capacity(size_factor);
+    hamt2
+        .for_each(|k, v| {
+            assert_eq!(k, v);
+            expected_keys.push(k.0.clone());
+            Ok(())
+        })
+        .unwrap();
+
+    assert_eq!(keys, expected_keys);
+
+    let c = hamt.flush().unwrap();
+    cids.check_next(&c);
+    if let Some(stats) = &mut stats {
+        stats.check_next(&*store.stats.borrow());
+    }
+
+    let mut hamt: Hamt<_, BytesKey> = factory.load_with_bit_width(&c, &store, 5).unwrap();
+
+    // Iterating through hamt with no cache.
+    let mut count = 0;
+    hamt.for_each_cacheless(|k, v| {
+        assert_eq!(k, v);
+        count += 1;
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(count, size_factor);
+
+    let c = hamt.flush().unwrap();
+    cids.check_next(&c);
+    if let Some(stats) = &mut stats {
+        stats.check_next(&*store.stats.borrow());
+    }
+
+    // Iterate with a few modified nodes.
+    if size_factor > 10 {
+        hamt.set(tstring(10), tstring("modified-10")).unwrap();
+    }
+    if size_factor > 80 {
+        hamt.set(tstring(80), tstring("modified-80")).unwrap();
+        hamt.set(tstring(81), tstring("modified-81")).unwrap();
+    }
+    if size_factor > 30 {
+        assert!(hamt.delete(&tstring(30)).unwrap().is_some());
+    }
+
+    // Delete a non-existent value
+    assert!(hamt.delete(&tstring(size_factor + 100)).unwrap().is_none());
+
+    // Iterate and verify modifications
+    let mut count = 0;
+    hamt.for_each_cacheless(|k, v| {
+        if size_factor > 30 {
+            // Should not see deleted key
+            assert_ne!(k, &tstring(30));
+        }
+
+        if size_factor > 10 && k == &tstring(10) {
+            assert_eq!(v, &tstring("modified-10"));
+        } else if size_factor > 80 && k == &tstring(80) {
+            assert_eq!(v, &tstring("modified-80"));
+        } else if size_factor > 80 && k == &tstring(81) {
+            assert_eq!(v, &tstring("modified-81"));
+        } else if k != &tstring(30) {
+            // Normal key-value equality except for modified keys
+            assert_eq!(k, v);
+        }
+
+        count += 1;
+        Ok(())
+    })
+    .unwrap();
+
+    // Verify count matches expectation: original size - deleted + new entries
+    let expected_count = if size_factor > 30 {
+        size_factor - 1
+    } else {
+        size_factor
+    };
+    assert_eq!(count, expected_count);
+
+    let c = hamt.flush().unwrap();
+    cids.check_next(&c);
+    if let Some(stats) = &mut stats {
+        stats.check_next(&*store.stats.borrow());
     }
 }
 
@@ -530,12 +831,12 @@ fn for_each_ranged(
         // should have used the expected number of iterations
         assert_eq!(
             iterations,
-            (size_factor / page_size) + ((size_factor % page_size) > 0) as usize
+            (size_factor / page_size) + (!size_factor.is_multiple_of(page_size)) as usize
         );
     }
 
     let c = hamt.flush().unwrap();
-    cids.check_next(c);
+    cids.check_next(&c);
 
     // Chain paginated requests over a HAMT with committed nodes
     let mut hamt: Hamt<_, usize> = factory.load_with_bit_width(&c, &store, 5).unwrap();
@@ -581,16 +882,91 @@ fn for_each_ranged(
         // should have used the expected number of iterations
         assert_eq!(
             iterations,
-            (size_factor / page_size) + ((size_factor % page_size) > 0) as usize
+            (size_factor / page_size) + (!size_factor.is_multiple_of(page_size)) as usize
         );
     }
 
     let c = hamt.flush().unwrap();
-    cids.check_next(c);
+    cids.check_next(&c);
+
+    // Test modifications and deletions in ranged iteration
+    if size_factor > 10 {
+        hamt.set(tstring(10), size_factor + 10).unwrap();
+    }
+    if size_factor > 30 {
+        assert!(hamt.delete(&tstring(30)).unwrap().is_some());
+    }
+
+    // Verify modified content during ranged iteration
+    let mut kvs_after_mod = Vec::new();
+    hamt.for_each_ranged::<BytesKey, _>(None, None, |k, v| {
+        if size_factor > 10 && k == &tstring(10) {
+            assert_eq!(*v, size_factor + 10);
+        }
+        if size_factor > 30 {
+            assert_ne!(k, &tstring(30));
+        }
+        kvs_after_mod.push((k.clone(), *v));
+        Ok(())
+    })
+    .unwrap();
+
+    // Expected count after modifications
+    let expected_count = if size_factor > 30 {
+        size_factor - 1
+    } else {
+        size_factor
+    };
+    assert_eq!(kvs_after_mod.len(), expected_count);
+
+    let c = hamt.flush().unwrap();
+    cids.check_next(&c);
 
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
     }
+}
+
+fn clear(factory: HamtFactory, mut cids: CidChecker) {
+    let store = MemoryBlockstore::default();
+    let mut hamt = factory.new(&store);
+
+    // Verify the HAMT is initially empty
+    assert!(hamt.is_empty());
+
+    // Call clear on an already empty HAMT
+    hamt.clear();
+
+    // Verify it is still empty
+    assert!(hamt.is_empty());
+
+    // Insert some entries into the HAMT
+    hamt.set(1, "a".to_string()).unwrap();
+    hamt.set(2, "b".to_string()).unwrap();
+
+    // Verify the entries exist
+    assert_eq!(hamt.get(&1).unwrap(), Some(&"a".to_string()));
+    assert_eq!(hamt.get(&2).unwrap(), Some(&"b".to_string()));
+
+    // Verify the HAMT is not empty
+    assert!(!hamt.is_empty());
+
+    // Clear the HAMT
+    hamt.clear();
+
+    // Verify the HAMT is empty
+    assert!(hamt.is_empty());
+
+    // Verify previous entries are gone
+    assert_eq!(hamt.get(&1).unwrap(), None);
+    assert_eq!(hamt.get(&2).unwrap(), None);
+
+    // Ensure subsequent operations still work
+    hamt.set(3, "c".to_string()).unwrap();
+    assert_eq!(hamt.get(&3).unwrap(), Some(&"c".to_string()));
+
+    let c = hamt.flush().unwrap();
+    cids.check_next(&c);
 }
 
 #[cfg(feature = "identity")]
@@ -623,6 +999,7 @@ fn add_and_remove_keys(
 
     for (k, v) in all {
         assert_eq!(Some(&v), h1.get(&k).unwrap());
+        assert!(h1.contains_key(&k).unwrap());
     }
 
     // Set and delete extra keys
@@ -734,7 +1111,7 @@ fn clean_child_ordering(factory: HamtFactory, stats: Option<BSStats>, mut cids: 
     }
 
     let root = h.flush().unwrap();
-    cids.check_next(root);
+    cids.check_next(&root);
     let mut h: Hamt<_, u8> = factory.load_with_bit_width(&root, &store, 5).unwrap();
 
     h.delete(&make_key(104)).unwrap();
@@ -742,7 +1119,7 @@ fn clean_child_ordering(factory: HamtFactory, stats: Option<BSStats>, mut cids: 
     let root = h.flush().unwrap();
     let _: Hamt<_, u8> = factory.load_with_bit_width(&root, &store, 5).unwrap();
 
-    cids.check_next(root);
+    cids.check_next(&root);
 
     if let Some(stats) = stats {
         assert_eq!(*store.stats.borrow(), stats);
@@ -938,11 +1315,11 @@ fn tstring(v: impl Display) -> BytesKey {
 }
 
 mod test_default {
-    use fvm_ipld_blockstore::{tracking::BSStats, MemoryBlockstore};
+    use fvm_ipld_blockstore::{MemoryBlockstore, tracking::BSStats};
     use fvm_ipld_hamt::{Config, Hamtv0};
     use quickcheck_macros::quickcheck;
 
-    use crate::{CidChecker, HamtFactory, LimitedKeyOps, UniqueKeyValuePairs};
+    use crate::{BSStatsChecker, CidChecker, HamtFactory, LimitedKeyOps, UniqueKeyValuePairs};
 
     #[test]
     fn test_basics() {
@@ -950,8 +1327,18 @@ mod test_default {
     }
 
     #[test]
+    fn test_n_keys() {
+        super::test_n_keys(HamtFactory::default())
+    }
+
+    #[test]
     fn test_load() {
         super::test_load(HamtFactory::default())
+    }
+
+    #[test]
+    fn test_set_root() {
+        super::test_set_root(HamtFactory::default())
     }
 
     #[test]
@@ -1024,10 +1411,11 @@ mod test_default {
     #[test]
     fn for_each() {
         #[rustfmt::skip]
-            let stats = BSStats {r: 30, w: 30, br: 3209, bw: 3209};
+            let stats = BSStats {r: 30, w: 33, br: 3209, bw: 4697};
         let cids = CidChecker::new(vec![
             "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
             "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
+            "bafy2bzacebln5j7tdfavh2qqhio6mgaoq6mm2jbmcex2ngcmi3uqlx5k3mov4",
         ]);
         super::for_each(200, HamtFactory::default(), Some(stats), cids);
     }
@@ -1035,12 +1423,29 @@ mod test_default {
     #[test]
     fn for_each_ranged() {
         #[rustfmt::skip]
-            let stats = BSStats {r: 30, w: 30, br: 2895, bw: 2895};
+        let stats = BSStats {r: 30, w: 33, br: 2895, bw: 4321};
         let cids = CidChecker::new(vec![
             "bafy2bzacedy4ypl2vedhdqep3llnwko6vrtfiys5flciz2f3c55pl4whlhlqm",
             "bafy2bzacedy4ypl2vedhdqep3llnwko6vrtfiys5flciz2f3c55pl4whlhlqm",
+            "bafy2bzacecrxqeuuk34jsrol3azfpgy35ldw4bpgsa6pdxvzj262jzpvoekye",
         ]);
         super::for_each_ranged(200, HamtFactory::default(), Some(stats), cids);
+    }
+
+    #[test]
+    fn for_each_cacheless() {
+        #[rustfmt::skip]
+        let stats = BSStatsChecker::new(vec![
+            BSStats {r: 0, w: 30, br: 0, bw: 3209},
+            BSStats {r: 30, w: 30, br: 3209, bw: 3209},
+            BSStats {r: 60, w: 33, br: 5158, bw: 4697},
+        ]);
+        let cids = CidChecker::new(vec![
+            "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
+            "bafy2bzaceczhz54xmmz3xqnbmvxfbaty3qprr6dq7xh5vzwqbirlsnbd36z7a",
+            "bafy2bzacebln5j7tdfavh2qqhio6mgaoq6mm2jbmcex2ngcmi3uqlx5k3mov4",
+        ]);
+        super::for_each_cacheless(200, HamtFactory::default(), Some(stats), cids);
     }
 
     #[test]
@@ -1052,6 +1457,14 @@ mod test_default {
             "bafy2bzacedlyeuub3mo4aweqs7zyxrbldsq2u4a2taswubudgupglu2j4eru6",
         ]);
         super::clean_child_ordering(HamtFactory::default(), Some(stats), cids);
+    }
+
+    #[test]
+    fn test_clear() {
+        let cids = CidChecker::new(vec![
+            "bafy2bzaceagvm62vt2eiholjosl6hiii2t4zaxjax65bcqicnb4y4qjhexz4y",
+        ]);
+        super::clear(HamtFactory::default(), cids);
     }
 
     #[test]
@@ -1109,8 +1522,18 @@ macro_rules! test_hamt_mod {
             }
 
             #[test]
+            fn test_n_keys() {
+                super::test_n_keys($factory)
+            }
+
+            #[test]
             fn test_load() {
                 super::test_load($factory)
+            }
+
+            #[test]
+            fn test_set_root() {
+                super::test_set_root($factory)
             }
 
             #[test]
@@ -1153,10 +1576,22 @@ macro_rules! test_hamt_mod {
             }
 
             #[test]
+            fn for_each_cacheless() {
+                for s in super::SIZE_FACTORS {
+                    super::for_each_cacheless(*s, $factory, None, CidChecker::empty())
+                }
+            }
+
+            #[test]
             fn for_each_ranged() {
                 for s in super::SIZE_FACTORS {
                     super::for_each_ranged(*s, $factory, None, CidChecker::empty())
                 }
+            }
+
+            #[test]
+            fn clear() {
+                super::clear($factory, CidChecker::empty());
             }
 
             #[test]

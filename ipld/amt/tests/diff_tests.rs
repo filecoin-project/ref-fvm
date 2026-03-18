@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::*;
-use fvm_ipld_amt::{diff, Amt, Change};
+use fvm_ipld_amt::{Amt, Change, diff};
 use fvm_ipld_blockstore::MemoryBlockstore;
 use itertools::Itertools;
 use quickcheck::Arbitrary;

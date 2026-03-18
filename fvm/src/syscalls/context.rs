@@ -4,9 +4,9 @@ use std::io::Cursor;
 use std::ops::{Deref, DerefMut};
 
 use cid::Cid;
+use fvm_shared::MAX_CID_LEN;
 use fvm_shared::address::Address;
 use fvm_shared::error::ErrorNumber;
-use fvm_shared::MAX_CID_LEN;
 
 use crate::kernel::{ClassifyResult, Context as _, Result};
 use crate::syscall_error;
@@ -94,7 +94,7 @@ impl Memory {
     pub fn try_chunks<const S: usize>(&self, offset: u32, len: u32) -> Result<&[[u8; S]]> {
         let num_chunks = {
             let len = len as usize;
-            if len % S != 0 {
+            if !len.is_multiple_of(S) {
                 return Err(syscall_error!(
                     IllegalArgument;
                     "buffer length {len} is not divisible by chunk len {S}"

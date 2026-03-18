@@ -2,11 +2,106 @@
 
 ## [Unreleased]
 
-## 4.3.1 [2023-06-26]
+## 4.7.5 [2025-11-15]
+
+## 4.7.4 [2025-10-06]
+
+- feat: nv28 skeleton [#2220](https://github.com/filecoin-project/ref-fvm/pull/2220)
+- fix: propagate errors in Amt::for_each_cacheless [#2218](https://github.com/filecoin-project/ref-fvm/pull/2218)
+- chore(deps): bump serde_ipld_dagcbor from 0.6.3 to 0.6.4 [#2222](https://github.com/filecoin-project/ref-fvm/pull/2222)
+- chore(deps): bump serde_tuple from 0.5.0 to 1.1.2 [#2199](https://github.com/filecoin-project/ref-fvm/pull/2199)
+- chore(deps): bump criterion [#2217](https://github.com/filecoin-project/ref-fvm/pull/2217)
+
+## 4.7.3 [2025-08-22]
+
+- chore(deps): update replace_with and slab transitive dependencies [#2197](https://github.com/filecoin-project/ref-fvm/pull/2197)
+- chore(deps): bump filecoin-proofs-api from 18.1.0 to 19.0.0 [#2200](https://github.com/filecoin-project/ref-fvm/pull/2200)
+- chore(deps): bump serde_ipld_dagcbor from 0.6.2 to 0.6.3 [#2201](https://github.com/filecoin-project/ref-fvm/pull/2201)
+- chore: remove the nv27-dev feature flag [#2202](https://github.com/filecoin-project/ref-fvm/pull/2202)
+
+## 4.7.2 [2025-05-01]
+
+- feat: add nv27-skeleton [#2175](https://github.com/filecoin-project/ref-fvm/pull/2175)
+- chore: use workspace fields for license & repository url [#2172](https://github.com/filecoin-project/ref-fvm/pull/2172)
+- Update to 2024 edition everywhere else [#2170](https://github.com/filecoin-project/ref-fvm/pull/2170)
+- fix: correctly deserialize test vectors [#2168](https://github.com/filecoin-project/ref-fvm/pull/2168)
+- Switch to rust 2024 edition [#2162](https://github.com/filecoin-project/ref-fvm/pull/2162)
+
+## 4.7.1 [2025-04-15]
+
+This is an important bugfix release as v4.7.0 won't perform correct signature validation in some cases.
+
+- fix: accept malleable secp256k1 signatures (per EVM, etc.) [#2156](https://github.com/filecoin-project/ref-fvm/pull/2156)
+
+## 4.7.0 [2025-04-09]
+
+- Swap libsecp256k1 for k256 [#2135](https://github.com/filecoin-project/ref-fvm/pull/2135)
+  - `signature::ops::recover_secp_public_key` now returns a fixed length byte array
+- Update other dependencies [#2136](https://github.com/filecoin-project/ref-fvm/pull/2136), [#2145](https://github.com/filecoin-project/ref-fvm/pull/2145), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146), [#2146](https://github.com/filecoin-project/ref-fvm/pull/2146)
+- Update to Rust 1.86.0 [#2121](https://github.com/filecoin-project/ref-fvm/pull/2121)
+- Remove code that is not relevant to the FVM [#1986](https://github.com/filecoin-project/ref-fvm/pull/1986)
+    - `BLOCK_GAS_LIMIT`: Neither the FVM nor the builtin actors care about the block gas limit. And if they did, it would have to be a runtime parameter passed from the client.
+    - `EPOCH_DURATION_SECONDS`: Different networks may have different block times, this constant is useless.
+    - `math`, `reward`, `smooth`: part of the reward actor calculations, not relevant to the FVM itself (moved to the builtin actors).
+    - `TOTAL_FILECOIN`, `TOTAL_FILECOIN_BASE`: Network parameter, not a concern of the FVM.
+    - `BLOCKS_PER_EPOCH`: protocol parameter, moved to the builtin actors.
+    - `MAX_SECTOR_NUMBER`: moved to the builtin actors.
+    - `Spacetime`, `SectorQuality`: moved to the builtin actors.
+    - `ZERO_ADDRESS`, `*_LOOKBACK`, `ALLOWABLE_CLOCK_DRIFT`, `NetworkParams`, `DefaultNetworkParams`: unused.
+
+## 4.6.0 [2025-03-14]
+
+- Rename `window_post_partitions_sectors` on both the `RegisteredPoStProof` and `RegisteredSealProof` types to `window_post_partition_sectors` to match the builtin actors (from @zhinqiangxu). This is a small breaking change. [#1805](https://github.com/filecoin-project/ref-fvm/pull/1805)
+- Add Tock / nv26 and nv27 TBD network versions [#2107](https://github.com/filecoin-project/ref-fvm/pull/2107)
+- Update `ipld-core` and `serde_ipld_dagcbor` [#2104](https://github.com/filecoin-project/ref-fvm/pull/2104)
+
+## 4.5.3 [2024-12-04]
+
+- chore: remove the nv25-dev feature flag [#2093](https://github.com/filecoin-project/ref-fvm/pull/2093)
+
+## 4.5.2 [2024-11-21]
+
+- feat: add `nv25-dev` feature flag [#2076](https://github.com/filecoin-project/ref-fvm/pull/2076)
+
+## 4.5.1 [2024-11-08]
+
+Remove unnecessary features from `multihash-codetable`.
+
+## 4.5.0 [2024-10-31]
+
+- Update `cid` to v0.11 and `multihash` to v0.19.
+- Update to `fvm_ipld_blockstore` 0.3.0 and `fvm_ipld_encoding` 0.5.0.
+
+You will have to update your multihash and cid crates to be compatible, see the [multihash release notes](https://github.com/multiformats/rust-multihash/blob/master/CHANGELOG.md#-2023-06-06) for details on the breaking changes.
+
+## 4.4.3 [2024-10-21]
+
+- Update wasmtime to 25.0.2.
+- Fixes long wasm compile times with wasmtime 24.
+
+## 4.4.2 [2024-10-09]
+
+- Update wasmtime to 24.0.1.
+
+## 4.4.1 [2024-10-04]
+
+- chore: remove the `nv24-dev` feature flag [#2051](https://github.com/filecoin-project/ref-fvm/pull/2051)
+
+## 4.4.0 [2024-09-12]
+
+- Update to wasmtime 24.
+- Switch from mach ports to unix signal handlers on macos.
+- Update misc dependencies.
+
+## 4.3.2 [2024-08-16]
+
+- feat: add `nv24-dev` feature flag [#2029](https://github.com/filecoin-project/ref-fvm/pull/2029)
+
+## 4.3.1 [2024-06-26]
 
 - chore: remove the `nv23-dev` feature flag [#2022](https://github.com/filecoin-project/ref-fvm/pull/2022)
 
-## 4.3.0 [2023-06-12]
+## 4.3.0 [2024-06-12]
 
 - feat: FIP-0079: syscall for aggregated bls verification [#2003](https://github.com/filecoin-project/ref-fvm/pull/2003)
 - fix: install rust nightly toolchain for clusterfuzzlite [#2007](https://github.com/filecoin-project/ref-fvm/pull/2007)
@@ -15,22 +110,22 @@
 - Small tidy-ups in CONTRIBUTING.md [#2012](https://github.com/filecoin-project/ref-fvm/pull/2012)
 - NI-PoRep support [#2010](https://github.com/filecoin-project/ref-fvm/pull/2010)
 
-## 4.2.0 [2023-04-29]
+## 4.2.0 [2024-04-29]
 
 - chore: update to wasmtime 19.0.1 [#1993](https://github.com/filecoin-project/ref-fvm/pull/1993)
 - Enable nv23 support behind the `nv23-dev` feature flag [#2000](https://github.com/filecoin-project/ref-fvm/pull/2000)
 - feat: fvm: remove once_cell [#1989](https://github.com/filecoin-project/ref-fvm/pull/1989)
 - feat: shared: check bls zero address without lazy_static [#1984](https://github.com/filecoin-project/ref-fvm/pull/1984)
 
-## 4.1.2 [2023-01-31]
+## 4.1.2 [2024-01-31]
 
 feat: allow CBOR events
 
-## 4.1.1 [2023-01-25]
+## 4.1.1 [2024-01-25]
 
 Enable nv22 support by default.
 
-## 4.1.0 [2023-01-24]
+## 4.1.0 [2024-01-24]
 
 - Pretty-print addresses when debug-formatting, instead of printing the raw bytes as a vector.
 - Move the `ActorState` struct to this crate (from the `fvm` crate).

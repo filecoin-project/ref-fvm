@@ -98,7 +98,7 @@ super::fvm_syscalls! {
     ///
     /// # Arguments
     ///
-    /// - `typ` specifies the builtin-actor [`Type`] to lookup.
+    /// - `typ` specifies the builtin-actor to lookup.
     /// - `obuf_off` and `obuf_len` specify the location and length of a byte buffer into which the
     ///   FVM will write the s code CID.
     ///

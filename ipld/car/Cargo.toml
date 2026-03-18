@@ -1,20 +1,21 @@
 [package]
 name = "fvm_ipld_car"
 description = "IPLD CAR handling library"
-version = "0.7.1"
+version = "0.9.0"
 authors = ["ChainSafe Systems <info@chainsafe.io>", "Protocol Labs", "Filecoin Core Devs"]
-edition = "2021"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/filecoin-project/ref-fvm"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 cid = { workspace = true }
+multihash-codetable = { workspace = true }
+multihash-derive = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-unsigned-varint = { workspace = true, features = ["futures"] }
+unsigned-varint = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
-futures = { workspace = true }
 
 [dev-dependencies]
-async-std = { version = "1.12", features = ["attributes"] }
+multihash-codetable = { workspace = true, features = ["sha2"] }

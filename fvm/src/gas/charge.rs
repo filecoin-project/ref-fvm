@@ -4,8 +4,8 @@
 
 use std::borrow::Cow;
 
-use super::timer::GasDuration;
 use super::Gas;
+use super::timer::GasDuration;
 
 /// Single gas charge in the VM. Contains information about what gas was for, as well
 /// as the amount of gas needed for computation and storage respectively.

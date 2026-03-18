@@ -96,21 +96,21 @@
 //! in the cache.
 
 use anyhow::anyhow;
-use cid::multihash::Code;
 use cid::Cid;
 use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::CborStore;
 use fvm_ipld_encoding::de::DeserializeOwned;
 use fvm_ipld_encoding::ser::Serialize;
 use fvm_ipld_encoding::serde::Deserialize;
-use fvm_ipld_encoding::CborStore;
 use itertools::sorted;
+use multihash_codetable::Code;
 
 use super::ValueMut;
 use crate::node::{CollapsedNode, Link};
-use crate::root::version::{Version as AmtVersion, V0, V3};
 use crate::root::RootImpl;
+use crate::root::version::{V0, V3, Version as AmtVersion};
 use crate::{
-    init_sized_vec, nodes_for_height, Error, Node, DEFAULT_BIT_WIDTH, MAX_HEIGHT, MAX_INDEX,
+    DEFAULT_BIT_WIDTH, Error, MAX_HEIGHT, MAX_INDEX, Node, init_sized_vec, nodes_for_height,
 };
 
 #[derive(Debug)]
@@ -448,7 +448,6 @@ where
     /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
     /// ```
     #[inline]
-    #[deprecated = "use `.iter()` instead"]
     pub fn for_each<F>(&self, mut f: F) -> Result<(), Error>
     where
         F: FnMut(u64, &V) -> anyhow::Result<()>,
@@ -462,7 +461,6 @@ where
 
     /// Iterates over each value in the Amt and runs a function on the values, for as long as that
     /// function keeps returning `true`.
-    #[deprecated = "use `.iter()` instead"]
     pub fn for_each_while<F>(&self, mut f: F) -> Result<(), Error>
     where
         F: FnMut(u64, &V) -> anyhow::Result<bool>,
@@ -508,7 +506,6 @@ where
     /// assert_eq!(num_traversed, 3);
     /// assert_eq!(next_idx, Some(10));
     /// ```
-    #[deprecated = "use `.iter_from()` and `.take(limit)` instead"]
     pub fn for_each_ranged<F>(
         &self,
         start_at: Option<u64>,
@@ -539,7 +536,6 @@ where
     /// `limit` elements have been traversed. Returns a tuple describing the number of elements
     /// iterated over and optionally the index of the next element in the AMT if more elements
     /// remain.
-    #[deprecated = "use `.iter_from()` and `.take(limit)` instead"]
     pub fn for_each_while_ranged<F>(
         &self,
         start_at: Option<u64>,
@@ -593,5 +589,41 @@ where
         }
 
         Ok(())
+    }
+
+    /// Iterates over each value in the Amt and runs a function on the values. This is a
+    /// non-caching version of [`Self::for_each`]. It can potentially be more efficient, especially memory-wise,
+    /// for large AMTs or when the iteration occurs only once. An error during iteration stops the
+    /// iteration and is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fvm_ipld_amt::Amt;
+    ///
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
+    ///
+    /// let mut map: Amt<String, _> = Amt::new(&store);
+    /// map.set(1, "One".to_owned()).unwrap();
+    /// map.set(4, "Four".to_owned()).unwrap();
+    ///
+    /// let mut values: Vec<(u64, String)> = Vec::new();
+    /// map.for_each_cacheless(|i, v| {
+    ///    values.push((i, v.clone()));
+    ///    Ok(())
+    /// }).unwrap();
+    /// assert_eq!(&values, &[(1, "One".to_owned()), (4, "Four".to_owned())]);
+    /// ```
+    pub fn for_each_cacheless<F>(&self, mut f: F) -> Result<(), Error>
+    where
+        F: FnMut(u64, &V) -> anyhow::Result<()>,
+    {
+        self.root.node.for_each_cacheless(
+            &self.block_store,
+            self.height(),
+            self.bit_width(),
+            0,
+            &mut f,
+        )
     }
 }
