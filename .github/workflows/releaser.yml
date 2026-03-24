@@ -41,10 +41,13 @@ jobs:
     if: needs.releaser.outputs.json != '{}'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      - name: Install required packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes libhwloc-dev ocl-icd-opencl-dev
       - name: Publish to crates.io
         run: |
           # Use cargo publish --workspace to publish all changed crates in the workspace.
           # This handles interdependent crates correctly and only publishes those with version bumps.
-          # We use --no-default-features to avoid OpenCL dependencies which are not available in the CI environment.
-          cargo publish --workspace --no-default-features
+          cargo publish --workspace

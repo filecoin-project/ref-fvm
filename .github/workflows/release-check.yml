@@ -39,10 +39,13 @@ jobs:
     if: needs.release-check.outputs.json != '{}'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      - name: Install required packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes libhwloc-dev ocl-icd-opencl-dev
       - name: Dry-run publish
         run: |
           # Use cargo publish --workspace --dry-run to verify the entire workspace at once.
           # This correctly handles interdependent crates which a matrix-based approach misses.
-          # We use --no-default-features to avoid OpenCL dependencies which are not available in the CI environment.
-          cargo publish --workspace --dry-run --no-default-features
+          cargo publish --workspace --dry-run
