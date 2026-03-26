@@ -274,6 +274,10 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // FIP.
     c.wasm_extended_const(false);
 
+    // wasmtime default: whether the crate `gc` feature is enabled or not
+    // Disable GC support.
+    c.gc_support(false);
+
     // Note: Component model is disabled by default.
     // If we add the "wasmtime/component-model" feature in the future,
     // we would explicitly set c.wasm_component_model(false) here.
