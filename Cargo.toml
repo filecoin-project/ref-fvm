@@ -54,7 +54,7 @@ bls-signatures = { version = "0.15", default-features = false }
 
 # wasmtime
 wasmtime = {version = "36", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
-wasmtime-environ = "36"
+wasmtime-environ = "38"
 
 # misc
 libfuzzer-sys = "0.4"

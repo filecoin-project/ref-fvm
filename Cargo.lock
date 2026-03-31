@@ -705,7 +705,7 @@ version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9d81afcee8fe27ee2536987df3fadcb2e161af4edb7dbe3ef36838d0ce74382"
 dependencies = [
- "cranelift-entity",
+ "cranelift-entity 0.123.6",
 ]
 
 [[package]]
@@ -713,6 +713,16 @@ name = "cranelift-bitset"
 version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fb33595f1279fe7af03b28245060e9085caf98b10ed3137461a85796eb83972a"
+dependencies = [
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
+name = "cranelift-bitset"
+version = "0.125.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac0790c83cfdab95709c5d0105fd888221e3af9049a7d7ec376ec901ab4e4dba"
 dependencies = [
  "serde",
  "serde_derive",
@@ -727,11 +737,11 @@ dependencies = [
  "bumpalo",
  "cranelift-assembler-x64",
  "cranelift-bforest",
- "cranelift-bitset",
+ "cranelift-bitset 0.123.6",
  "cranelift-codegen-meta",
  "cranelift-codegen-shared",
  "cranelift-control",
- "cranelift-entity",
+ "cranelift-entity 0.123.6",
  "cranelift-isle",
  "gimli 0.32.3",
  "hashbrown 0.15.2",
@@ -779,7 +789,18 @@ version = "0.123.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43f5e7391167605d505fe66a337e1a69583b3f34b63d359ffa5a430313c555e8"
 dependencies = [
- "cranelift-bitset",
+ "cranelift-bitset 0.123.6",
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
+name = "cranelift-entity"
+version = "0.125.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "981b56af777f9a34ea6dcce93255125776d391410c2a68b75bed5941b714fa15"
+dependencies = [
+ "cranelift-bitset 0.125.4",
  "serde",
  "serde_derive",
 ]
@@ -2264,7 +2285,7 @@ dependencies = [
  "static_assertions",
  "thiserror 2.0.12",
  "wasmtime",
- "wasmtime-environ",
+ "wasmtime-environ 38.0.4",
  "yastl",
 ]
 
@@ -3864,7 +3885,7 @@ version = "36.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "499d922aa0f9faac8d92351416664f1b7acd914008a90fce2f0516d31efddf67"
 dependencies = [
- "cranelift-bitset",
+ "cranelift-bitset 0.123.6",
  "log",
  "pulley-macros",
  "wasmtime-internal-math",
@@ -5082,6 +5103,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasmparser"
+version = "0.239.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c9d90bb93e764f6beabf1d02028c70a2156a6583e63ac4218dd07ef733368b0"
+dependencies = [
+ "bitflags 2.9.0",
+ "hashbrown 0.15.2",
+ "indexmap 2.9.0",
+ "serde",
+]
+
+[[package]]
 name = "wasmprinter"
 version = "0.2.80"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5134,7 +5167,7 @@ dependencies = [
  "smallvec",
  "target-lexicon",
  "wasmparser 0.236.1",
- "wasmtime-environ",
+ "wasmtime-environ 36.0.6",
  "wasmtime-internal-asm-macros",
  "wasmtime-internal-cranelift",
  "wasmtime-internal-fiber",
@@ -5154,8 +5187,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "733682a327755c77153ac7455b1ba8f2db4d9946c1738f8002fe1fbda1d52e83"
 dependencies = [
  "anyhow",
- "cranelift-bitset",
- "cranelift-entity",
+ "cranelift-bitset 0.123.6",
+ "cranelift-entity 0.123.6",
  "gimli 0.32.3",
  "indexmap 2.9.0",
  "log",
@@ -5168,6 +5201,27 @@ dependencies = [
  "wasm-encoder 0.236.1",
  "wasmparser 0.236.1",
  "wasmprinter 0.236.1",
+]
+
+[[package]]
+name = "wasmtime-environ"
+version = "38.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78587abe085a44a13c90fa16fea6db014e9883e627a7044d7f0cb397ad08d1da"
+dependencies = [
+ "anyhow",
+ "cranelift-bitset 0.125.4",
+ "cranelift-entity 0.125.4",
+ "gimli 0.32.3",
+ "indexmap 2.9.0",
+ "log",
+ "object 0.37.3",
+ "postcard",
+ "serde",
+ "serde_derive",
+ "smallvec",
+ "target-lexicon",
+ "wasmparser 0.239.0",
 ]
 
 [[package]]
@@ -5189,7 +5243,7 @@ dependencies = [
  "cfg-if",
  "cranelift-codegen",
  "cranelift-control",
- "cranelift-entity",
+ "cranelift-entity 0.123.6",
  "cranelift-frontend",
  "cranelift-native",
  "gimli 0.32.3",
@@ -5201,7 +5255,7 @@ dependencies = [
  "target-lexicon",
  "thiserror 2.0.12",
  "wasmparser 0.236.1",
- "wasmtime-environ",
+ "wasmtime-environ 36.0.6",
  "wasmtime-internal-math",
  "wasmtime-internal-versioned-export-macros",
 ]
