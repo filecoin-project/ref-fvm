@@ -124,7 +124,9 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     let instance_count = ec.instance_pool_size();
     let instance_memory_maximum_size = ec.max_inst_memory_bytes;
-    if instance_memory_maximum_size % wasmtime_environ::Memory::DEFAULT_PAGE_SIZE as u64 != 0 {
+    if !instance_memory_maximum_size
+        .is_multiple_of(wasmtime_environ::Memory::DEFAULT_PAGE_SIZE as u64)
+    {
         return Err(anyhow!(
             "requested memory limit {} not a multiple of the WASM_PAGE_SIZE {}",
             instance_memory_maximum_size,
