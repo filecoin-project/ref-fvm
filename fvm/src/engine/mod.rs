@@ -241,7 +241,7 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.generate_address_map(false);
     c.cranelift_debug_verifier(false);
     c.native_unwind_info(false);
-    c.wasm_backtrace(false);
+    c.wasm_backtrace_max_frames(None);
     c.wasm_backtrace_details(WasmBacktraceDetails::Disable);
 
     // Reiterate some defaults
@@ -273,6 +273,10 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // Disable extended const support. We'll probably enable this in the future but that requires a
     // FIP.
     c.wasm_extended_const(false);
+
+    // wasmtime default: whether the crate `gc` feature is enabled or not
+    // Disable GC support.
+    c.gc_support(false);
 
     // Note: Component model is disabled by default.
     // If we add the "wasmtime/component-model" feature in the future,
@@ -539,8 +543,7 @@ impl Engine {
         cache
             .linker
             .define(&store, "gas", GAS_COUNTER_NAME, gas_global)
-            .context("failed to define gas counter")
-            .map_err(Abort::Fatal)?;
+            .map_err(|e| Abort::Fatal(anyhow::anyhow!("failed to define gas counter: {e}")))?;
 
         let mut module_cache = self
             .inner
@@ -560,7 +563,7 @@ impl Engine {
             let pre_instance = cache
                 .linker
                 .instantiate_pre(module)
-                .context("failed to link actor module")?;
+                .map_err(|e| Abort::Fatal(anyhow::anyhow!("failed to link actor module: {e}")))?;
 
             // Update the gas _just_ in case.
             update_gas_available(store)?;
@@ -677,7 +680,7 @@ impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
         current: usize,
         desired: usize,
         maximum: Option<usize>,
-    ) -> anyhow::Result<bool> {
+    ) -> wasmtime::Result<bool> {
         if maximum.is_some_and(|m| desired > m) {
             return Ok(false);
         }
@@ -690,7 +693,7 @@ impl<L: MemoryLimiter> wasmtime::ResourceLimiter for WasmtimeLimiter<L> {
         current: usize,
         desired: usize,
         maximum: Option<usize>,
-    ) -> anyhow::Result<bool> {
+    ) -> wasmtime::Result<bool> {
         if maximum.is_some_and(|m| desired > m) {
             return Ok(false);
         }

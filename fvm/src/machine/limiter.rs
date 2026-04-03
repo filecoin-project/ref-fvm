@@ -4,7 +4,7 @@
 use crate::machine::NetworkConfig;
 
 /// Execution level memory tracking and adjustment.
-pub trait MemoryLimiter: Sized {
+pub trait MemoryLimiter: Sized + Send {
     /// Get a snapshot of the total memory required by the callstack (in bytes). This currently
     /// includes:
     ///
