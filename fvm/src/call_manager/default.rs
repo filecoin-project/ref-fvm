@@ -852,15 +852,12 @@ where
                 .ok()
                 .and_then(|r| r.value.as_ref())
                 .map(|v| v.size())
-            {
-                if let Some(charge) = cm
+                && let Some(charge) = cm
                     .price_list()
                     .on_method_return(cm.call_stack_depth, ret_size)
-                {
-                    if let Err(e) = cm.charge_gas(charge) {
-                        ret = Err(e);
-                    }
-                }
+                && let Err(e) = cm.charge_gas(charge)
+            {
+                ret = Err(e);
             }
 
             // Log the results if tracing is enabled.
