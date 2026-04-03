@@ -82,7 +82,7 @@ impl Zero for TokenAmount {
 impl PartialOrd for TokenAmount {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.atto.cmp(&other.atto))
+        Some(self.cmp(other))
     }
 }
 
