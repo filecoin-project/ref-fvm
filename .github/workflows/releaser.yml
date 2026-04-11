@@ -43,9 +43,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install required packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends --yes libhwloc-dev ocl-icd-opencl-dev
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          shell: bash
+          command: |
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends --yes libhwloc-dev ocl-icd-opencl-dev
       - name: Publish to crates.io
         run: |
           # Use cargo publish --workspace to publish all changed crates in the workspace.
