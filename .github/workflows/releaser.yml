@@ -1,0 +1,58 @@
+name: Releaser
+
+on:
+  push:
+    paths:
+      - "**/Cargo.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  releaser:
+    uses: ipdxco/unified-github-workflows/.github/workflows/releaser.yml@v1.0
+    with:
+      sources: |
+        [
+          "fvm/Cargo.toml",
+          "testing/integration/Cargo.toml",
+          "ipld/amt/Cargo.toml",
+          "ipld/bitfield/Cargo.toml",
+          "ipld/blockstore/Cargo.toml",
+          "ipld/car/Cargo.toml",
+          "ipld/encoding/Cargo.toml",
+          "ipld/hamt/Cargo.toml",
+          "ipld/kamt/Cargo.toml",
+          "sdk/Cargo.toml",
+          "shared/Cargo.toml"
+        ]
+      separator: "@"
+    secrets:
+      UCI_GITHUB_TOKEN: ${{ secrets.UCI_GITHUB_TOKEN }}
+
+  cargo-publish:
+    needs: [releaser]
+    if: needs.releaser.outputs.json != '{}'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install required packages
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          shell: bash
+          command: |
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends --yes libhwloc-dev ocl-icd-opencl-dev
+      - name: Publish to crates.io
+        run: |
+          # Use cargo publish --workspace to publish all changed crates in the workspace.
+          # This handles interdependent crates correctly and only publishes those with version bumps.
+          cargo publish --workspace
