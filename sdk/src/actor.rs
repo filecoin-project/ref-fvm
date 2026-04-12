@@ -168,3 +168,58 @@ pub fn balance_of(actor_id: ActorID) -> Option<TokenAmount> {
         }
     }
 }
+
+/// Returns the EthAccount's delegate_to address (20 bytes) if set; None otherwise.
+/// Extract the last 20 bytes of an Ethereum address from a slice.
+/// Returns None if the slice is shorter than 20 bytes.
+#[inline]
+pub(crate) fn extract_eth20(slice: &[u8]) -> Option<[u8; 20]> {
+    if slice.len() < 20 {
+        return None;
+    }
+    let mut out = [0u8; 20];
+    let start = slice.len() - 20;
+    out.copy_from_slice(&slice[start..]);
+    Some(out)
+}
+
+pub fn get_eth_delegate_to(actor_id: ActorID) -> Option<[u8; 20]> {
+    // Accept either 20-byte address or a larger ABI-encoded word; take the last 20 bytes.
+    let mut tmp = [0u8; 32];
+    unsafe {
+        match sys::actor::get_eth_delegate_to(actor_id, tmp.as_mut_ptr(), tmp.len() as u32) {
+            Ok(0) => None,
+            Ok(n) => extract_eth20(&tmp[..(n as usize).min(tmp.len())]),
+            Err(ErrorNumber::NotFound) => None,
+            Err(other) => panic!("unexpected get_eth_delegate_to failure: {}", other),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_eth20;
+
+    #[test]
+    fn extract_eth20_under_min() {
+        assert!(extract_eth20(&[]).is_none());
+        assert!(extract_eth20(&[0xAA; 19]).is_none());
+    }
+
+    #[test]
+    fn extract_eth20_exact() {
+        let src = [0x11u8; 20];
+        assert_eq!(extract_eth20(&src).unwrap(), src);
+    }
+
+    #[test]
+    fn extract_eth20_last20_of_32() {
+        let mut src = [0x00u8; 32];
+        // Fill last 20 bytes with pattern
+        for (i, b) in src[12..].iter_mut().enumerate() {
+            *b = (i as u8) ^ 0xA5;
+        }
+        let got = extract_eth20(&src).unwrap();
+        assert_eq!(&got[..], &src[12..]);
+    }
+}
