@@ -1,0 +1,58 @@
+name: Release Checker
+
+on:
+  # Change to pull_request_target for the workflow to function correctly on PRs from forks
+  pull_request:
+    paths:
+      - "**/Cargo.toml"
+    types: [ opened, synchronize, reopened, labeled, unlabeled ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-check:
+    uses: ipdxco/unified-github-workflows/.github/workflows/release-check.yml@v1.0
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.head.repo.fork }}
+    with:
+      sources: |
+        [
+          "fvm/Cargo.toml",
+          "testing/integration/Cargo.toml",
+          "ipld/amt/Cargo.toml",
+          "ipld/bitfield/Cargo.toml",
+          "ipld/blockstore/Cargo.toml",
+          "ipld/car/Cargo.toml",
+          "ipld/encoding/Cargo.toml",
+          "ipld/hamt/Cargo.toml",
+          "ipld/kamt/Cargo.toml",
+          "sdk/Cargo.toml",
+          "shared/Cargo.toml"
+        ]
+      separator: "@"
+  cargo-publish:
+    needs: [release-check]
+    if: needs.release-check.outputs.json != '{}'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install required packages
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          shell: bash
+          command: |
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends --yes libhwloc-dev ocl-icd-opencl-dev
+      - name: Dry-run publish
+        run: |
+          # Use cargo publish --workspace --dry-run to verify the entire workspace at once.
+          # This correctly handles interdependent crates which a matrix-based approach misses.
+          cargo publish --workspace --dry-run

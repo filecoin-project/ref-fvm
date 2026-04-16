@@ -14,7 +14,7 @@ The FVM is a workspace of crates which have different release schedules:
 > When releasing a new version of the FVM, make sure to check if any backports are needed and do them in separate PRs targeting the appropriate branches. Afterwards, make sure to create a new release for the backported changes.
 > Note that the v2 and v3 tracks no longer contain the `fvm_integration_tests` crate so there is no need to backport and release it.
 
-The primary crates are `fvm`, `fvm_shared`, `fvm_sdk`, and the integration testing framework `fvm_integration_tests`.  These are the crates that have [`version.workspace = true`](https://github.com/search?q=repo%3Afilecoin-project%2Fref-fvm%20version.workspace%20%3D%20true&type=code).
+The primary crates are `fvm`, `fvm_shared`, `fvm_sdk`, and the integration testing framework `fvm_integration_tests`. These are the crates that have [`version.workspace = true`](https://github.com/search?q=repo%3Afilecoin-project%2Fref-fvm%20version.workspace%20%3D%20true&type=code).
 
 ## Versioning
 Versioning of the [primary crates](#primary-crates) is not strictly semver compatible:
@@ -33,9 +33,6 @@ To propose a new release, open a pull request with the following changes:
 2. Update the version of the coupled workspace dependencies in `Cargo.toml` to match the new version
    (leaving semver range specifier `~` intact):
    1. `workspace.dependencies→fvm→version`
-   2. `wokspace.dependencies→fvm_shared→version`
-   3. `wokspace.dependencies→fvm_sdk→version`
-   1. `workspace.dependencies→fvm→version`
    2. `workspace.dependencies→fvm_shared→version`
    3. `workspace.dependencies→fvm_sdk→version`
    4. `workspace.dependencies→fvm_integration_tests→version`
@@ -46,6 +43,11 @@ To propose a new release, open a pull request with the following changes:
    relevant to multiple crates.
 
 See [PR #2002](https://github.com/filecoin-project/ref-fvm/pull/2002) for an example.
+
+When a release PR is opened or updated, the **Release Checker** GitHub Action will:
+* Verify that the version bump is correct.
+* Perform a workspace-wide dry-run publish (`cargo publish --workspace --dry-run`) to ensure all crates are in a valid state for release.
+* Create a draft GitHub Release and comment on the PR with a summary.
 
 ## Preparing Other/Non-Primary Crates
 
@@ -58,6 +60,8 @@ To propose a release of a crate other than `fvm`, `fvm_shared`, `fvm_sdk`, or
 3. Make sure the `CHANGELOG.md` files are all up-to-date (look through `git log -- path/to/crate`),
    set the release date & version, and add a new "Unreleased" section.
 
+The **Release Checker** will also handle these crates independently based on the paths modified in the PR.
+
 ## Review and Release
 
 Once the release is prepared, it'll go through a review:
@@ -65,51 +69,18 @@ Once the release is prepared, it'll go through a review:
 1. Make sure that we're _ready_ to release. E.g., make sure downstream can consume the release.
 2. Make sure that we're correctly following semver.
 3. Make sure that we're not missing anything in the changelogs.
+4. Verify that the **Release Checker** action has passed, including the "Dry-run publish" step.
 
 Finally, an [FVM "owner"](https://github.com/orgs/filecoin-project/teams/fvm-crate-owners/members) will:
 
 1. Merge the release PR to master.
-2. For each released crate, create a git tag: `crate_name@crate_version`.
-3. Run `cargo publish` for each released crate (in dependency order).
+2. The **Releaser** GitHub Action will automatically:
+   * Create git tags for each released crate (`crate_name@vX.Y.Z`).
+   * Publish the draft GitHub Release(s).
+   * Publish the crates to [crates.io](https://crates.io) using `cargo publish --workspace --no-default-features`.
+     - Note: This repository uses **trusted publishing** via OIDC. No `CARGO_REGISTRY_TOKEN` secret is required, but the repository must be configured as a trusted publisher on crates.io.
 
-Example steps for an FVM "owner" to release `MINOR` and `PATCH` crates:
-
-1. Merge the `PATCH` release PR to master (e.g., [PR #2030](https://github.com/filecoin-project/ref-fvm/pull/2030)).
-2. Publish all [primary crates](#primary-crates) . For each crate (fvm, fvm_shared, fvm_sdk, fvm_integration_tests):
-
-```bash
-# Declare an associative array for crate_name → crate_directory
-declare -A crates
-crates["fvm"]="fvm"
-crates["fvm_shared"]="shared"
-crates["fvm_sdk"]="fvm_sdk"
-crates["fvm_integration_tests"]="testing/integration"
-
-workspace_package_version = `tomlq '.workspace.package.version' Cargo.toml`
-
-for crate_name in "${!crates[@]}"; do
-   crate_directory = ${crates[$key]}     
-   pushd $crate_directory
-   cargo publish
-workspace_package_version=`tomlq '.workspace.package.version' Cargo.toml`
-
-for crate_name in "${!my_map[@]}"; do
-   crate_directory=${crates[$key]}     
-   pushd $crate_directory
-   cargo publish
-   git_tag="$crate_name@v$workspace_package_version"
-   git tag $git_tag
-   popd
-done
-```
-
-3. After creating all tags, push them:
-
-```shell
-git push --tags
-```
-
-4. Verify the releases on crates.io:
+3. Verify the releases on crates.io:
    https://crates.io/crates/fvm/versions
    https://crates.io/crates/fvm_shared/versions
    https://crates.io/crates/fvm_sdk/versions
