@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.12.0 (2026-04-16)
+
+- chore: update proofs dependency and rust toolchain [#2272](https://github.com/filecoin-project/ref-fvm/pull/2272)
+
 ## 2.11.3 (2025-11-15)
 
 - Update `wasmtime` to 36
