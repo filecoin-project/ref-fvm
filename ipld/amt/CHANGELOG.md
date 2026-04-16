@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.7.6 [2026-04-16]
+
 - Fixed a bug in `for_each_cacheless` where it would swallow errors and continue iterating.
 
 ## 0.7.5 [2025-08-05]
