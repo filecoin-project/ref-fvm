@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## 0.7.6 [2026-04-17]
+## 0.7.7 [2026-04-17]
 
 - Bump `multihash-codetable` to get rid of `core2`
 
