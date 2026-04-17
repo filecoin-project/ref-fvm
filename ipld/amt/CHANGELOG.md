@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.7.6 [2026-04-17]
+
+- Bump `multihash-codetable` to get rid of `core2`
+
 ## 0.7.6 [2026-04-16]
 
 - Fixed a bug in `for_each_cacheless` where it would swallow errors and continue iterating.

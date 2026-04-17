@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.6 [2026-04-17]
+
+- Bump `multihash-codetable` to get rid of `core2`
+
 ## 0.4.5 [2025-04-09]
 
 - Updates multiple dependencies (semver breaking internally but not exported).
