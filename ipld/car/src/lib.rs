@@ -144,10 +144,10 @@ where
         // Read node -> cid, bytes
         match read_node(&mut self.reader) {
             Ok(Some(block)) => {
-                if self.validate {
-                    if let Err(e) = block.validate() {
-                        return Some(Err(e));
-                    }
+                if self.validate
+                    && let Err(e) = block.validate()
+                {
+                    return Some(Err(e));
                 }
                 Some(Ok(block))
             }

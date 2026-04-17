@@ -76,7 +76,7 @@ pub type HashedKey<const N: usize> = [u8; N];
 
 /// Convert a key into bytes.
 pub trait AsHashedKey<K, const N: usize> {
-    fn as_hashed_key(key: &K) -> Cow<HashedKey<N>>;
+    fn as_hashed_key(key: &K) -> Cow<'_, HashedKey<N>>;
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

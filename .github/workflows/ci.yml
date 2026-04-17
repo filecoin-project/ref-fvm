@@ -121,6 +121,14 @@ jobs:
       uses: taiki-e/install-action@f1390fd0d8205ae79e5e57b1d1e300dceeb4163e
       with:
         tool: cargo-llvm-cov@0.6.16
+    # Install clang for MacOS tests due to Apple's Clang not supporting `wasm32-unknown-unknown` target.
+    - name: Install clang for MacOS
+      if: ${{ matrix.os == 'macos-latest' && ( matrix.name == 'check-clippy-verify-signature' || matrix.name == 'integration' ) }}
+      run: |
+        brew install llvm
+        echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+        echo "CC=$(brew --prefix llvm)/bin/clang" >> "$GITHUB_ENV"
+        echo "CXX=$(brew --prefix llvm)/bin/clang++" >> "$GITHUB_ENV"
     - name: Setting up cache
       uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6
       with:

@@ -5,9 +5,10 @@
 mod examples;
 
 use std::fs;
+use std::hint::black_box;
 use std::path::Path;
 
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 use examples::{example1, example2};
 use fvm_ipld_bitfield::BitField;
 use gperftools::profiler::PROFILER;

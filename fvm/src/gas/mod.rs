@@ -282,7 +282,7 @@ impl GasTracker {
 #[inline]
 pub(crate) const fn milligas_to_gas(milligas: u64, round_up: bool) -> u64 {
     let mut div_result = milligas / MILLIGAS_PRECISION;
-    if round_up && milligas % MILLIGAS_PRECISION != 0 {
+    if round_up && !milligas.is_multiple_of(MILLIGAS_PRECISION) {
         div_result = div_result.saturating_add(1);
     }
     div_result

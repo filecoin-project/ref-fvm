@@ -2,7 +2,9 @@
 // Copyright 2019-2023 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use std::hint::black_box;
+
+use criterion::{Criterion, criterion_group, criterion_main};
 use fvm_ipld_amt::Amt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 

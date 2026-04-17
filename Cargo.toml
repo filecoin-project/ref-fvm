@@ -19,7 +19,7 @@ members = [
 ]
 
 [workspace.package]
-version = "4.7.3"
+version = "4.8.2"
 license = "MIT OR Apache-2.0"
 edition = "2024"
 repository = "https://github.com/filecoin-project/ref-fvm"
@@ -27,7 +27,7 @@ authors = ["Protocol Labs", "Filecoin Core Devs"]
 
 [workspace.dependencies]
 # common
-serde = { version = "1.0.219", default-features = false, features = ["derive"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 thiserror = "2.0.12"
 anyhow = "1.0.97"
 rand = "0.8.5"
@@ -43,18 +43,18 @@ futures = "0.3.31"
 
 # IPLD/Encoding
 cid = { version = "0.11.1", default-features = false }
-ipld-core = { version = "0.4.2", features = ["serde"] }
-multihash-codetable = { version = "0.1.4", default-features = false }
+ipld-core = { version = "0.4.3", features = ["serde"] }
+multihash-codetable = { version = "0.2", default-features = false }
 multihash-derive = { version = "0.9.1", default-features = false }
 
 # crypto
-blake2b_simd = "1.0.3"
+blake2b_simd = "1.0.4"
 k256 = { version = "0.13.4", features = ["ecdsa"], default-features = false }
 bls-signatures = { version = "0.15", default-features = false }
 
 # wasmtime
-wasmtime = {version = "31.0.0", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
-wasmtime-environ = "31.0.0"
+wasmtime = {version = "36", default-features = false, features = ["cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
+wasmtime-environ = "36"
 
 # misc
 libfuzzer-sys = "0.4"
@@ -65,26 +65,26 @@ unsigned-varint = "0.8.0"
 ambassador = "0.4.1"
 
 # dev/tools/tests
-criterion = "0.5.1"
+criterion = "0.7"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 minstant = "0.1.7"
 coverage-helper = "0.2.4"
 
 # workspace (FVM)
-fvm = { path = "fvm", version = "~4.7.3", default-features = false }
-fvm_shared = { path = "shared", version = "~4.7.3", default-features = false }
-fvm_sdk = { path = "sdk", version = "~4.7.3" }
-fvm_integration_tests = { path = "testing/integration", version = "~4.7.3" }
+fvm = { path = "fvm", version = "~4.8.2", default-features = false }
+fvm_shared = { path = "shared", version = "~4.8.2", default-features = false }
+fvm_sdk = { path = "sdk", version = "~4.8.2" }
+fvm_integration_tests = { path = "testing/integration", version = "~4.8.2" }
 
 # workspace (other)
-fvm_ipld_amt = { path = "ipld/amt", version = "0.7.5" }
-fvm_ipld_hamt = { path = "ipld/hamt", version = "0.10.4" }
-fvm_ipld_kamt = { path = "ipld/kamt", version = "0.4.5" }
-fvm_ipld_car = { path = "ipld/car", version = "0.9.0" }
-fvm_ipld_blockstore = { path = "ipld/blockstore", version = "0.3.1" }
+fvm_ipld_amt = { path = "ipld/amt", version = "0.7.7" }
+fvm_ipld_hamt = { path = "ipld/hamt", version = "0.10.6" }
+fvm_ipld_kamt = { path = "ipld/kamt", version = "0.4.6" }
+fvm_ipld_car = { path = "ipld/car", version = "0.9.1" }
+fvm_ipld_blockstore = { path = "ipld/blockstore", version = "0.3.2" }
 fvm_ipld_bitfield = { path = "ipld/bitfield", version = "0.7.2" }
-fvm_ipld_encoding = { path = "ipld/encoding", version = "0.5.3" }
+fvm_ipld_encoding = { path = "ipld/encoding", version = "0.5.4" }
 fvm_gas_calibration_shared = { path = "testing/calibration/shared" }
 fvm_test_actors = { path = "testing/test_actors" }
 

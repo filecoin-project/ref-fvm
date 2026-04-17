@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 0.7.7 [2026-04-17]
+
+- Bump `multihash-codetable` to get rid of `core2`
+
+## 0.7.6 [2026-04-16]
+
+- Fixed a bug in `for_each_cacheless` where it would swallow errors and continue iterating.
+
 ## 0.7.5 [2025-08-05]
 
 - Added `for_each_cacheless` method to iterate over the AMT without caching the values. This is lowers memory requirements usage and is useful for single-pass, read-only operations over large AMTs.

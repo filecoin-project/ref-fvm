@@ -4,6 +4,29 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.8.2 [2026-04-17]
+
+- Bump `multihash-codetable` to get rid of `core2`
+- Deprecate `nv28-dev` in favor of `nv29-dev`; `V28` support is now part of the default build.
+
+## 4.8.0 [2026-04-16]
+
+- feat(executor): expose return codec in ApplyRet [#2264](https://github.com/filecoin-project/ref-fvm/pull/2264)
+- feat: cacheless hamt iteration [#2216](https://github.com/filecoin-project/ref-fvm/pull/2216)
+- chore: update proofs dependency and rust toolchain [#2265](https://github.com/filecoin-project/ref-fvm/pull/2265)
+
+## 4.7.5 [2025-11-15]
+
+- Update `wasmtime` to 36
+
+## 4.7.4 [2025-10-06]
+
+- feat: nv28 skeleton [#2220](https://github.com/filecoin-project/ref-fvm/pull/2220)
+- fix: propagate errors in Amt::for_each_cacheless [#2218](https://github.com/filecoin-project/ref-fvm/pull/2218)
+- chore(deps): bump serde_ipld_dagcbor from 0.6.3 to 0.6.4 [#2222](https://github.com/filecoin-project/ref-fvm/pull/2222)
+- chore(deps): bump serde_tuple from 0.5.0 to 1.1.2 [#2199](https://github.com/filecoin-project/ref-fvm/pull/2199)
+- chore(deps): bump criterion [#2217](https://github.com/filecoin-project/ref-fvm/pull/2217)
+
 ## 4.7.3 [2025-08-22]
 
 - chore(deps): update replace_with and slab transitive dependencies [#2197](https://github.com/filecoin-project/ref-fvm/pull/2197)

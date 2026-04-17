@@ -1,6 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
-extern crate criterion;
+
+use std::hint::black_box;
 
 use criterion::*;
 use fvm::engine::MultiEngine;
@@ -65,7 +66,7 @@ pub fn bench_vector_variant(
                     DefaultExecutor::new(engine, machine).unwrap();
                 (messages_with_lengths.clone(), exec)
             },
-            |(messages, exec)| apply_messages(criterion::black_box(messages), exec),
+            |(messages, exec)| apply_messages(black_box(messages), exec),
             BatchSize::LargeInput,
         )
     });

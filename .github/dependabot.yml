@@ -1,5 +1,6 @@
 version: 2
 updates:
+  # Master branch (v4)
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
@@ -15,6 +16,73 @@ updates:
       - dependency-name: "ipld-core"
       - dependency-name: "multihash-codetable"
       - dependency-name: "multihash-derive"
+
+      # Cryptographic dependencies - important for security updates
+      - dependency-name: "blake2b_simd"
+      - dependency-name: "k256"
+      - dependency-name: "bls-signatures"
+
+      # Protocol and utilities
+      - dependency-name: "unsigned-varint"
+
+      # Filecoin-specific dependencies
+      - dependency-name: "filecoin-proofs-api"
+      - dependency-name: "fvm-wasm-instrument"
+
+      # IPLD encoding dependencies
+      - dependency-name: "serde_ipld_dagcbor"
+      - dependency-name: "serde_repr"
+      - dependency-name: "serde_tuple"
+
+  # release/v3 branch
+  - package-ecosystem: "cargo"
+    directory: "/"
+    target-branch: "release/v3"
+    schedule:
+      interval: "monthly"
+    allow:
+      # Critical wasmtime dependencies - require careful review for security and performance
+      - dependency-name: "wasmtime"
+      - dependency-name: "wasmtime-environ"
+
+      # Core serialization and encoding dependencies
+      - dependency-name: "serde"
+      - dependency-name: "cid"
+      - dependency-name: "ipld-core"
+      - dependency-name: "multihash-codetable"
+      - dependency-name: "multihash-derive"
+
+      # Cryptographic dependencies - important for security updates
+      - dependency-name: "blake2b_simd"
+      - dependency-name: "k256"
+      - dependency-name: "bls-signatures"
+
+      # Protocol and utilities
+      - dependency-name: "unsigned-varint"
+
+      # Filecoin-specific dependencies
+      - dependency-name: "filecoin-proofs-api"
+      - dependency-name: "fvm-wasm-instrument"
+
+      # IPLD encoding dependencies
+      - dependency-name: "serde_ipld_dagcbor"
+      - dependency-name: "serde_repr"
+      - dependency-name: "serde_tuple"
+
+  # release/v2 branch
+  - package-ecosystem: "cargo"
+    directory: "/"
+    target-branch: "release/v2"
+    schedule:
+      interval: "monthly"
+    allow:
+      # Critical wasmtime dependency - require careful review for security and performance
+      - dependency-name: "wasmtime"
+
+      # Core serialization and encoding dependencies
+      - dependency-name: "serde"
+      - dependency-name: "cid"
+      - dependency-name: "multihash"
 
       # Cryptographic dependencies - important for security updates
       - dependency-name: "blake2b_simd"

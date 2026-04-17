@@ -182,21 +182,21 @@ where
     where
         K: Kernel<CallManager = Self>,
     {
-        if self.machine.context().tracing {
-            if let Entrypoint::Invoke(method) = &entrypoint {
-                self.trace(ExecutionEvent::Call {
-                    from,
-                    to,
-                    method: *method,
-                    params: params.as_ref().map(Into::into),
-                    value: value.clone(),
-                    gas_limit: std::cmp::min(
-                        gas_limit.unwrap_or(Gas::from_milligas(u64::MAX)).round_up(),
-                        self.gas_tracker.gas_available().round_up(),
-                    ),
-                    read_only,
-                });
-            }
+        if self.machine.context().tracing
+            && let Entrypoint::Invoke(method) = &entrypoint
+        {
+            self.trace(ExecutionEvent::Call {
+                from,
+                to,
+                method: *method,
+                params: params.as_ref().map(Into::into),
+                value: value.clone(),
+                gas_limit: std::cmp::min(
+                    gas_limit.unwrap_or(Gas::from_milligas(u64::MAX)).round_up(),
+                    self.gas_tracker.gas_available().round_up(),
+                ),
+                read_only,
+            });
         }
 
         // If a specific gas limit has been requested, push a new limit into the gas tracker.
@@ -897,14 +897,13 @@ where
                 .ok()
                 .and_then(|r| r.value.as_ref())
                 .map(|v| (v.size(), v.links().len()))
-            {
-                if let Err(e) = cm.charge_gas(cm.price_list().on_method_return(
+                && let Err(e) = cm.charge_gas(cm.price_list().on_method_return(
                     cm.call_stack_depth,
                     ret_size,
                     link_count,
-                )) {
-                    ret = Err(e);
-                }
+                ))
+            {
+                ret = Err(e);
             }
 
             // Log the results if tracing is enabled.

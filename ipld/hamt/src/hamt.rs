@@ -382,6 +382,37 @@ where
         Ok(())
     }
 
+    /// Iterates over each KV in the Hamt and runs a function on the values. This is a
+    /// non-caching version of [`Self::for_each`]. It can potentially be more efficient, especially memory-wise,
+    /// for large HAMTs or when the iteration occurs only once.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fvm_ipld_hamt::Hamt;
+    ///
+    /// let store = fvm_ipld_blockstore::MemoryBlockstore::default();
+    ///
+    /// let mut map: Hamt<_, _, usize> = Hamt::new(store);
+    /// map.set(1, 1).unwrap();
+    /// map.set(4, 2).unwrap();
+    ///
+    /// let mut total = 0;
+    /// map.for_each_cacheless(|_, v: &u64| {
+    ///    total += v;
+    ///    Ok(())
+    /// }).unwrap();
+    /// assert_eq!(total, 3);
+    /// ```
+    pub fn for_each_cacheless<F>(&self, mut f: F) -> Result<(), Error>
+    where
+        V: DeserializeOwned,
+        F: FnMut(&K, &V) -> anyhow::Result<()>,
+    {
+        self.root
+            .for_each_cacheless(&self.store, &self.conf, &mut f)
+    }
+
     /// Iterates over each KV in the Hamt and runs a function on the values. If starting key is
     /// provided, iteration will start from that key. If max is provided, iteration will stop after
     /// max number of items have been traversed. The number of items that were traversed is
@@ -481,7 +512,7 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-    pub fn iter(&self) -> IterImpl<BS, V, K, H, Ver> {
+    pub fn iter(&self) -> IterImpl<'_, BS, V, K, H, Ver> {
         IterImpl::new(&self.store, &self.root, &self.conf)
     }
 
@@ -521,7 +552,7 @@ where
     ///
     /// # anyhow::Ok(())
     /// ```
-    pub fn iter_from<Q>(&self, key: &Q) -> Result<IterImpl<BS, V, K, H, Ver>, Error>
+    pub fn iter_from<Q>(&self, key: &Q) -> Result<IterImpl<'_, BS, V, K, H, Ver>, Error>
     where
         H: HashAlgorithm,
         K: Borrow<Q>,
