@@ -137,10 +137,10 @@ fn count_in_ranges(bits: &BTreeSet<u64>, ranges: &[Range<u64>]) -> u64 {
     let mut count = 0u64;
     let mut iter = bits.iter().peekable();
     for range in ranges {
-        while iter.peek().map_or(false, |&&b| b < range.start) {
+        while iter.peek().is_some_and(|&&b| b < range.start) {
             iter.next();
         }
-        while iter.peek().map_or(false, |&&b| b < range.end) {
+        while iter.peek().is_some_and(|&&b| b < range.end) {
             count += 1;
             iter.next();
         }
