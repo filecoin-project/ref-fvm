@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 4.8.2 [2026-04-17]
+
+- Add `NetworkVersion::V29` and label `V28` as FireHorse.
+
 ## 4.8.0 [2026-04-16]
 
 - chore: update proofs dependency and rust toolchain [#2265](https://github.com/filecoin-project/ref-fvm/pull/2265)

@@ -7,6 +7,7 @@ Changes to the reference FVM implementation.
 ## 4.8.2 [2026-04-17]
 
 - Bump `multihash-codetable` to get rid of `core2`
+- Deprecate `nv28-dev` in favor of `nv29-dev`; `V28` support is now part of the default build.
 
 ## 4.8.0 [2026-04-16]
 
