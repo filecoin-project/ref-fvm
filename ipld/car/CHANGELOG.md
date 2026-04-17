@@ -4,6 +4,10 @@ Changes to the FVM's CAR implementation.
 
 ## [Unreleased]
 
+## 0.9.1 [2026-04-17]
+
+- Bump `multihash-codetable` to get rid of `core2`
+
 ## 0.9.0 [2025-04-11]
 
 - Remove async support, it's overkill for our use-case and leaks complexity.

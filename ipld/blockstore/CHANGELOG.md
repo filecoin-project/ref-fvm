@@ -4,6 +4,10 @@ Changes to the FVM's Blockstore abstraction
 
 ## [Unreleased]
 
+## 0.3.2 [2026-04-17]
+
+- Bump `multihash-codetable` to get rid of `core2`
+
 ## 0.3.1 [2024-11-08]
 
 Remove unnecessary features from `multihash-codetable`.

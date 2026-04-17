@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.8.2 [2026-04-17]
+
+- Bump `multihash-codetable` to get rid of `core2`
+
 ## 4.8.0 [2026-04-16]
 
 - feat(executor): expose return codec in ApplyRet [#2264](https://github.com/filecoin-project/ref-fvm/pull/2264)
