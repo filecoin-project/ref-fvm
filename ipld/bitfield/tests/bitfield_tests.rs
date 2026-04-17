@@ -38,6 +38,15 @@ fn len_all_set_buffer() {
 }
 
 #[test]
+fn len_unset_never_set() {
+    // Unsetting a bit that was never in any range or set buffer is a no-op.
+    let mut bf = BitField::try_from_bits(10u64..20).unwrap();
+    bf.unset(42); // outside all ranges, never set
+    assert_eq!(bf.len(), 10);
+    assert!(!bf.get(42));
+}
+
+#[test]
 fn len_range_entirely_unset() {
     // A range where every bit is explicitly unset via the unset buffer
     let mut bf = BitField::try_from_bits(10u64..20).unwrap();
