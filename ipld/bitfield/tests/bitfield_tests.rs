@@ -14,6 +14,68 @@ fn random_indices(range: u64, seed: u64) -> Vec<u64> {
 }
 
 #[test]
+fn len_clean_single_range() {
+    let bf = BitField::try_from_bits(10u64..20).unwrap();
+    assert_eq!(bf.len(), 10);
+}
+
+#[test]
+fn len_clean_multiple_ranges() {
+    // Three disjoint clean ranges: [10,20), [30,40), [50,55)
+    let bits = (10u64..20).chain(30..40).chain(50..55);
+    let bf = BitField::try_from_bits(bits).unwrap();
+    assert_eq!(bf.len(), 25);
+}
+
+#[test]
+fn len_all_set_buffer() {
+    // No ranges at all — every bit comes from the set buffer
+    let mut bf = BitField::new();
+    for i in [10u64, 15, 20, 25, 30] {
+        bf.set(i);
+    }
+    assert_eq!(bf.len(), 5);
+}
+
+#[test]
+fn len_unset_never_set() {
+    // Unsetting a bit that was never in any range or set buffer is a no-op.
+    let mut bf = BitField::try_from_bits(10u64..20).unwrap();
+    bf.unset(42); // outside all ranges, never set
+    assert_eq!(bf.len(), 10);
+    assert!(!bf.get(42));
+}
+
+#[test]
+fn len_range_entirely_unset() {
+    // A range where every bit is explicitly unset via the unset buffer
+    let mut bf = BitField::try_from_bits(10u64..20).unwrap();
+    for i in 10u64..20 {
+        bf.unset(i);
+    }
+    assert_eq!(bf.len(), 0);
+}
+
+#[test]
+fn len_multiple_ranges_mixed_dirty() {
+    // Ranges: [10,20), [30,40), [50,60)
+    let bits = (10u64..20).chain(30..40).chain(50..60);
+    let mut bf = BitField::try_from_bits(bits).unwrap();
+
+    // Unset two bits from the first range and one from the second
+    bf.unset(10);
+    bf.unset(19);
+    bf.unset(35);
+
+    // Set two new bits outside all ranges
+    bf.set(25);
+    bf.set(45);
+
+    // Expected: (10-2) + (10-1) + 10 + 2 = 8 + 9 + 10 + 2 = 29
+    assert_eq!(bf.len(), 29);
+}
+
+#[test]
 fn bitfield_slice() {
     let vals = random_indices(10000, 2);
     let bf = BitField::try_from_bits(vals.iter().copied()).unwrap();

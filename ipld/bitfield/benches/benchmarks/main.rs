@@ -39,6 +39,38 @@ fn len(c: &mut Criterion) {
     c.bench_function("len", |b| b.iter(|| black_box(&bf).len()));
 }
 
+fn len_many_set(c: &mut Criterion) {
+    let mut bf = example1();
+    // Set bits well beyond existing ranges so they land in the `set` buffer
+    for i in 0..1000u64 {
+        bf.set(2_000_000 + i * 2);
+    }
+    c.bench_function("len_many_set", |b| b.iter(|| black_box(&bf).len()));
+}
+
+fn len_many_unset(c: &mut Criterion) {
+    let mut bf = example1();
+    // Unset bits that exist in ranges so they land in the `unset` buffer
+    let to_unset: Vec<u64> = bf.iter().take(1000).collect();
+    for bit in to_unset {
+        bf.unset(bit);
+    }
+    c.bench_function("len_many_unset", |b| b.iter(|| black_box(&bf).len()));
+}
+
+fn len_many_dirty(c: &mut Criterion) {
+    let mut bf = example1();
+    // Mix: unset bits from ranges and set new bits outside them
+    let to_unset: Vec<u64> = bf.iter().take(500).collect();
+    for bit in to_unset {
+        bf.unset(bit);
+    }
+    for i in 0..500u64 {
+        bf.set(2_000_000 + i * 2);
+    }
+    c.bench_function("len_many_dirty", |b| b.iter(|| black_box(&bf).len()));
+}
+
 fn bits(c: &mut Criterion) {
     let bf = example1();
     c.bench_function("bits", |b| {
@@ -146,6 +178,9 @@ criterion_group!(
     config = profiled();
     targets =
         len,
+        len_many_set,
+        len_many_unset,
+        len_many_dirty,
         bits,
         new,
         decode,

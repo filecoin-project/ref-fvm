@@ -131,6 +131,23 @@ impl FromIterator<u64> for MaybeBitField {
     }
 }
 
+/// Counts how many values in `bits` fall within any of the sorted, non-overlapping `ranges`.
+/// Both inputs are sorted, so this runs in O(bits + ranges) with a single forward pass.
+fn count_in_ranges(bits: &BTreeSet<u64>, ranges: &[Range<u64>]) -> u64 {
+    let mut count = 0u64;
+    let mut iter = bits.iter().peekable();
+    for range in ranges {
+        while iter.peek().is_some_and(|&&b| b < range.start) {
+            iter.next();
+        }
+        while iter.peek().is_some_and(|&&b| b < range.end) {
+            count += 1;
+            iter.next();
+        }
+    }
+    count
+}
+
 impl BitField {
     /// Creates an empty bit field.
     pub const fn new() -> Self {
@@ -322,7 +339,12 @@ impl BitField {
 
     /// Returns the number of set bits in the bit field.
     pub fn len(&self) -> u64 {
-        self.ranges().map(|range| range.size()).sum()
+        // Start with all bits covered by ranges, remove unset overrides, then add the set buffer.
+        // Bits in `set` that fall inside a range would be double-counted, so subtract that intersection.
+        self.ranges.iter().map(|r| r.size()).sum::<u64>()
+            - count_in_ranges(&self.unset, &self.ranges)
+            - count_in_ranges(&self.set, &self.ranges)
+            + self.set.len() as u64
     }
 
     /// Returns a new bit field containing the bits in `self` that remain
