@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.12.1 (2026-04-20)
+
+- Backport `multihash-codetable` bump to remove `core2` and update `wasmtime` to 36.0.7 [#2286](https://github.com/filecoin-project/ref-fvm/pull/2286)
+
 ## 2.12.0 (2026-04-16)
 
 - chore: update proofs dependency and rust toolchain [#2272](https://github.com/filecoin-project/ref-fvm/pull/2272)
