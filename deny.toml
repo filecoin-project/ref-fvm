@@ -2,6 +2,7 @@
 ignore = [
   "RUSTSEC-2025-0057", # fxhash is no longer maintained, tracked in https://github.com/filecoin-project/ref-fvm/issues/2221
   "RUSTSEC-2025-0141", # bincode unmaintained, transitive dep via bellperson/filecoin-proofs
+  "RUSTSEC-2026-0097", # Rand is unsound with a custom logger using `rand::rng()`
 ]
 
 [bans]
