@@ -1037,7 +1037,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18e4fdb82bd54a12e42fb58a800dcae6b9e13982238ce2296dc3570b92148e1f"
 dependencies = [
  "data-encoding",
- "syn 2.0.100",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -1873,7 +1873,7 @@ dependencies = [
  "fvm_ipld_encoding 0.5.4",
  "fvm_sdk 4.8.2",
  "fvm_shared 4.8.2",
- "multihash-codetable 0.2.1",
+ "multihash-codetable 0.2.2",
  "serde",
 ]
 
@@ -1938,7 +1938,7 @@ dependencies = [
  "fvm_ipld_encoding 0.5.4",
  "fvm_sdk 4.8.2",
  "fvm_shared 4.8.2",
- "multihash-codetable 0.2.1",
+ "multihash-codetable 0.2.2",
  "multihash-derive",
 ]
 
@@ -2295,7 +2295,7 @@ dependencies = [
  "lazy_static",
  "log",
  "minstant",
- "multihash-codetable 0.2.1",
+ "multihash-codetable 0.2.2",
  "multihash-derive",
  "num-traits",
  "pretty_assertions",
@@ -2425,7 +2425,7 @@ dependencies = [
  "k256",
  "lazy_static",
  "minstant",
- "multihash-codetable 0.2.1",
+ "multihash-codetable 0.2.2",
  "num-traits",
  "rand 0.8.5",
  "rand_chacha",
@@ -2463,7 +2463,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.3.2",
  "fvm_ipld_encoding 0.5.4",
  "itertools 0.14.0",
- "multihash-codetable 0.2.1",
+ "multihash-codetable 0.2.2",
  "once_cell",
  "quickcheck",
  "quickcheck_macros",
@@ -2516,7 +2516,7 @@ version = "0.3.2"
 dependencies = [
  "anyhow",
  "cid",
- "multihash-codetable 0.2.1",
+ "multihash-codetable 0.2.2",
 ]
 
 [[package]]
@@ -2542,7 +2542,7 @@ dependencies = [
  "cid",
  "fvm_ipld_blockstore 0.3.2",
  "fvm_ipld_encoding 0.5.4",
- "multihash-codetable 0.2.1",
+ "multihash-codetable 0.2.2",
  "multihash-derive",
  "serde",
  "thiserror 2.0.12",
@@ -2573,7 +2573,7 @@ dependencies = [
  "anyhow",
  "cid",
  "fvm_ipld_blockstore 0.3.2",
- "multihash-codetable 0.2.1",
+ "multihash-codetable 0.2.2",
  "serde",
  "serde_ipld_dagcbor",
  "serde_json",
@@ -2616,7 +2616,7 @@ dependencies = [
  "hex",
  "ipld-core",
  "itertools 0.14.0",
- "multihash-codetable 0.2.1",
+ "multihash-codetable 0.2.2",
  "once_cell",
  "quickcheck",
  "quickcheck_macros",
@@ -2655,7 +2655,7 @@ dependencies = [
  "fvm_ipld_blockstore 0.3.2",
  "fvm_ipld_encoding 0.5.4",
  "hex",
- "multihash-codetable 0.2.1",
+ "multihash-codetable 0.2.2",
  "once_cell",
  "quickcheck",
  "quickcheck_macros",
@@ -2733,7 +2733,7 @@ dependencies = [
  "fvm_shared 4.8.2",
  "hex",
  "k256",
- "multihash-codetable 0.2.1",
+ "multihash-codetable 0.2.2",
  "num-bigint",
  "num-derive",
  "num-integer",
@@ -3513,14 +3513,13 @@ dependencies = [
 
 [[package]]
 name = "multihash-codetable"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "facfe64780489b29aae20d32d0245219f4a8167f91193f7061589f5dae9ba307"
+checksum = "60384411b100398c5b2fdca476eed82e9898d09f2c60d1b1b66c5080ebe06118"
 dependencies = [
  "blake2b_simd",
  "digest 0.11.2",
  "multihash-derive",
- "no_std_io2",
  "ripemd",
  "sha2 0.11.0",
  "sha3",
@@ -3569,15 +3568,6 @@ dependencies = [
  "pasta_curves",
  "serde",
  "trait-set",
-]
-
-[[package]]
-name = "no_std_io2"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a3564ce7035b1e4778d8cb6cacebb5d766b5e8fe5a75b9e441e33fb61a872c6"
-dependencies = [
- "memchr",
 ]
 
 [[package]]
