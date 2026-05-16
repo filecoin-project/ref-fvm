@@ -1,5 +1,7 @@
 // Copyright 2021-2023 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
+use std::sync::{Arc, Mutex};
+
 use cid::Cid;
 use fvm_ipld_encoding::{CBOR, to_vec};
 use fvm_shared::address::Address;
@@ -10,6 +12,7 @@ use fvm_shared::{ActorID, METHOD_CONSTRUCTOR, MethodNum};
 
 use crate::Kernel;
 use crate::engine::Engine;
+use crate::executor::ReservationSession;
 use crate::gas::{Gas, GasCharge, GasTimer, GasTracker, PriceList};
 use crate::kernel::{self, BlockRegistry, ClassifyResult, Context, Result};
 use crate::machine::{Machine, MachineContext};
@@ -60,6 +63,7 @@ pub trait CallManager: 'static {
         receiver_address: Address,
         nonce: u64,
         gas_premium: TokenAmount,
+        reservation_session: Arc<Mutex<ReservationSession>>,
     ) -> Self;
 
     /// Calls an actor at the given address and entrypoint. The type parameter `K` specifies the the _kernel_ on top of which the target
