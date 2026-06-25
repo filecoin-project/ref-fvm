@@ -378,6 +378,18 @@ where
         })?;
         Ok(())
     }
+
+    /// Iterates over each KV in the Hamt and runs a function on the values without cache.
+    pub fn for_each_cacheless<F>(&self, mut f: F) -> anyhow::Result<()>
+    where
+        F: FnMut(Address, &ActorState) -> anyhow::Result<()>,
+    {
+        self.hamt.for_each_cacheless(|k, v| {
+            let addr = Address::from_bytes(&k.0)?;
+            f(addr, v)
+        })?;
+        Ok(())
+    }
 }
 
 /// State of all actor implementations.
