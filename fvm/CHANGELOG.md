@@ -4,6 +4,8 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 3.14.2 [2026-07-21]
+
 - feat: add `StateTree::for_each_cacheless` for cacheless state tree iteration [#2307](https://github.com/filecoin-project/ref-fvm/pull/2307)
 
 ## 3.14.1 [2026-04-20]
