@@ -4,6 +4,8 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+- feat: add `StateTree::for_each_cacheless` for cacheless state tree iteration [#2307](https://github.com/filecoin-project/ref-fvm/pull/2307)
+
 ## 3.14.1 [2026-04-20]
 
 - Backport `multihash-codetable` bump to remove `core2` and update `wasmtime` to 36.0.7 [#2285](https://github.com/filecoin-project/ref-fvm/pull/2285)
