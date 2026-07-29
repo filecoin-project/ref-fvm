@@ -25,6 +25,7 @@ jobs:
           "shared/Cargo.toml"
         ]
       separator: "@"
+      branches: '["release/v3"]'
     secrets:
       UCI_GITHUB_TOKEN: ${{ secrets.UCI_GITHUB_TOKEN }}
 
