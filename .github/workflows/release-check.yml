@@ -28,6 +28,7 @@ jobs:
           "shared/Cargo.toml"
         ]
       separator: "@"
+      branches: '["release/v3"]'
   cargo-publish:
     needs: [release-check]
     if: needs.release-check.outputs.json != '{}'
