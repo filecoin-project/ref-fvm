@@ -48,4 +48,4 @@ jobs:
         run: |
           # Use cargo publish --workspace --dry-run to verify the entire workspace at once.
           # This correctly handles interdependent crates which a matrix-based approach misses.
-          cargo publish --workspace --exclude fvm_conformance_tests --dry-run
+          cargo publish --workspace --dry-run

@@ -48,4 +48,4 @@ jobs:
         run: |
           # Use cargo publish --workspace to publish all changed crates in the workspace.
           # This handles interdependent crates correctly and only publishes those with version bumps.
-          cargo publish --workspace --exclude fvm_conformance_tests
+          cargo publish --workspace
