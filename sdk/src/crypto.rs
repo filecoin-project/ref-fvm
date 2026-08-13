@@ -205,7 +205,7 @@ pub fn compute_unsealed_sector_cid(
     proof_type: RegisteredSealProof,
     pieces: &[PieceInfo],
 ) -> SyscallResult<Cid> {
-    let pieces = to_vec(&pieces.to_vec()).expect("failed to marshal piece infos");
+    let pieces = to_vec(pieces).expect("failed to marshal piece infos");
     let pieces = pieces.as_slice();
     let mut out = [0u8; MAX_CID_LEN];
     unsafe {

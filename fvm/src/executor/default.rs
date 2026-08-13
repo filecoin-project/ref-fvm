@@ -455,7 +455,7 @@ where
         sender_state.sequence += 1;
 
         // Ensure from actor has enough balance to cover the gas cost of the message.
-        let gas_cost: TokenAmount = msg.gas_fee_cap.clone() * msg.gas_limit;
+        let gas_cost: TokenAmount = &msg.gas_fee_cap * msg.gas_limit;
         if sender_state.balance < gas_cost {
             return Ok(Err(ApplyRet::prevalidation_fail(
                 ExitCode::SYS_SENDER_STATE_INVALID,

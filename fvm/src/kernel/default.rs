@@ -1003,7 +1003,7 @@ where
             .iter()
             .collect();
 
-            if let Err(e) = std::fs::create_dir_all(dir.clone()) {
+            if let Err(e) = std::fs::create_dir_all(&dir) {
                 log::error!("failed to make directory to store debug artifacts {}", e);
             } else if let Err(e) = std::fs::write(dir.join(name), data) {
                 log::error!("failed to store debug artifact {}", e)
