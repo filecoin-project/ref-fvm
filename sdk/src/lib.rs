@@ -64,7 +64,7 @@ fn build_response(send: fvm_shared::sys::out::send::Send) -> SyscallResult<fvm_s
 
         Some(fvm_ipld_encoding::ipld_block::IpldBlock {
             codec: send.return_codec,
-            data: bytes.to_vec(),
+            data: bytes,
         })
     };
 
