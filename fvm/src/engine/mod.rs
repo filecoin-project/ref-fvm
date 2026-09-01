@@ -18,7 +18,7 @@ use num_traits::Zero;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{
     Global, GlobalType, InstanceAllocationStrategy, Memory, MemoryType, Module, Mutability, Val,
-    ValType, WasmBacktraceDetails,
+    ValType, WasmBacktraceDetails, WasmFeatures,
 };
 
 use crate::Kernel;
@@ -160,10 +160,30 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // Adjust the maximum amount of host memory that can be committed to an instance to
     // match the static linear memory size we reserve for each slot.
     alloc_strat_cfg.max_memory_size(instance_memory_maximum_size as usize);
+
+    // PAGEMAP_SCAN would make slot reuse depend on the host kernel version. Off by default today,
+    // but wasmtime may enable it.
+    alloc_strat_cfg.pagemap_scan(wasmtime::Enabled::No);
+
     c.allocation_strategy(InstanceAllocationStrategy::Pooling(alloc_strat_cfg));
 
-    // Explicitly disable custom page sizes, we always assume 64KiB.
-    c.wasm_custom_page_sizes(false);
+    // Consensus-critical: the complete set of Wasm features FVM accepts. Denying everything first
+    // means a proposal that becomes default-on upstream stays rejected, instead of silently
+    // widening the actor code that loads.
+    c.wasm_features(WasmFeatures::all(), false);
+    c.wasm_features(
+        WasmFeatures::FLOATS
+            | WasmFeatures::MUTABLE_GLOBAL
+            | WasmFeatures::SIGN_EXTENSION
+            | WasmFeatures::SATURATING_FLOAT_TO_INT
+            | WasmFeatures::REFERENCE_TYPES
+            | WasmFeatures::BULK_MEMORY,
+        true,
+    );
+
+    // A codegen tunable, not a feature, so it cannot live in the mask: relaxed SIMD permits
+    // implementation-defined results, and this forces deterministic lowering if it is ever enabled.
+    c.relaxed_simd_deterministic(true);
 
     // wasmtime default: true
     // We disable this as we always charge for memory regardless and `memory_init_cow` can balloon
@@ -172,49 +192,6 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     // wasmtime default: true
     c.memory_may_move(false);
-
-    // Note: Threads are disabled by default.
-    // If we add the "wasmtime/threads" feature in the future,
-    // we would explicitly set c.wasm_threads(false) here.
-
-    // wasmtime default: true
-    // simd isn't supported in wasm-instrument, but if we add support there, we can probably enable
-    // this.
-    // Note: stack limits may need adjusting after this is enabled
-    c.wasm_simd(false);
-    c.wasm_relaxed_simd(false);
-    c.relaxed_simd_deterministic(true);
-
-    // wasmtime default: false
-    // Supports wide instructions (https://github.com/WebAssembly/wide-arithmetic).
-    // We'd like this, but we'll need to (a) update our gas instrumentation logic to support it and
-    // (b) make sure our build pipeline can take advantage of it. We should probably wait for it to
-    // be enabled by default.
-    c.wasm_wide_arithmetic(false);
-
-    // wasmtime default: true
-    // We don't support the return_call_* functions.
-    c.wasm_tail_call(false);
-
-    // wasmtime default: true
-    c.wasm_multi_memory(false);
-
-    // wasmtime default: true
-    c.wasm_memory64(false);
-
-    // wasmtime default: true
-    // Note: wasm-instrument only supports this at a basic level, for M2 we will
-    // need to add more advanced support
-    c.wasm_bulk_memory(true);
-
-    // wasmtime default: true
-    // we should be able to enable this for M2, just need to make sure that it's
-    // handled correctly in wasm-instrument
-    c.wasm_multi_value(false);
-
-    // Note: GC is disabled by default.
-    // If we add the "wasmtime/gc" feature in the future,
-    // we would explicitly set c.wasm_gc(false) and c.wasm_function_references(false) here.
 
     // wasmtime default: false
     //
@@ -230,6 +207,10 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // Set to something much higher than the instrumented limiter.
     // Note: This is in bytes, while the instrumented limit is in stack elements
     c.max_wasm_stack(4 << 20);
+
+    // We don't use async, but wasmtime unconditionally rejects a `max_wasm_stack` larger than the
+    // `async_stack_size` (default 2MiB), so raise the latter to keep the stack limit above.
+    c.async_stack_size(8 << 20);
 
     // Execution cost accouting is done through wasm instrumentation,
     c.consume_fuel(false);
@@ -268,19 +249,6 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     // The downside to using traditional signal handlers is that this may interfere with some
     // debugging tools. But we'll just have to live with that.
     c.macos_use_mach_ports(false);
-
-    // wasmtime default: true
-    // Disable extended const support. We'll probably enable this in the future but that requires a
-    // FIP.
-    c.wasm_extended_const(false);
-
-    // wasmtime default: whether the crate `gc` feature is enabled or not
-    // Disable GC support.
-    c.gc_support(false);
-
-    // Note: Component model is disabled by default.
-    // If we add the "wasmtime/component-model" feature in the future,
-    // we would explicitly set c.wasm_component_model(false) here.
 
     // wasmtime default: true
     // TODO: Consider disabling this to make performance more deterministic. But we benchmarked with
@@ -543,7 +511,7 @@ impl Engine {
         cache
             .linker
             .define(&store, "gas", GAS_COUNTER_NAME, gas_global)
-            .map_err(|e| Abort::Fatal(anyhow::anyhow!("failed to define gas counter: {e}")))?;
+            .map_err(|e| Abort::Fatal(e.context("failed to define gas counter").into()))?;
 
         let mut module_cache = self
             .inner
@@ -563,7 +531,7 @@ impl Engine {
             let pre_instance = cache
                 .linker
                 .instantiate_pre(module)
-                .map_err(|e| Abort::Fatal(anyhow::anyhow!("failed to link actor module: {e}")))?;
+                .map_err(|e| Abort::Fatal(e.context("failed to link actor module").into()))?;
 
             // Update the gas _just_ in case.
             update_gas_available(store)?;
@@ -769,5 +737,67 @@ mod tests {
         // Increase by 2.
         assert!(limits.table_growing(2, 4, None).unwrap());
         assert_eq!(limits.0.memory, 5 * 8);
+    }
+
+    // The accepted Wasm feature set is consensus-critical and must not drift across wasmtime
+    // upgrades. This pins both sides: everything we accept and every proposal we reject.
+    #[test]
+    fn accepted_wasm_features_are_fixed() {
+        use fvm_shared::version::NetworkVersion;
+
+        use crate::engine::{EngineConfig, wasmtime_config};
+        use crate::machine::NetworkConfig;
+
+        let ec = EngineConfig::from(&NetworkConfig::new(NetworkVersion::V28));
+        let engine = wasmtime::Engine::new(&wasmtime_config(&ec).unwrap()).unwrap();
+        let validates = |engine: &wasmtime::Engine, wat: &str| {
+            wasmtime::Module::validate(engine, &wat::parse_str(wat).unwrap()).is_ok()
+        };
+
+        const CALL_REF: &str =
+            r#"(module (type $t (func)) (func (param $p (ref $t)) (call_ref $t (local.get $p))))"#;
+
+        // Accepted: MVP plus funcref reference-types, bulk-memory, sign-extension and non-trapping
+        // float-to-int.
+        for m in [
+            r#"(module (func (export "f")))"#,
+            r#"(module (type $t (func)) (table 1 funcref) (func (export "f") (call_indirect (type $t) (i32.const 0))))"#,
+            r#"(module (func (result funcref) (ref.null func)))"#,
+            r#"(module (memory 1) (func (memory.fill (i32.const 0) (i32.const 0) (i32.const 0))))"#,
+            r#"(module (func (param i32) (result i32) (i32.extend8_s (local.get 0))))"#,
+            r#"(module (func (param f32) (result i32) (i32.trunc_sat_f32_s (local.get 0))))"#,
+        ] {
+            assert!(validates(&engine, m), "should be accepted: {m}");
+        }
+
+        // Rejected: one module per disabled proposal. `global.get` of a local global in a constant
+        // expression is gated by wasmtime under GC (the spec files it under extended-const); both
+        // are off. `externref` needs the GC runtime we build without.
+        for m in [
+            CALL_REF,
+            r#"(module (type $s (struct (field i32))))"#,
+            r#"(module (tag $e))"#,
+            r#"(module (func try catch_all end))"#,
+            r#"(module (global i32 (i32.const 1)) (global i32 (global.get 0)))"#,
+            r#"(module (global externref (ref.null extern)))"#,
+            r#"(module (func (result v128) (v128.const i32x4 0 0 0 0)))"#,
+            r#"(module (func $f) (func (return_call $f)))"#,
+            r#"(module (func (result i32 i32) (i32.const 0) (i32.const 1)))"#,
+            r#"(module (memory 1) (memory 1))"#,
+            r#"(module (memory i64 1))"#,
+            r#"(module (memory 1 1 (pagesize 1)))"#,
+            r#"(module (global i32 (i32.add (i32.const 1) (i32.const 2))))"#,
+            r#"(module (func (param i64 i64 i64 i64) (result i64 i64) (i64.add128 (local.get 0) (local.get 1) (local.get 2) (local.get 3))))"#,
+            r#"(module (memory 1 1 shared))"#,
+        ] {
+            assert!(!validates(&engine, m), "should be rejected: {m}");
+        }
+
+        // Control: the same `call_ref` module validates once function references are re-enabled,
+        // so the rejection above is caused by our configuration.
+        let mut permissive = wasmtime_config(&ec).unwrap();
+        permissive.wasm_features(wasmtime::WasmFeatures::FUNCTION_REFERENCES, true);
+        let permissive = wasmtime::Engine::new(&permissive).unwrap();
+        assert!(validates(&permissive, CALL_REF));
     }
 }
