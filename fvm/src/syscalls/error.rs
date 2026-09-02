@@ -56,8 +56,8 @@ impl Abort {
 }
 
 /// Unwraps a trap error from an actor into an "abort".
-impl From<anyhow::Error> for Abort {
-    fn from(e: anyhow::Error) -> Self {
+impl From<wasmtime::Error> for Abort {
+    fn from(e: wasmtime::Error) -> Self {
         if let Some(trap) = e.downcast_ref::<Trap>() {
             return match trap {
                 | Trap::MemoryOutOfBounds
@@ -80,13 +80,13 @@ impl From<anyhow::Error> for Abort {
                     trap.to_string(),
                     NO_DATA_BLOCK_ID,
                 ),
-                _ => Abort::Fatal(anyhow!("unexpected wasmtime trap: {}", trap)),
+                _ => Abort::Fatal(anyhow!("unexpected wasmtime trap: {trap}")),
             };
         };
 
         match e.downcast::<Abort>() {
             Ok(abort) => abort,
-            Err(e) => Abort::Fatal(e),
+            Err(e) => Abort::Fatal(e.into()),
         }
     }
 }
