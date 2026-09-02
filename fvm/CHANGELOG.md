@@ -4,6 +4,8 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+- `nv29-dev` is now part of the default build; the feature flag was removed.
+
 ## 4.8.2 [2026-04-17]
 
 - Bump `multihash-codetable` to get rid of `core2`
