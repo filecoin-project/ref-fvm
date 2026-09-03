@@ -71,7 +71,7 @@ impl NetworkVersion {
     pub const V27: Self = Self(27);
     /// FireHorse (builtin-actor v18)
     pub const V28: Self = Self(28);
-    /// TBD (TBD builtin-actor v19)
+    /// Solstice (builtin-actor v19)
     pub const V29: Self = Self(29);
 
     pub const MAX: Self = Self(u32::MAX);
