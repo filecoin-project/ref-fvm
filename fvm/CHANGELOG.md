@@ -4,6 +4,8 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.8.3 [2026-09-03]
+
 - Network version 29 support (previously gated behind `nv29-dev`) is now enabled by default; the feature flag was removed.
 
 ## 4.8.2 [2026-04-17]
