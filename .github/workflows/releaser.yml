@@ -5,16 +5,22 @@ on:
     paths:
       - "**/Cargo.toml"
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Ref to publish"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.sha }}
+  group: ${{ github.workflow }}-${{ inputs.ref || github.sha }}
   cancel-in-progress: true
 
 jobs:
   releaser:
+    if: github.event_name != 'workflow_dispatch'
     uses: ipdxco/unified-github-workflows/.github/workflows/releaser.yml@v1.0
     with:
       sources: |
@@ -37,13 +43,15 @@ jobs:
 
   cargo-publish:
     needs: [releaser]
-    if: needs.releaser.outputs.json != '{}'
+    if: ${{ always() && (github.event_name == 'workflow_dispatch' || (needs.releaser.result == 'success' && needs.releaser.outputs.json != '{}')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
       - name: Install required packages
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
