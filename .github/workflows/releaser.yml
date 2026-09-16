@@ -2,25 +2,21 @@ name: Releaser
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "**/Cargo.toml"
   workflow_dispatch:
-    inputs:
-      ref:
-        description: "Ref to publish"
-        required: true
-        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.ref || github.sha }}
+  group: ${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
   releaser:
-    if: github.event_name != 'workflow_dispatch'
     uses: ipdxco/unified-github-workflows/.github/workflows/releaser.yml@v1.0
     with:
       sources: |
@@ -43,15 +39,15 @@ jobs:
 
   cargo-publish:
     needs: [releaser]
-    if: ${{ always() && (github.event_name == 'workflow_dispatch' || (needs.releaser.result == 'success' && needs.releaser.outputs.json != '{}')) }}
+    if: needs.releaser.outputs.json != '{}'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.sha }}
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       - name: Install required packages
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
@@ -61,6 +57,10 @@ jobs:
           command: |
             sudo apt-get update
             sudo apt-get install --no-install-recommends --yes libhwloc-dev ocl-icd-opencl-dev
+      - name: Install cargo-release
+        uses: taiki-e/install-action@f1390fd0d8205ae79e5e57b1d1e300dceeb4163e
+        with:
+          tool: cargo-release@1.1.5
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: rust-lang/crates-io-auth-action@v1
@@ -68,6 +68,6 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
         run: |
-          # Use cargo publish --workspace to publish all changed crates in the workspace.
-          # This handles interdependent crates correctly and only publishes those with version bumps.
-          cargo publish --workspace
+          # cargo-release's publish subcommand skips already-published crates
+          # while preserving workspace ordering for unpublished ones.
+          cargo release publish --workspace --no-confirm --execute

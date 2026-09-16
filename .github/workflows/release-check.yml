@@ -36,12 +36,15 @@ jobs:
           "shared/Cargo.toml"
         ]
       separator: "@"
+
   cargo-publish:
     needs: [release-check]
     if: needs.release-check.outputs.json != '{}'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       - name: Install required packages
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
@@ -51,8 +54,12 @@ jobs:
           command: |
             sudo apt-get update
             sudo apt-get install --no-install-recommends --yes libhwloc-dev ocl-icd-opencl-dev
+      - name: Install cargo-release
+        uses: taiki-e/install-action@f1390fd0d8205ae79e5e57b1d1e300dceeb4163e
+        with:
+          tool: cargo-release@1.1.5
       - name: Dry-run publish
         run: |
-          # Use cargo publish --workspace --dry-run to verify the entire workspace at once.
-          # This correctly handles interdependent crates which a matrix-based approach misses.
-          cargo publish --workspace --dry-run
+          # cargo-release's publish subcommand skips already-published crates
+          # while preserving workspace ordering for unpublished ones.
+          cargo release publish --workspace --allow-branch HEAD --no-confirm
