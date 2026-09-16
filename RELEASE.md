@@ -80,6 +80,8 @@ Finally, an [FVM "owner"](https://github.com/orgs/filecoin-project/teams/fvm-cra
    * Publish the crates to [crates.io](https://crates.io) using `cargo publish --workspace`.
      - Note: This repository uses **trusted publishing** via OIDC. No `CARGO_REGISTRY_TOKEN` secret is required, but the repository must be configured as a trusted publisher on crates.io.
 
+   * If the crates.io publish step fails part-way (for example because some workspace members were not bumped and already exist at their current version), re-run it manually with the **Releaser** workflow's `workflow_dispatch` trigger: set `ref` to the release tag or commit and `exclude` to the space-separated names of the crates to skip (e.g. `fvm_ipld_amt fvm_ipld_hamt`).
+
 3. Verify the releases on crates.io:
    https://crates.io/crates/fvm/versions
    https://crates.io/crates/fvm_shared/versions

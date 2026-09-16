@@ -10,6 +10,11 @@ on:
         description: "Ref to publish"
         required: true
         type: string
+      exclude:
+        description: "Space-separated crate names to skip (e.g. members already published at their current version)"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -67,7 +72,14 @@ jobs:
       - name: Publish to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
+          EXCLUDE: ${{ inputs.exclude }}
         run: |
-          # Use cargo publish --workspace to publish all changed crates in the workspace.
-          # This handles interdependent crates correctly and only publishes those with version bumps.
-          cargo publish --workspace
+          # Use cargo publish --workspace to publish the crates in the workspace in dependency order.
+          # cargo does NOT skip members that are already published at their current version; it
+          # fails with "crate X@Y already exists on crates.io index". On a manual dispatch, pass such
+          # crates via the `exclude` input so they are dropped from the publish set.
+          args=()
+          for crate in $EXCLUDE; do
+            args+=(--exclude "$crate")
+          done
+          cargo publish --workspace "${args[@]}"
