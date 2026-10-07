@@ -21,6 +21,7 @@ jobs:
     uses: ipdxco/unified-github-workflows/.github/workflows/release-check.yml@v1.0
     if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.head.repo.fork }}
     with:
+      branches: '["master"]'
       sources: |
         [
           "fvm/Cargo.toml",
