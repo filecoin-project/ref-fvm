@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add `NetworkVersion::V30`.
+
 ## 4.8.2 [2026-04-17]
 
 - Add `NetworkVersion::V29` and label `V28` as FireHorse.

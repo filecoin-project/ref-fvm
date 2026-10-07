@@ -1090,6 +1090,8 @@ pub fn price_list_by_network_version(network_version: NetworkVersion) -> &'stati
         | NetworkVersion::V27
         | NetworkVersion::V28
         | NetworkVersion::V29 => &TEEP_PRICES,
+        #[cfg(feature = "nv30-dev")]
+        NetworkVersion::V30 => &TEEP_PRICES,
         _ => panic!("network version {nv} not supported", nv = network_version),
     }
 }
