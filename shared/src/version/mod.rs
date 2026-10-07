@@ -73,6 +73,8 @@ impl NetworkVersion {
     pub const V28: Self = Self(28);
     /// Solstice (builtin-actor v19)
     pub const V29: Self = Self(29);
+    /// TBD
+    pub const V30: Self = Self(30);
 
     pub const MAX: Self = Self(u32::MAX);
 
