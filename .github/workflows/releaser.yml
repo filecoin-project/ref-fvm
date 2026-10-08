@@ -3,7 +3,7 @@ name: Releaser
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - "**/Cargo.toml"
   workflow_dispatch:
@@ -19,6 +19,7 @@ jobs:
   releaser:
     uses: ipdxco/unified-github-workflows/.github/workflows/releaser.yml@v1.0
     with:
+      branches: '["master"]'
       sources: |
         [
           "fvm/Cargo.toml",
