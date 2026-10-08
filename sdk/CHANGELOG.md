@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 4.8.4 [2026-10-07]
+
 ## 4.8.0 [2026-04-16]
 
 - chore: update proofs dependency and rust toolchain [#2265](https://github.com/filecoin-project/ref-fvm/pull/2265)

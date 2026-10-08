@@ -4,7 +4,9 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-- Add network version 30 support behind the `nv30-dev` feature flag.
+## 4.8.4 [2026-10-07]
+
+- Add network version 30 support behind the `nv30-dev` feature flag. [#2348](https://github.com/filecoin-project/ref-fvm/pull/2348)
 
 ## 4.8.3 [2026-09-03]
 
