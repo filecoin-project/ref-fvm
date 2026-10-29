@@ -9,7 +9,6 @@ license.workspace = true
 fvm_sdk = { workspace = true, features = ["upgrade-actor"]}
 fvm_shared = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
-cid = { workspace = true }
 serde = { workspace = true }
 
 [lib]

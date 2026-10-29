@@ -26,7 +26,6 @@ ipld-core = { workspace = true }
 identity = []
 
 [dev-dependencies]
-hex =  { workspace = true }
 criterion = { workspace = true }
 unsigned-varint = { workspace = true }
 quickcheck = { workspace = true }

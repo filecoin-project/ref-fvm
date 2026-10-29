@@ -69,7 +69,6 @@ criterion = "0.7"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 minstant = "0.1.7"
-coverage-helper = "0.2.4"
 
 # workspace (FVM)
 fvm = { path = "fvm", version = "~4.8.4", default-features = false }
