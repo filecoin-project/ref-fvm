@@ -34,7 +34,6 @@ num_cpus = "1.16.0"
 log = "0.4.27"
 fvm-wasm-instrument = "0.4.0"
 yastl = "0.1.2"
-arbitrary = { version = "1.4.1", optional = true, features = ["derive"] }
 rand = "0.8.5"
 quickcheck = { version = "1", optional = true }
 once_cell = "1.21"
@@ -54,7 +53,7 @@ opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
 cuda-supraseal = ["filecoin-proofs-api/cuda-supraseal"]
 testing = []
-arb = ["arbitrary", "quickcheck", "fvm_shared/arb", "cid/arb"]
+arb = ["quickcheck", "fvm_shared/arb", "cid/arb"]
 m2-native = []
 gas_calibration = []
 nv21-dev = []

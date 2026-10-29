@@ -1546,7 +1546,6 @@ name = "fvm"
 version = "3.14.2"
 dependencies = [
  "anyhow",
- "arbitrary",
  "blake2b_simd",
  "byteorder",
  "cid",
@@ -1601,7 +1600,6 @@ dependencies = [
  "cid",
  "colored",
  "criterion",
- "either",
  "env_logger 0.11.8",
  "flate2",
  "futures",
@@ -1739,7 +1737,6 @@ dependencies = [
  "hex",
  "k256",
  "lazy_static",
- "multihash",
  "multihash-codetable",
  "num-bigint",
  "num-derive",
@@ -1750,7 +1747,6 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha",
  "serde",
- "serde_json",
  "serde_tuple",
  "thiserror 2.0.12",
  "unsigned-varint",
