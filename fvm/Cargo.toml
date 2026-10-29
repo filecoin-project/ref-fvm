@@ -15,21 +15,16 @@ crate-type = ["lib"]
 anyhow = { version = "1.0.97", features = ["backtrace"] }
 thiserror = "2.0.12"
 num-traits = "0.2"
-derive_builder = "0.20.2"
-num-derive = "0.4.2"
 cid = { workspace = true, features = ["serde-codec"] }
 multihash-codetable = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
 multihash-derive = { workspace = true }
 fvm_shared = { workspace = true, features = ["crypto"] }
 fvm_ipld_hamt = { workspace = true }
-fvm_ipld_amt = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = "1.1"
-serde_repr = "0.1"
 lazy_static = "1.5.0"
-derive-getters = "0.5.0"
 derive_more = { version = "2.0.1", features = ["full"] }
 replace_with = "0.1.7"
 filecoin-proofs-api = { version = "19", default-features = false }
@@ -40,7 +35,6 @@ byteorder = "1.5.0"
 blake2b_simd = "1.0.4"
 fvm-wasm-instrument = { version = "0.2.0", features = ["bulk"] }
 yastl = "0.1.2"
-arbitrary = {version = "1.4.1", optional = true, features = ["derive"]}
 rand = "0.8.5"
 wasmtime = { workspace = true }
 
@@ -54,7 +48,7 @@ opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
 cuda-supraseal = ["filecoin-proofs-api/cuda-supraseal"]
 testing = []
-arb = ["arbitrary"]
+arb = []
 
 # Allow coverage attribute.
 [lints.rust]

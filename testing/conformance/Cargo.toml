@@ -12,36 +12,18 @@ license.workspace = true
 [dependencies]
 fvm = { workspace = true, features = ["testing"] }
 fvm_shared = { workspace = true }
-fvm_ipld_hamt = { workspace = true }
-fvm_ipld_amt = { workspace = true }
 fvm_ipld_car = { workspace = true }
 fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 
 anyhow = "1.0.97"
-thiserror = "2.0.12"
-num-traits = "0.2"
-derive_builder = "0.20.2"
-ahash = "0.8"
-num-derive = "0.4.2"
 cid = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
-serde_tuple = "1.1"
-serde_repr = "0.1"
 lazy_static = "1.5.0"
-derive-getters = "0.5.0"
-derive_more = { version = "2.0.1", features = ["full"] }
-replace_with = "0.1.7"
 log = "0.4.27"
-byteorder = "1.5.0"
-futures = "0.3.31"
 wasmtime = { workspace = true }
 base64 = "0.22.1"
 flate2 = { version = "1.1" }
-colored = "3"
-either = "1.15.0"
-itertools = "0.14.0"
-num_cpus = "1.16.0"
 serde_json = { version = "1.0", features = ["raw_value"] }
 walkdir = "2.5"
 regex = { version = "1.11" }
@@ -57,6 +39,11 @@ vtune = ["wasmtime/profiling", "ittapi-rs"]
 pretty_env_logger = "0.5.0"
 criterion = { version = "0.5" }
 tokio = { version = "1.45", features = ["rt-multi-thread", "macros", "sync"] }
+colored = "3"
+futures = "0.3.31"
+itertools = "0.14.0"
+num-traits = "0.2"
+num_cpus = "1.16.0"
 
 [[bin]]
 name = "perf-conformance"
