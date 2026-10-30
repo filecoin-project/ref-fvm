@@ -775,12 +775,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "coverage-helper"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "435aea653a110cde24da15ca2dac9e06d17d92ce2bd6c2b9179b508abbe6f06f"
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1895,12 +1889,8 @@ dependencies = [
 name = "fil_custom_syscall_actor"
 version = "0.1.0"
 dependencies = [
- "cid",
- "fvm_ipld_encoding 0.5.4",
  "fvm_sdk 4.8.4",
- "fvm_shared 4.8.4",
  "num-traits",
- "serde",
 ]
 
 [[package]]
@@ -1910,7 +1900,6 @@ dependencies = [
  "fvm_ipld_encoding 0.5.4",
  "fvm_sdk 4.8.4",
  "fvm_shared 4.8.4",
- "serde",
 ]
 
 [[package]]
@@ -1919,7 +1908,6 @@ version = "0.1.0"
 dependencies = [
  "fvm_ipld_encoding 0.5.4",
  "fvm_sdk 4.8.4",
- "fvm_shared 4.8.4",
 ]
 
 [[package]]
@@ -1933,7 +1921,6 @@ dependencies = [
  "fvm_sdk 4.8.4",
  "fvm_shared 4.8.4",
  "ipld-core",
- "num-derive",
  "num-traits",
  "serde",
 ]
@@ -1945,7 +1932,6 @@ dependencies = [
  "fvm_ipld_encoding 0.5.4",
  "fvm_sdk 4.8.4",
  "fvm_shared 4.8.4",
- "log",
  "serde",
 ]
 
@@ -1985,7 +1971,6 @@ name = "fil_malformed_syscall_actor"
 version = "0.1.0"
 dependencies = [
  "fvm_sdk 4.8.4",
- "fvm_shared 4.8.4",
 ]
 
 [[package]]
@@ -2028,8 +2013,6 @@ dependencies = [
 name = "fil_syscall_actor"
 version = "0.1.0"
 dependencies = [
- "fil_actors_runtime",
- "fvm_ipld_encoding 0.5.4",
  "fvm_sdk 4.8.4",
  "fvm_shared 4.8.4",
  "multihash-codetable",
@@ -2040,7 +2023,6 @@ dependencies = [
 name = "fil_upgrade_actor"
 version = "0.1.0"
 dependencies = [
- "cid",
  "fvm_ipld_encoding 0.5.4",
  "fvm_sdk 4.8.4",
  "fvm_shared 4.8.4",
@@ -2051,7 +2033,6 @@ dependencies = [
 name = "fil_upgrade_receive_actor"
 version = "0.1.0"
 dependencies = [
- "cid",
  "fvm_ipld_encoding 0.5.4",
  "fvm_sdk 4.8.4",
  "fvm_shared 4.8.4",
@@ -2378,9 +2359,7 @@ version = "4.8.4"
 dependencies = [
  "ambassador",
  "anyhow",
- "arbitrary",
  "cid",
- "coverage-helper",
  "derive_more",
  "filecoin-proofs-api",
  "fvm",
@@ -2397,7 +2376,6 @@ dependencies = [
  "multihash-derive",
  "num-traits",
  "pretty_assertions",
- "quickcheck",
  "rand 0.8.6",
  "rayon",
  "replace_with",
@@ -2463,7 +2441,6 @@ dependencies = [
  "cid",
  "colored",
  "criterion",
- "either",
  "env_logger",
  "flate2",
  "futures",
@@ -2497,7 +2474,6 @@ dependencies = [
  "num-derive",
  "num-traits",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -2516,7 +2492,6 @@ dependencies = [
  "fvm_ipld_blockstore 0.3.2",
  "fvm_ipld_car 0.9.1",
  "fvm_ipld_encoding 0.5.4",
- "fvm_sdk 4.8.4",
  "fvm_shared 4.8.4",
  "fvm_test_actors",
  "hex",
@@ -2530,7 +2505,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
- "wasmtime",
  "wat",
 ]
 
@@ -2691,7 +2665,6 @@ dependencies = [
  "forest_hash_utils",
  "fvm_ipld_blockstore 0.3.2",
  "fvm_ipld_encoding 0.5.4",
- "hex",
  "ipld-core",
  "itertools 0.14.0",
  "multihash-codetable",
@@ -2743,7 +2716,6 @@ dependencies = [
  "rand 0.8.6",
  "serde",
  "thiserror 2.0.18",
- "unsigned-varint",
 ]
 
 [[package]]
@@ -2823,7 +2795,6 @@ dependencies = [
  "blake2b_simd",
  "bls-signatures",
  "cid",
- "coverage-helper",
  "data-encoding",
  "data-encoding-macro",
  "filecoin-proofs-api",
@@ -2842,7 +2813,6 @@ dependencies = [
  "rand_chacha 0.3.1",
  "rusty-fork",
  "serde",
- "serde_json",
  "thiserror 2.0.18",
  "unsigned-varint",
 ]

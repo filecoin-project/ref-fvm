@@ -21,7 +21,6 @@ fvm_ipld_blockstore = { workspace = true }
 [dev-dependencies]
 hex = { workspace = true }
 criterion = { workspace = true }
-unsigned-varint = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 rand = { workspace = true }

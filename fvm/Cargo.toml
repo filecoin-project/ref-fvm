@@ -28,9 +28,7 @@ wasmtime-environ = { workspace = true }
 serde = { workspace = true }
 lazy_static = { workspace = true }
 log = { workspace = true }
-arbitrary = { workspace = true, optional = true, features = ["derive"] }
 rand = { workspace = true }
-quickcheck = { workspace = true, optional = true }
 minstant = { workspace = true }
 ambassador = { workspace = true }
 derive_more = { version = "2.0.1", features = ["full"] }
@@ -44,7 +42,6 @@ static_assertions = "1.1.0"
 [dev-dependencies]
 pretty_assertions = "1.4.1"
 fvm = { path = ".", features = ["testing"], default-features = false }
-coverage-helper = { workspace = true }
 
 [features]
 default = ["opencl", "verify-signature"]
@@ -52,7 +49,7 @@ opencl = ["filecoin-proofs-api/opencl"]
 cuda = ["filecoin-proofs-api/cuda"]
 cuda-supraseal = ["filecoin-proofs-api/cuda-supraseal"]
 testing = []
-arb = ["arbitrary", "quickcheck", "fvm_shared/arb"]
+arb = ["fvm_shared/arb"]
 m2-native = []
 upgrade-actor = []
 gas_calibration = []

@@ -6,7 +6,6 @@ publish = false
 license.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-fvm_shared = { workspace = true }
 fvm_sdk = { workspace = true }
 
 [lib]

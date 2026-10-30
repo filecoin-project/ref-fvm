@@ -36,10 +36,8 @@ bls-signatures = { workspace = true, default-features = false, optional = true }
 [dev-dependencies]
 hex = { workspace = true }
 rand = { workspace = true }
-serde_json = { workspace = true }
 multihash-codetable = { workspace = true, features = ["sha2", "sha3", "ripemd"] }
 quickcheck_macros = { workspace = true }
-coverage-helper = { workspace = true }
 fvm_shared = { path = ".", features = ["arb"] }
 rand_chacha = { workspace = true }
 rusty-fork = { version = "0.3.0", default-features = false }
