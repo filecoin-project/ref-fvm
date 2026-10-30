@@ -341,4 +341,12 @@ pub mod prelude {
     pub type Multihash = cid::multihash::Multihash<64>;
 }
 
-use prelude::*;
+// Explicit, rather than a glob: the prelude re-exports this module's own ambassador macros, which
+// a glob import would make ambiguous.
+#[cfg(feature = "verify-signature")]
+use prelude::SignatureType;
+use prelude::{
+    ActorID, Address, ChainEpoch, Cid, ExitCode, Gas, GasTimer, MessageContext, MethodNum,
+    Multihash, NetworkContext, RANDOMNESS_LENGTH, SECP_PUB_LEN, SECP_SIG_LEN,
+    SECP_SIG_MESSAGE_HASH_SIZE, SendFlags, TokenAmount,
+};
