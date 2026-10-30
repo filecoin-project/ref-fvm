@@ -639,6 +639,46 @@ fn div_by_zero() {
     );
 }
 
+// Each wasm trap the FVM maps to an actor exit, rather than a fatal error. Bulk memory and table
+// bounds checks are generated code, so these also pin the trap each one raises.
+#[test]
+fn wasm_traps() {
+    let module = |body: &str| {
+        format!(
+            r#"(module
+                 (type $t (func (result i32)))
+                 (memory (export "memory") 1)
+                 (table 3 funcref)
+                 (elem (i32.const 2) $other)
+                 (func $other (param i32))
+                 (func (export "invoke") (param $x i32) (result i32)
+                   {body}))"#
+        )
+    };
+
+    // Control: the module itself loads and runs.
+    test_exitcode(&module("(i32.const 0)"), ExitCode::OK);
+
+    for body in [
+        // MemoryOutOfBounds
+        "(i32.load (i32.const 65536))",
+        "(memory.fill (i32.const 65535) (i32.const 0) (i32.const 2)) (i32.const 0)",
+        "(memory.copy (i32.const 0) (i32.const 65535) (i32.const 2)) (i32.const 0)",
+        // TableOutOfBounds
+        "(call_indirect (type $t) (i32.const 3))",
+        // IndirectCallToNull
+        "(call_indirect (type $t) (i32.const 0))",
+        // BadSignature
+        "(call_indirect (type $t) (i32.const 2))",
+        // BadConversionToInteger
+        "(i32.trunc_f32_s (f32.const nan))",
+        // IntegerOverflow
+        "(i32.div_s (i32.const 0x80000000) (i32.const -1))",
+    ] {
+        test_exitcode(&module(body), ExitCode::SYS_ILLEGAL_INSTRUCTION);
+    }
+}
+
 #[test]
 fn out_of_stack() {
     test_exitcode(
