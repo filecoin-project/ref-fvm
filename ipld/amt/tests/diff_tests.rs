@@ -147,7 +147,7 @@ fn test_large_modify(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
 
     let mut changes = diff(&a, &b)?;
     ensure!(changes.len() == 100);
-    changes.sort_by(|a, b| a.key.cmp(&b.key));
+    changes.sort_by_key(|c| c.key);
 
     ensure!(changes == expected_changes);
 
@@ -180,7 +180,7 @@ fn test_large_additions(BitWidth2to18(bit_width): BitWidth2to18) -> Result<()> {
 
     let mut changes = diff(&a, &b)?;
     ensure!(changes.len() == 500);
-    changes.sort_by(|a, b| a.key.cmp(&b.key));
+    changes.sort_by_key(|c| c.key);
 
     ensure!(changes == expected_changes);
 
@@ -263,7 +263,7 @@ fn test_big_diff(
 
     let mut changes = diff(&a, &b)?;
     ensure!(changes.len() == 1600);
-    changes.sort_by(|a, b| a.key.cmp(&b.key));
+    changes.sort_by_key(|c| c.key);
 
     ensure!(changes == expected_changes);
 

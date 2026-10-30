@@ -17,8 +17,8 @@ use fvm_wasm_instrument::gas_metering::GAS_COUNTER_NAME;
 use num_traits::Zero;
 use wasmtime::OptLevel::Speed;
 use wasmtime::{
-    Global, GlobalType, InstanceAllocationStrategy, Memory, MemoryType, Module, Mutability, Val,
-    ValType, WasmBacktraceDetails, WasmFeatures,
+    Global, GlobalType, Inlining, InstanceAllocationStrategy, Memory, MemoryType, Module,
+    Mutability, RegallocAlgorithm, Val, ValType, WasmBacktraceDetails, WasmFeatures,
 };
 
 use crate::Kernel;
@@ -37,6 +37,18 @@ use self::instance_pool::InstancePool;
 /// The expected max stack depth used to determine the number of instances needed for a given
 /// concurrency level.
 const EXPECTED_MAX_STACK_DEPTH: u32 = 20;
+
+/// Consensus-critical: the complete set of Wasm features the FVM accepts. Widening this set
+/// requires a FIP and matching support in `fvm-wasm-instrument`, which meters gas and limits stack
+/// depth only for the instructions it understands. The proposals we reject are listed, with
+/// reasons, in `wasmtime_config`.
+const FVM_WASM_FEATURES: WasmFeatures = WasmFeatures::FLOATS
+    .union(WasmFeatures::MUTABLE_GLOBAL)
+    .union(WasmFeatures::SIGN_EXTENSION)
+    .union(WasmFeatures::SATURATING_FLOAT_TO_INT)
+    .union(WasmFeatures::REFERENCE_TYPES)
+    // `fvm-wasm-instrument` supports this at a basic level only.
+    .union(WasmFeatures::BULK_MEMORY);
 
 /// Container managing [`Engine`]s with different consensus-affecting configurations.
 pub struct MultiEngine {
@@ -167,19 +179,66 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
 
     c.allocation_strategy(InstanceAllocationStrategy::Pooling(alloc_strat_cfg));
 
-    // Consensus-critical: the complete set of Wasm features FVM accepts. Denying everything first
-    // means a proposal that becomes default-on upstream stays rejected, instead of silently
-    // widening the actor code that loads.
+    // Deny everything, then allow our set, so a proposal that becomes default-on upstream stays
+    // rejected instead of silently widening the actor code that loads. The explicit rejections
+    // below are covered by the deny-all; they record what we turn off and why.
     c.wasm_features(WasmFeatures::all(), false);
-    c.wasm_features(
-        WasmFeatures::FLOATS
-            | WasmFeatures::MUTABLE_GLOBAL
-            | WasmFeatures::SIGN_EXTENSION
-            | WasmFeatures::SATURATING_FLOAT_TO_INT
-            | WasmFeatures::REFERENCE_TYPES
-            | WasmFeatures::BULK_MEMORY,
-        true,
-    );
+
+    // wasmtime default: true
+    // SIMD isn't supported in wasm-instrument. If we add support there we can probably enable this,
+    // but stack limits may need adjusting.
+    c.wasm_simd(false);
+    c.wasm_relaxed_simd(false);
+
+    // wasmtime default: false
+    // Supports wide instructions (https://github.com/WebAssembly/wide-arithmetic). We'd like this,
+    // but we'll need to (a) update our gas instrumentation logic to support it and (b) make sure our
+    // build pipeline can take advantage of it.
+    c.wasm_wide_arithmetic(false);
+
+    // wasmtime default: true
+    // We don't support the return_call_* functions.
+    c.wasm_tail_call(false);
+
+    // wasmtime default: true
+    // We support exactly one 32-bit linear memory with 64KiB pages.
+    c.wasm_multi_memory(false);
+    c.wasm_memory64(false);
+    c.wasm_custom_page_sizes(false);
+
+    // wasmtime default: true
+    // We should be able to enable this, but need to make sure it's handled correctly in
+    // wasm-instrument.
+    c.wasm_multi_value(false);
+
+    // wasmtime default: true
+    // We'll probably enable this in the future, but that requires a FIP.
+    c.wasm_extended_const(false);
+
+    // wasmtime default: true (function references, and GC; exceptions with the "gc" feature)
+    // New types, control flow and traps (e.g. `NullReference`) that wasm-instrument and our
+    // trap-to-exit-code mapping don't model. The setters for function references and exceptions
+    // exist only with the "gc" feature, which we don't build.
+    c.wasm_gc(false);
+    c.wasm_features(WasmFeatures::FUNCTION_REFERENCES, false);
+    c.wasm_features(WasmFeatures::EXCEPTIONS, false);
+
+    // wasmtime default: false
+    // Typed continuations: control flow wasm-instrument doesn't model.
+    c.wasm_stack_switching(false);
+
+    // wasmtime default: true for threads ("threads" feature only), false for the rest
+    // Shared memory and atomics are nondeterministic across threads. The setter exists only with
+    // the "threads" feature, which we don't build.
+    c.wasm_features(WasmFeatures::THREADS, false);
+    c.wasm_shared_everything_threads(false);
+    c.shared_memory(false);
+
+    c.wasm_features(FVM_WASM_FEATURES, true);
+
+    // wasmtime default: false
+    // Branch hints are a codegen input carried in a custom section; ignore them.
+    c.wasm_branch_hinting(false);
 
     // A codegen tunable, not a feature, so it cannot live in the mask: relaxed SIMD permits
     // implementation-defined results, and this forces deterministic lowering if it is ever enabled.
@@ -229,13 +288,22 @@ fn wasmtime_config(ec: &EngineConfig) -> anyhow::Result<wasmtime::Config> {
     c.guard_before_linear_memory(true);
     c.parallel_compilation(true);
 
+    // wasmtime defaults on 64-bit hosts. A 4GiB reservation plus guard region lets compiled code
+    // elide bounds checks and rely on signal-based traps for out-of-bounds access. Several
+    // wasmtime advisories (e.g. GHSA-6wgr-89rj-399p) only apply with a zero guard or a smaller
+    // reservation.
+    c.memory_reservation(1 << 32);
+    c.memory_guard_size(32 << 20);
+    c.signals_based_traps(true);
+
+    // wasmtime defaults. Inlining and the register allocator shape native stack frames, and the
+    // native stack limit (`max_wasm_stack`) must never be reached before the instrumented one.
+    c.compiler_inlining(Inlining::No);
+    c.cranelift_regalloc_algorithm(RegallocAlgorithm::Backtracking);
+
     // Note: Caching is disabled by default.
     // If we add the "wasmtime/cache" feature in the future,
     // we would explicitly set c.disable_cache() here.
-
-    // Note: Async is disabled by default.
-    // If we add the "wasmtime/async" feature in the future,
-    // we would explicitly set c.async_support(false) here.
 
     // Doesn't seem to have significant impact on the time it takes to load code
     // todo(M2): make sure this is guaranteed to run in linear time.
@@ -799,5 +867,62 @@ mod tests {
         permissive.wasm_features(wasmtime::WasmFeatures::FUNCTION_REFERENCES, true);
         let permissive = wasmtime::Engine::new(&permissive).unwrap();
         assert!(validates(&permissive, CALL_REF));
+    }
+
+    // Every engine setting that can affect execution semantics, trap behaviour or native stack
+    // use, read back from the engine wasmtime actually built. Settings we leave at their wasmtime
+    // default are asserted too, so a default that moves upstream fails here rather than shipping.
+    #[test]
+    fn effective_engine_config_is_fixed() {
+        use fvm_shared::version::NetworkVersion;
+        use wasmtime::{Enabled, Inlining, OptLevel, RegallocAlgorithm};
+
+        use crate::engine::{EngineConfig, FVM_WASM_FEATURES, wasmtime_config};
+        use crate::machine::NetworkConfig;
+
+        let ec = EngineConfig::from(&NetworkConfig::new(NetworkVersion::V28));
+        let e = wasmtime::Engine::new(&wasmtime_config(&ec).unwrap()).unwrap();
+
+        assert_eq!(e.get_wasm_features(), FVM_WASM_FEATURES);
+        assert!(!e.get_wasm_branch_hinting());
+        assert!(!e.get_shared_memory());
+
+        assert_eq!(e.get_cranelift_nan_canonicalization(), Some(true));
+        assert!(e.get_relaxed_simd_deterministic());
+        assert_eq!(e.get_cranelift_opt_level(), Some(OptLevel::Speed));
+        assert_eq!(
+            e.get_cranelift_regalloc_algorithm(),
+            Some(RegallocAlgorithm::Backtracking)
+        );
+        assert_eq!(e.get_compiler_inlining(), Inlining::No);
+        assert_eq!(e.get_cranelift_debug_verifier(), Some(false));
+
+        assert!(e.get_signals_based_traps());
+        assert_eq!(e.get_memory_reservation(), 1 << 32);
+        assert_eq!(e.get_memory_guard_size(), 32 << 20);
+        assert!(e.get_guard_before_linear_memory());
+        assert!(!e.get_memory_may_move());
+        assert!(!e.get_memory_init_cow());
+        assert!(e.get_table_lazy_init());
+        assert_eq!(e.get_max_wasm_stack(), 4 << 20);
+
+        assert!(!e.get_consume_fuel());
+        assert!(!e.get_epoch_interruption());
+        assert!(!e.get_debug_info());
+        assert!(!e.get_guest_debug());
+        assert!(!e.get_generate_address_map());
+        assert_eq!(e.get_native_unwind_info(), Some(false));
+        assert_eq!(e.get_wasm_backtrace_max_frames(), 0);
+
+        let pool = e.get_pooling_config().expect("pooling allocator");
+        assert_eq!(pool.get_max_memories_per_module(), 1);
+        assert_eq!(pool.get_max_tables_per_module(), 1);
+        assert_eq!(pool.get_table_elements(), 20_000);
+        assert_eq!(
+            pool.get_max_memory_size(),
+            ec.max_inst_memory_bytes as usize
+        );
+        assert_eq!(pool.get_total_component_instances(), 0);
+        assert_eq!(pool.get_pagemap_scan(), Enabled::No);
     }
 }
