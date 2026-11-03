@@ -89,7 +89,7 @@ impl Display for Frame {
             "{} (method {}) -- {} ({})",
             Address::new_id(self.source),
             self.method,
-            &self.message,
+            self.message,
             self.code,
         )
     }
@@ -151,7 +151,7 @@ impl Display for Cause {
                 write!(
                     f,
                     "{}::{} -- {} ({}: {})",
-                    module, function, &message, *error as u32, error,
+                    module, function, message, *error as u32, error,
                 )
             }
             Cause::Fatal {

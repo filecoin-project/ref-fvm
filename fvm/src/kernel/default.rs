@@ -826,7 +826,7 @@ where
     C: CallManager,
 {
     fn log(&mut self, msg: String) {
-        println!("{}", &msg);
+        println!("{}", msg);
         if self.call_manager.tracing() {
             self.call_manager.trace(ExecutionEvent::Log(msg));
         }

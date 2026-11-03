@@ -168,7 +168,7 @@ fn compare_state_roots(bs: &MemoryBlockstore, root: &Cid, vector: &MessageVector
 
     Err(anyhow!(
         "wrong post root cid; expected {}, but got {}",
-        &vector.postconditions.state_tree.root_cid,
+        vector.postconditions.state_tree.root_cid,
         root
     ))
 }

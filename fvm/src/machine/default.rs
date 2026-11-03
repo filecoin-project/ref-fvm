@@ -66,7 +66,7 @@ where
 
         debug!(
             "initializing a new machine, epoch={}, base_fee={}, nv={:?}, root={}",
-            context.epoch, &context.base_fee, context.network_version, context.initial_state_root
+            context.epoch, context.base_fee, context.network_version, context.initial_state_root
         );
 
         if !SUPPORTED_VERSIONS.contains(&context.network_version) {
@@ -83,7 +83,7 @@ where
         {
             return Err(anyhow!(
                 "blockstore doesn't have the initial state-root {}",
-                &context.initial_state_root
+                context.initial_state_root
             ));
         }
 
