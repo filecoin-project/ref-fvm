@@ -692,7 +692,7 @@ where
 
         // Abort early if we have a send.
         if entrypoint.invokes(METHOD_SEND) {
-            log::trace!("sent {} -> {}: {}", from, to, &value);
+            log::trace!("sent {} -> {}: {}", from, to, value);
             return Ok(InvocationResult::default());
         }
 

@@ -16,12 +16,12 @@ pub mod vm;
 #[macro_export]
 macro_rules! report {
     ($status:expr, $path:expr, $id:expr) => {
-        println!("[{}] vector: {} | variant: {}", $status, $path, $id);
+        println!("[{}] vector: {} | variant: {}", $status, $path, $id)
     };
     ($status:expr, $path:expr, $id:expr, $reason:expr) => {
         println!(
             "[{}] vector: {} | variant: {}\n\t|> reason: {:#}",
             $status, $path, $id, $reason
-        );
+        )
     };
 }

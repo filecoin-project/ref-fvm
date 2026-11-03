@@ -381,7 +381,7 @@ where
         let sender_id = match self
             .state_tree()
             .lookup_id(&msg.from)
-            .with_context(|| format!("failed to lookup actor {}", &msg.from))?
+            .with_context(|| format!("failed to lookup actor {}", msg.from))?
         {
             Some(id) => id,
             None => {
@@ -400,7 +400,7 @@ where
         let mut sender_state = match self
             .state_tree()
             .get_actor(sender_id)
-            .with_context(|| format!("failed to lookup actor {}", &msg.from))?
+            .with_context(|| format!("failed to lookup actor {}", msg.from))?
         {
             Some(act) => act,
             None => {
