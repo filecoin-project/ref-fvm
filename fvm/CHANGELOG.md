@@ -4,6 +4,8 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+- Update `wasmtime` to 48 (LTS) and the Rust toolchain to 1.95. The accepted Wasm feature set and engine settings are now pinned explicitly and covered by tests. [#2362](https://github.com/filecoin-project/ref-fvm/pull/2362)
+
 ## 4.8.4 [2026-10-07]
 
 - Add network version 30 support behind the `nv30-dev` feature flag. [#2348](https://github.com/filecoin-project/ref-fvm/pull/2348)

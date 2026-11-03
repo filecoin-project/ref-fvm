@@ -42,12 +42,18 @@ const EXPECTED_MAX_STACK_DEPTH: u32 = 20;
 /// requires a FIP and matching support in `fvm-wasm-instrument`, which meters gas and limits stack
 /// depth only for the instructions it understands. The proposals we reject are listed, with
 /// reasons, in `wasmtime_config`.
-const FVM_WASM_FEATURES: WasmFeatures = WasmFeatures::FLOATS
+const FVM_WASM_FEATURES: WasmFeatures = WasmFeatures::empty()
+    // Deterministic only with `cranelift_nan_canonicalization(true)`.
+    .union(WasmFeatures::FLOATS)
+    // Gas metering imports the gas counter as a mutable global.
     .union(WasmFeatures::MUTABLE_GLOBAL)
     .union(WasmFeatures::SIGN_EXTENSION)
     .union(WasmFeatures::SATURATING_FLOAT_TO_INT)
+    // Needed to load builtin-actors v17 onward: their `call_indirect` encodes the table index as a
+    // padded LEB, which only this proposal permits. The `table.*` instructions are metered, the
+    // pooling allocator allows one table per module, and `fvm-wasm-instrument` rejects `ref.null`,
+    // `ref.is_null`, `ref.func` and typed `select`.
     .union(WasmFeatures::REFERENCE_TYPES)
-    // `fvm-wasm-instrument` supports this at a basic level only.
     .union(WasmFeatures::BULK_MEMORY);
 
 /// Container managing [`Engine`]s with different consensus-affecting configurations.
@@ -502,10 +508,8 @@ impl Engine {
         //   making it charge gas based on memory requested
         // * divide code into metered blocks, and add a call to the gas counter
         //   function before entering each metered block
-        // * NOTE: Currently cannot instrument and charge for `table.grow` because the instruction
-        //   (code `0xFC 15`) uses what parity-wasm calls the `BULK_PREFIX` but it was added later in
-        //   https://github.com/WebAssembly/reference-types/issues/29 and is not recognised by the
-        //   parity-wasm module parser, so the contract cannot grow the tables.
+        // * charge the bulk memory and table instructions, including `table.grow`, per byte or
+        //   element moved
         let raw_wasm = gas_metering::inject(&raw_wasm, self.inner.config.wasm_prices, "gas")
             .map_err(|_| anyhow::Error::msg("injecting gas counter failed"))?;
 
@@ -867,6 +871,68 @@ mod tests {
         permissive.wasm_features(wasmtime::WasmFeatures::FUNCTION_REFERENCES, true);
         let permissive = wasmtime::Engine::new(&permissive).unwrap();
         assert!(validates(&permissive, CALL_REF));
+    }
+
+    // builtin-actors v17 onward encode `call_indirect`'s table index (always 0) as a 5-byte padded
+    // LEB128 rather than the single `0x00` byte the MVP requires. Only the reference-types proposal
+    // permits the padded form, which is why `REFERENCE_TYPES` is in `FVM_WASM_FEATURES`. The text
+    // format can't express the padding, so this assembles the module by hand.
+    #[test]
+    fn padded_call_indirect_table_index_is_accepted() {
+        use fvm_shared::version::NetworkVersion;
+
+        use crate::engine::{EngineConfig, FVM_WASM_FEATURES, wasmtime_config};
+        use crate::machine::NetworkConfig;
+
+        // Equivalent to:
+        //   (module
+        //     (type (func))
+        //     (table 1 funcref)
+        //     (func (call_indirect (type 0) (i32.const 0))))
+        // with the bytes of `call_indirect`'s table index supplied by the caller.
+        fn call_indirect_module(table_index: &[u8]) -> Vec<u8> {
+            fn section(id: u8, content: &[u8]) -> Vec<u8> {
+                // A single-byte LEB128 length is enough for these sections.
+                assert!(content.len() < 0x80);
+                [&[id, content.len() as u8], content].concat()
+            }
+            let body = [
+                &[0x00][..],   // no locals
+                &[0x41, 0x00], // i32.const 0
+                &[0x11, 0x00], // call_indirect, type index 0
+                table_index,   // call_indirect, table index
+                &[0x0b],       // end
+            ]
+            .concat();
+            assert!(body.len() < 0x80);
+            [
+                &b"\0asm"[..],
+                &[0x01, 0x00, 0x00, 0x00],                 // version 1
+                &section(0x01, &[0x01, 0x60, 0x00, 0x00]), // types: 1, func [] -> []
+                &section(0x03, &[0x01, 0x00]),             // functions: 1, type 0
+                &section(0x04, &[0x01, 0x70, 0x00, 0x01]), // tables: 1, funcref, min 1
+                &section(0x0a, &[&[0x01, body.len() as u8][..], &body].concat()), // code: 1 body
+            ]
+            .concat()
+        }
+
+        let minimal = call_indirect_module(&[0x00]);
+        let padded = call_indirect_module(&[0x80, 0x80, 0x80, 0x80, 0x00]);
+
+        let ec = EngineConfig::from(&NetworkConfig::new(NetworkVersion::V28));
+        let engine = wasmtime::Engine::new(&wasmtime_config(&ec).unwrap()).unwrap();
+        assert!(wasmtime::Module::validate(&engine, &minimal).is_ok());
+        assert!(wasmtime::Module::validate(&engine, &padded).is_ok());
+
+        // Control: without reference types the padded form is rejected and the minimal one isn't.
+        let mut mvp = wasmtime_config(&ec).unwrap();
+        mvp.wasm_features(FVM_WASM_FEATURES, false).wasm_features(
+            FVM_WASM_FEATURES - wasmtime::WasmFeatures::REFERENCE_TYPES,
+            true,
+        );
+        let mvp = wasmtime::Engine::new(&mvp).unwrap();
+        assert!(wasmtime::Module::validate(&mvp, &minimal).is_ok());
+        assert!(wasmtime::Module::validate(&mvp, &padded).is_err());
     }
 
     // Every engine setting that can affect execution semantics, trap behaviour or native stack
