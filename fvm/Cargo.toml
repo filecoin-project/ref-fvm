@@ -46,6 +46,7 @@ wasmtime-environ = { workspace = true }
 [dev-dependencies]
 pretty_assertions = "1.4.1"
 fvm = { path = ".", features = ["testing"], default-features = false }
+wat = "1.228.0"
 
 [features]
 default = ["opencl"]

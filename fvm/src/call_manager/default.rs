@@ -741,7 +741,7 @@ where
                 let invoke: wasmtime::TypedFunc<(u32,), u32> = instance
                     .get_typed_func(&mut store, "invoke")
                     // All actors will have an invoke method.
-                    .map_err(Abort::Fatal)?;
+                    .map_err(|e| Abort::Fatal(e.into()))?;
 
                 // Set the available gas.
                 update_gas_available(&mut store)?;

@@ -122,7 +122,7 @@ macro_rules! impl_bind_syscalls {
             ) -> anyhow::Result<&mut Self> {
                 if mem::size_of::<Ret::Value>() == 0 {
                     // If we're returning a zero-sized "value", we return no value therefore and expect no out pointer.
-                    self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
+                    Ok(self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>> $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
 
                         let (mut memory, data) = memory_and_data(&mut caller);
@@ -149,10 +149,10 @@ macro_rules! impl_bind_syscalls {
                         update_gas_available(&mut caller)?;
 
                         result
-                    })
+                    })?)
                 } else {
                     // If we're returning an actual value, we need to write it back into the wasm module's memory.
-                    self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
+                    Ok(self.func_wrap(module, name, move |mut caller: Caller<'_, InvocationData<K>>, ret: u32 $(, $t: $t)*| {
                         charge_for_exec(&mut caller)?;
 
                         let (mut memory, data) = memory_and_data(&mut caller);
@@ -190,7 +190,7 @@ macro_rules! impl_bind_syscalls {
                         update_gas_available(&mut caller)?;
 
                         result
-                    })
+                    })?)
                 }
             }
         }
