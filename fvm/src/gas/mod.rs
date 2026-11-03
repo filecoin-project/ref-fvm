@@ -220,7 +220,7 @@ impl GasTracker {
     /// Applies the specified gas charge, where quantities are supplied in milligas.
     pub fn apply_charge(&self, mut charge: GasCharge) -> Result<GasTimer> {
         let to_use = charge.total();
-        log::trace!("charging gas: {} {}", &charge.name, to_use);
+        log::trace!("charging gas: {} {}", charge.name, to_use);
         let res = self.charge_gas_inner(to_use);
         if let Some(trace) = &self.trace {
             let timer = GasTimer::new(&mut charge.elapsed);

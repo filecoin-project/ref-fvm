@@ -158,6 +158,9 @@ macro_rules! fvm_syscalls {
         #[allow(clippy::missing_safety_doc)]
         #[allow(clippy::too_many_arguments)]
         $v unsafe fn $name($($args:$args_ty),*) -> ! {
+            // `vm::exit` shares its name with libc's `exit`. On wasm32 it is a distinct import from
+            // module "vm"; native builds (tests, clippy) never call syscalls.
+            #[cfg_attr(not(target_arch = "wasm32"), allow(invalid_runtime_symbol_definitions))]
             #[link(wasm_import_module = $module)]
             unsafe extern "C" {
                 #[link_name = stringify!($name)]
