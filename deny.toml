@@ -15,6 +15,9 @@ deny = [
   { crate = "wasmtime:>=37, <48", reason = "non-LTS wasmtime major" },
   { crate = "wasmtime:>=49, <60", reason = "non-LTS wasmtime major" },
   { crate = "wasmtime:>=61, <72", reason = "non-LTS wasmtime major" },
+  { crate = "wasmtime-environ:>=37, <48", reason = "non-LTS wasmtime major" },
+  { crate = "wasmtime-environ:>=49, <60", reason = "non-LTS wasmtime major" },
+  { crate = "wasmtime-environ:>=61, <72", reason = "non-LTS wasmtime major" },
 ]
 
 [sources]
