@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").expect("no OUT_DIR env var"));
     let bundle_dir = out_dir.join("bundle");
-    println!("cargo:warning=bundle_dir: {:?}", &bundle_dir);
+    println!("cargo:warning=bundle_dir: {:?}", bundle_dir);
 
     let manifest_path =
         Path::new(&std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR unset"))
@@ -73,7 +73,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .env_remove("CARGO_ENCODED_RUSTFLAGS");
 
     // Print out the command line we're about to run.
-    println!("cargo:warning=cmd={:?}", &cmd);
+    println!("cargo:warning=cmd={:?}", cmd);
 
     // Launch the command.
     let child = cmd.spawn().expect("failed to launch cargo build");
@@ -121,7 +121,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .env_remove("CARGO_ENCODED_RUSTFLAGS");
 
         // Print out the command line we're about to run.
-        println!("cargo:warning=cmd={:?}", &cmd);
+        println!("cargo:warning=cmd={:?}", cmd);
 
         // Launch the command.
         let child = cmd.spawn().expect("failed to launch cargo build");

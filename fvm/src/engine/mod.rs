@@ -442,10 +442,7 @@ impl Engine {
             Occupied(e) => Ok(e.get().size),
             Vacant(e) => {
                 let wasm = blockstore.get(code_cid)?.ok_or_else(|| {
-                    anyhow!(
-                        "no wasm bytecode in blockstore for CID {}",
-                        &code_cid.to_string()
-                    )
+                    anyhow!("no wasm bytecode in blockstore for CID {}", code_cid)
                 })?;
                 Ok(e.insert(self.load_raw(&wasm)?).size)
             }
@@ -466,9 +463,9 @@ impl Engine {
         let mut total_size = 0usize;
         for cid in cids {
             log::trace!("preloading code CID {cid}");
-            let size = self.preload(cid, &blockstore).with_context(|| {
-                anyhow!("could not prepare actor with code CID {}", &cid.to_string())
-            })?;
+            let size = self
+                .preload(cid, &blockstore)
+                .with_context(|| anyhow!("could not prepare actor with code CID {}", cid))?;
             total_size += size;
         }
         Ok(total_size)
