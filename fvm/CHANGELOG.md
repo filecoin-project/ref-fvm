@@ -4,6 +4,8 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+- Update `wasmtime` to 48 (LTS) and the Rust toolchain to 1.95. The accepted Wasm feature set and engine settings are now pinned explicitly and covered by tests.
+
 ## 2.12.2 (2026-07-21)
 
 - feat: add `StateTree::for_each_cacheless` for cacheless state tree iteration [#2308](https://github.com/filecoin-project/ref-fvm/pull/2308)
