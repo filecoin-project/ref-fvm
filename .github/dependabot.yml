@@ -1,3 +1,8 @@
+# wasmtime follows LTS majors only (every 12th: 36, 48, 60, ...; 24 months of security backports).
+# The ignore ranges below skip the majors in between, so each entry offers patches on its current
+# LTS line and opens a PR only when the next LTS ships. That PR is the prompt to move master,
+# release/v3, release/v2 and filecoin-ffi together. deny.toml bans the same ranges in CI; extend
+# both when adopting a new LTS.
 version: 2
 updates:
   # Master branch (v4)
@@ -5,6 +10,12 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    groups:
+      wasmtime:
+        patterns: ["wasmtime", "wasmtime-environ"]
+    ignore:
+      - dependency-name: "wasmtime*"
+        versions: [">= 37, < 48", ">= 49, < 60", ">= 61, < 72"]
     allow:
       # Critical wasmtime dependencies - require careful review for security and performance
       - dependency-name: "wasmtime"
@@ -40,6 +51,12 @@ updates:
     target-branch: "release/v3"
     schedule:
       interval: "monthly"
+    groups:
+      wasmtime:
+        patterns: ["wasmtime", "wasmtime-environ"]
+    ignore:
+      - dependency-name: "wasmtime*"
+        versions: [">= 37, < 48", ">= 49, < 60", ">= 61, < 72"]
     allow:
       # Critical wasmtime dependencies - require careful review for security and performance
       - dependency-name: "wasmtime"
@@ -75,6 +92,12 @@ updates:
     target-branch: "release/v2"
     schedule:
       interval: "monthly"
+    groups:
+      wasmtime:
+        patterns: ["wasmtime", "wasmtime-environ"]
+    ignore:
+      - dependency-name: "wasmtime*"
+        versions: [">= 37, < 48", ">= 49, < 60", ">= 61, < 72"]
     allow:
       # Critical wasmtime dependency - require careful review for security and performance
       - dependency-name: "wasmtime"

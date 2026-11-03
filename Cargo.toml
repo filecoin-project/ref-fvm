@@ -52,7 +52,7 @@ blake2b_simd = "1.0.4"
 k256 = { version = "0.13.4", features = ["ecdsa"], default-features = false }
 bls-signatures = { version = "0.15", default-features = false }
 
-# wasmtime
+# wasmtime: LTS majors only, see deny.toml
 wasmtime = {version = "48", default-features = false, features = ["anyhow", "cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
 wasmtime-environ = "48"
 
