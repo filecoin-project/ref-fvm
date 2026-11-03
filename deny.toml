@@ -1,6 +1,5 @@
 [advisories]
 ignore = [
-  "RUSTSEC-2025-0057", # fxhash is no longer maintained, tracked in https://github.com/filecoin-project/ref-fvm/issues/2221
   "RUSTSEC-2025-0141", # bincode unmaintained, transitive dep via bellperson/filecoin-proofs
   "RUSTSEC-2026-0097", # Rand is unsound with a custom logger using `rand::rng()`
   "RUSTSEC-2026-0387", # crypto-bigint 0.5 timing (via k256), fixed only in 0.7; shipped code only verifies/recovers public signatures, signing is test-only
@@ -8,6 +7,18 @@ ignore = [
 
 [bans]
 multiple-versions = "allow"
+# wasmtime tracks LTS majors only (every 12th: 36, 48, 60, ...), which get 24 months of security
+# backports. Moving to a new major is a coordinated change across master, release/v3, release/v2
+# and filecoin-ffi, since ffi links all three into one binary. If something forces a non-LTS
+# major then this ban, the dependabot config and the backport/ffi dance need to coordinate.
+deny = [
+  { crate = "wasmtime:>=37, <48", reason = "non-LTS wasmtime major" },
+  { crate = "wasmtime:>=49, <60", reason = "non-LTS wasmtime major" },
+  { crate = "wasmtime:>=61, <72", reason = "non-LTS wasmtime major" },
+  { crate = "wasmtime-environ:>=37, <48", reason = "non-LTS wasmtime major" },
+  { crate = "wasmtime-environ:>=49, <60", reason = "non-LTS wasmtime major" },
+  { crate = "wasmtime-environ:>=61, <72", reason = "non-LTS wasmtime major" },
+]
 
 [licenses]
 allow = [
