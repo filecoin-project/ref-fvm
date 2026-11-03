@@ -374,7 +374,7 @@ mod tests {
             Ok(id) => {
                 println!(
                     "Successfully decoded bytes when it was not supposed to. Result was: {:?}",
-                    &to_leb_bytes(id).unwrap()
+                    to_leb_bytes(id).unwrap()
                 );
                 panic!();
             }
@@ -392,7 +392,7 @@ mod tests {
             Ok(id) => {
                 println!(
                     "Successfully decoded bytes when it was not supposed to. Result was: {:?}",
-                    &to_leb_bytes(id).unwrap()
+                    to_leb_bytes(id).unwrap()
                 );
                 panic!();
             }

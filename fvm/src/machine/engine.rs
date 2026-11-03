@@ -318,12 +318,9 @@ impl Engine {
             if cache.contains_key(cid) {
                 continue;
             }
-            let wasm = blockstore.get(cid)?.ok_or_else(|| {
-                anyhow!(
-                    "no wasm bytecode in blockstore for CID {}",
-                    &cid.to_string()
-                )
-            })?;
+            let wasm = blockstore
+                .get(cid)?
+                .ok_or_else(|| anyhow!("no wasm bytecode in blockstore for CID {}", cid))?;
             let module = self.load_raw(wasm.as_slice())?;
             cache.insert(*cid, module);
         }
