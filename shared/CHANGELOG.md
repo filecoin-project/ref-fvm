@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.15.0 [2026-11-05]
+
+- Remove the unused `multihash` dependency and `serde_json` dev dependency. [#2358](https://github.com/filecoin-project/ref-fvm/pull/2358)
+
 ## 3.14.1 [2026-04-20]
 
 - Backport `multihash-codetable` bump to remove `core2` and update `wasmtime` to 36.0.7 [#2285](https://github.com/filecoin-project/ref-fvm/pull/2285)

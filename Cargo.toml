@@ -8,7 +8,7 @@ members = [
 ]
 
 [workspace.package]
-version = "3.14.2"
+version = "3.15.0"
 license = "MIT OR Apache-2.0"
 edition = "2024"
 repository = "https://github.com/filecoin-project/ref-fvm"
@@ -23,8 +23,8 @@ ipld-core = { version = "0.4.3", features = ["serde"] }
 wasmtime = {version = "48.0.8", default-features = false, features = ["anyhow", "cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
 wasmtime-environ = "48.0.8"
 
-fvm = { path = "fvm", version = "~3.14.2", default-features = false }
-fvm_shared = { path = "shared", version = "~3.14.2", default-features = false }
+fvm = { path = "fvm", version = "~3.15.0", default-features = false }
+fvm_shared = { path = "shared", version = "~3.15.0", default-features = false }
 
 fvm_ipld_hamt = { version = "0.10.4"}
 fvm_ipld_amt = { version = "0.7.4"}
