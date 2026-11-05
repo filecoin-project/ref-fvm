@@ -4,7 +4,12 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-- Update `wasmtime` to 48 (LTS) and the Rust toolchain to 1.95. The accepted Wasm feature set and engine settings are now pinned explicitly and covered by tests. [#2362](https://github.com/filecoin-project/ref-fvm/pull/2362)
+## 4.9.0 [2026-11-05]
+
+- Update `wasmtime` to 48 (LTS), with 48.0.8 in the workspace lockfile. The accepted Wasm feature set and engine settings are now pinned explicitly and covered by tests. [#2362](https://github.com/filecoin-project/ref-fvm/pull/2362)
+- Require `Send` for `MemoryLimiter` implementations and use `wasmtime::Error` for conversion to `syscalls::Abort`. [#2362](https://github.com/filecoin-project/ref-fvm/pull/2362)
+- Update the workspace Rust toolchain to 1.99.1. [#2366](https://github.com/filecoin-project/ref-fvm/pull/2366)
+- Remove the implicit `arbitrary` and `quickcheck` crate features. The `arb` feature now enables only `fvm_shared/arb`. [#2356](https://github.com/filecoin-project/ref-fvm/pull/2356)
 
 ## 4.8.4 [2026-10-07]
 
