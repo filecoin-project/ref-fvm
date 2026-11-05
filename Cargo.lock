@@ -1562,7 +1562,7 @@ dependencies = [
 
 [[package]]
 name = "fvm"
-version = "3.14.2"
+version = "3.15.0"
 dependencies = [
  "anyhow",
  "blake2b_simd",
@@ -1728,7 +1728,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_sdk"
-version = "3.14.2"
+version = "3.15.0"
 dependencies = [
  "cid",
  "fvm_ipld_encoding",
@@ -1741,7 +1741,7 @@ dependencies = [
 
 [[package]]
 name = "fvm_shared"
-version = "3.14.2"
+version = "3.15.0"
 dependencies = [
  "anyhow",
  "arbitrary",

@@ -4,7 +4,11 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-- Update `wasmtime` to 48 (LTS) and the Rust toolchain to 1.95. The accepted Wasm feature set and engine settings are now pinned explicitly and covered by tests.
+## 3.15.0 [2026-11-05]
+
+- Update `wasmtime` to 48.0.8 (LTS) and the Rust toolchain to 1.99.1. The accepted Wasm feature set and engine settings are now pinned explicitly and covered by tests. [#2369](https://github.com/filecoin-project/ref-fvm/pull/2369)
+- Require custom `MemoryLimiter` implementations to be `Send`. [#2369](https://github.com/filecoin-project/ref-fvm/pull/2369)
+- Remove the unused `arbitrary` dependency and its implicit Cargo feature. The `arb` feature remains available. [#2358](https://github.com/filecoin-project/ref-fvm/pull/2358)
 
 ## 3.14.2 [2026-07-21]
 
