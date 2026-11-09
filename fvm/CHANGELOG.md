@@ -4,7 +4,7 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-## 4.9.0 [2026-11-05]
+## 4.9.0 [2026-11-09]
 
 - Update `wasmtime` to 48 (LTS), with 48.0.8 in the workspace lockfile. The accepted Wasm feature set and engine settings are now pinned explicitly and covered by tests. [#2362](https://github.com/filecoin-project/ref-fvm/pull/2362)
 - Require `Send` for `MemoryLimiter` implementations and use `wasmtime::Error` for conversion to `syscalls::Abort`. [#2362](https://github.com/filecoin-project/ref-fvm/pull/2362)
