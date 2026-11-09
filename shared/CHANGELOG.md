@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 4.9.0 [2026-11-09]
+
+- Update the workspace Rust toolchain to 1.99.1. [#2366](https://github.com/filecoin-project/ref-fvm/pull/2366)
+
 ## 4.8.4 [2026-10-07]
 
 - Add `NetworkVersion::V30`. [#2348](https://github.com/filecoin-project/ref-fvm/pull/2348)
