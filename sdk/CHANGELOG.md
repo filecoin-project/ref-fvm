@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 3.15.0 [2026-11-05]
+
+- Suppress the native-build lint for the Wasm `vm::exit` import under Rust 1.99.1. [#2369](https://github.com/filecoin-project/ref-fvm/pull/2369)
+
 ## 3.14.1 [2026-04-20]
 
 - Backport `multihash-codetable` bump to remove `core2` and update `wasmtime` to 36.0.7 [#2285](https://github.com/filecoin-project/ref-fvm/pull/2285)
