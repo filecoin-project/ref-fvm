@@ -1,0 +1,24 @@
+# False positives are ignored via `[workspace.metadata.cargo-shear]` or `[package.metadata.cargo-shear]` in the relevant `Cargo.toml`.
+name: Cargo Shear
+on:
+  push:
+    branches:
+      - master
+      - release/*
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-shear:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install cargo-shear
+      uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+      with:
+        tool: cargo-shear@1.14.0
+    - name: Running cargo-shear
+      run: cargo shear --deny-warnings --format=github

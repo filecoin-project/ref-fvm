@@ -18,6 +18,10 @@ members = [
     "tools/fvm-bench",
 ]
 
+[workspace.metadata.cargo-shear]
+# Referenced only from derive-macro expansions (serde derives, `Serialize_tuple`, `FromPrimitive`), which cargo-shear does not expand.
+ignored = ["serde", "num-traits"]
+
 [workspace.package]
 version = "4.9.0"
 license = "MIT OR Apache-2.0"
