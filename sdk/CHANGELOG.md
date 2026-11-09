@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 2.13.0 (2026-11-05)
+
+- Update the `fvm_shared` dependency to 2.13.0.
+
 ## 2.12.1 (2026-04-20)
 
 - Backport `multihash-codetable` bump to remove `core2` and update `wasmtime` to 36.0.7 [#2286](https://github.com/filecoin-project/ref-fvm/pull/2286)

@@ -8,7 +8,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2.12.2"
+version = "2.13.0"
 license = "MIT OR Apache-2.0"
 edition = "2024"
 repository = "https://github.com/filecoin-project/ref-fvm"
@@ -25,8 +25,8 @@ fvm_ipld_encoding = { version = "0.5.3" }
 # wasmtime: LTS majors only, see deny.toml
 wasmtime = {version = "48.0.8", default-features = false, features = ["anyhow", "cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
 
-fvm = { path = "fvm", version = "~2.12.2", default-features = false }
-fvm_shared = { path = "shared", version = "~2.12.2", default-features = false }
+fvm = { path = "fvm", version = "~2.13.0", default-features = false }
+fvm_shared = { path = "shared", version = "~2.13.0", default-features = false }
 
 [profile.actor]
 inherits = "release"

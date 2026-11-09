@@ -4,7 +4,11 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
-- Update `wasmtime` to 48 (LTS) and the Rust toolchain to 1.95. The accepted Wasm feature set and engine settings are now pinned explicitly and covered by tests.
+## 2.13.0 (2026-11-05)
+
+- Update `wasmtime` to 48.0.8 (LTS) and the Rust toolchain to 1.99.1. The FVM pins the accepted Wasm features and engine settings and tests trap-to-exit-code mapping. [#2370](https://github.com/filecoin-project/ref-fvm/pull/2370)
+- Embedders using Wasmtime types with `fvm::machine::Engine` must use Wasmtime 48. [#2370](https://github.com/filecoin-project/ref-fvm/pull/2370)
+- Remove unused dependencies, including the implicit `arbitrary` feature. The `arb` feature remains available. [#2357](https://github.com/filecoin-project/ref-fvm/pull/2357)
 
 ## 2.12.2 (2026-07-21)
 
