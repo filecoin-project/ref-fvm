@@ -8,6 +8,10 @@ repository.workspace = true
 authors = ["Protocol Labs", "Filecoin Core Devs"]
 keywords = ["filecoin", "web3", "wasm"]
 
+[package.metadata.cargo-shear]
+# Used through the `MultihashDigest` derive.
+ignored = ["multihash-derive"]
+
 [lib]
 crate-type = ["lib"]
 
