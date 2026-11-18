@@ -33,7 +33,7 @@ lazy_static! {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn conformance_test_runner() -> anyhow::Result<()> {
-    pretty_env_logger::init();
+    env_logger::init();
 
     let path = var("VECTOR").unwrap_or_else(|_| "test-vectors/corpus".to_owned());
     let path = Path::new(path.as_str()).to_path_buf();
