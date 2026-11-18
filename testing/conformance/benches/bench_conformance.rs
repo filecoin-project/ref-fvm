@@ -20,7 +20,7 @@ use crate::bench_drivers::{CheckStrength, bench_vector_file};
 
 /// Either grabs an environment variable called VECTOR and benches that test vector using criterion, or runs all of them in sequence. Displays output for results of benchmarking.
 fn bench_conformance(c: &mut Criterion) {
-    pretty_env_logger::init();
+    env_logger::init();
 
     // TODO match globs to get whole folders?
     // https://github.com/filecoin-project/ref-fvm/issues/298
