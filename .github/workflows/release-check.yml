@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   release-check:
-    uses: ipdxco/unified-github-workflows/.github/workflows/release-check.yml@v1.0
+    uses: ipdxco/unified-github-workflows/.github/workflows/release-check.yml@d9b156f4be9fae6843707f5e5cda2fb079f821ac # v1.0.45
     if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.head.repo.fork }}
     with:
       branches: '["master"]'
@@ -43,9 +43,9 @@ jobs:
     if: needs.release-check.outputs.json != '{}'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install required packages
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
@@ -56,7 +56,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install --no-install-recommends --yes libhwloc-dev ocl-icd-opencl-dev
       - name: Install cargo-release
-        uses: taiki-e/install-action@f1390fd0d8205ae79e5e57b1d1e300dceeb4163e
+        uses: taiki-e/install-action@f1390fd0d8205ae79e5e57b1d1e300dceeb4163e # v2.49.44
         with:
           tool: cargo-release@1.1.5
       - name: Dry-run publish
