@@ -8,6 +8,10 @@ repository.workspace = true
 authors.workspace = true
 keywords = ["filecoin", "web3", "wasm"]
 
+[package.metadata.cargo-shear]
+# Used through the `MultihashDigest` derive, and by the `Serialize_tuple`/`Deserialize_tuple` derive expansions.
+ignored = ["multihash-derive", "serde_tuple"]
+
 [lib]
 crate-type = ["lib"]
 
