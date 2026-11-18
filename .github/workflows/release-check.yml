@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   release-check:
-    uses: ipdxco/unified-github-workflows/.github/workflows/release-check.yml@v1.0
+    uses: ipdxco/unified-github-workflows/.github/workflows/release-check.yml@d9b156f4be9fae6843707f5e5cda2fb079f821ac # v1.0.45
     if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.head.repo.fork }}
     with:
       sources: |
@@ -34,7 +34,7 @@ jobs:
     if: needs.release-check.outputs.json != '{}'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - name: Install required packages
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
