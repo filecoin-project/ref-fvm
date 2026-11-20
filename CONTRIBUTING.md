@@ -24,12 +24,6 @@ To make a change to the FVM.
 ### Primary Crates
 The primary crates are `fvm`, `fvm_shared`, `fvm_sdk`, and the integration testing framework `fvm_integration_tests`.  These are the crates that have [`version.workspace = true`](https://github.com/search?q=repo%3Afilecoin-project%2Fref-fvm%20version.workspace%20%3D%20true&type=code).
 
-### Crate Dependency Graph
-
-The crates in this workspace have the following structure:
-
-![Workspace Graph](./doc/workspace.png)
-
 ## Testing
 All changes should be well tested. 
 

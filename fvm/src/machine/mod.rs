@@ -101,7 +101,7 @@ pub struct NetworkConfig {
     pub max_call_depth: u32,
 
     /// The maximum number of elements on wasm stack
-    /// DEFAULT: 64Ki (512KiB of u64 elements)
+    /// DEFAULT: 2048
     pub max_wasm_stack: u32,
 
     /// Maximum size of memory of any Wasm instance, ie. each level of the recursion, in bytes.
@@ -192,8 +192,6 @@ impl NetworkConfig {
             epoch,
             timestamp,
             initial_state_root: initial_state,
-            // This is just the default. The previous default of "total FIL supply" was incorrect as
-            // well, so we might as well be more neutral.
             circ_supply: TokenAmount::zero(),
             tracing: false,
             flush_all_blocks: false,
@@ -237,7 +235,7 @@ pub struct MachineContext {
     /// v14 and earlier: The amount of FIL that has vested from genesis msigs
     /// (the remainder of the circ supply must be calculated by the FVM)
     ///
-    /// DEFAULT: Total FIL supply (likely not what you want).
+    /// DEFAULT: zero (likely not what you want).
     pub circ_supply: TokenAmount,
 
     /// Whether or not to produce execution traces in the returned result.
