@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checking out fvm
-      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Check Format
       run: cargo fmt -- --check
 
@@ -68,12 +68,12 @@ jobs:
     name: ${{matrix.os}} - ${{ matrix.name }}
     steps:
     - name: Checking out fvm
-      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         submodules: ${{ matrix.submodules }}
     # we don't check the lockfile in; this is needed for cache restoration/saving
     - name: Setting up cache
-      uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
+      uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       with:
         save-if: ${{ matrix.push == true }}
         # change this to invalidate sccache for this job
