@@ -12,7 +12,7 @@ jobs:
     name: Add to project
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/add-to-project@7334092eccc670a2b274d0cafbfa1e4d8208cfab # v0.0.5
+    - uses: actions/add-to-project@f2c1f1fa649a891be84948ea89b5dfba1526ef05 # v2.0.1
       with:
         project-url: https://github.com/orgs/filecoin-project/projects/54
         github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
