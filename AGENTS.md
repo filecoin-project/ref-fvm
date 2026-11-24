@@ -13,8 +13,8 @@ Active development happens on master. Its [`AGENTS.md`](https://github.com/filec
 
 ## Differences from master
 
-- The engine is in `fvm/src/machine/engine.rs`, and the metering instrumenter is `fvm-wasm-instrument` 0.2.0. Changing the instrumenter version changes gas for every bundle; keep it.
-- v8 and v9 bundles use the minimal `call_indirect` encoding. `fvm-wasm-instrument` 0.2 rejects the padded form (`padded_call_indirect_table_index_is_rejected_on_load`), unlike master.
+- The engine is in `fvm/src/machine/engine.rs`. Keep the `fvm-wasm-instrument` version in `fvm/Cargo.toml`, which is older than master's; changing it changes gas for every bundle.
+- v8 and v9 bundles use the minimal `call_indirect` encoding. This branch's instrumenter rejects the padded form (`padded_call_indirect_table_index_is_rejected_on_load`), unlike master.
 - `accepted_wasm_features_are_fixed` and `effective_engine_config_is_fixed` pin the accepted features and engine settings. If one fails after a bump, investigate; don't update the assertion. Keep `macos_use_mach_ports(false)`.
 - Signature verification has no Cargo feature here, and `m2-native` doesn't exist.
 - The IPLD crates come from crates.io; they are released from master only.
@@ -37,4 +37,4 @@ Conformance replays the network version 17 vectors (`0001-shark-01`) and is this
 
 ## Releases
 
-Add an entry under `[Unreleased]` in the changed crate's `CHANGELOG.md`. To release, a PR against this branch sets the versions with `cargo set-version` and dates the changelogs; the Release Checker dry-runs the publish. On merge, `releaser.yml` tags `crate@vX.Y.Z` and publishes to crates.io through trusted publishing. Hosts pin `~2.13`, so a minor release needs ffi and Forest bumps.
+Add an entry under `[Unreleased]` in the changed crate's `CHANGELOG.md`. To release, a PR against this branch sets the versions with `cargo set-version` and dates the changelogs; the Release Checker dry-runs the publish. On merge, `releaser.yml` tags `crate@vX.Y.Z` and publishes to crates.io through trusted publishing. Hosts pin this branch's minor with `~`, so a minor release needs ffi and Forest bumps.

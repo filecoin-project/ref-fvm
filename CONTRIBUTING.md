@@ -24,7 +24,7 @@ To make a change to the FVM.
 
 Releases are cut from this branch (`release/v2`).
 
-1. Make sure each crate's `CHANGELOG.md` is up-to-date (look through `git log -- path/to/crate`).
+1. Make sure each crate's `CHANGELOG.md` is up-to-date (look through `git log -- path/to/crate`) and that conformance passes (`cargo test --package fvm_conformance_tests`).
 2. Pick the next version for each crate you're releasing. Look through the changelogs and decide carefully whether it's a breaking release, then read [Rust's semver documentation](https://doc.rust-lang.org/cargo/reference/semver.html).
 3. Use `cargo set-version` (from `cargo-edit`) to set each crate's version. This also updates the workspace's dependencies on it.
 4. Set the release date and version in the changelogs, and add a new "Unreleased" section.
