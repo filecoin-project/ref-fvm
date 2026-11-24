@@ -13,7 +13,7 @@ Active development happens on master. Its [`AGENTS.md`](https://github.com/filec
 
 ## Differences from master
 
-- The engine matches master's layout (`fvm/src/engine/`) and `fvm-wasm-instrument` version (0.4.0). `accepted_wasm_features_are_fixed`, `effective_engine_config_is_fixed` and `padded_call_indirect_table_index_is_accepted` pin the accepted code and engine settings. If one fails after a bump, investigate; don't update the assertion. Keep `macos_use_mach_ports(false)`.
+- The engine matches master's layout (`fvm/src/engine/`). Keep the `fvm-wasm-instrument` version in `fvm/Cargo.toml`; changing it changes gas for every bundle. `accepted_wasm_features_are_fixed`, `effective_engine_config_is_fixed` and `padded_call_indirect_table_index_is_accepted` pin the accepted code and engine settings. If one fails after a bump, investigate; don't update the assertion. Keep `macos_use_mach_ports(false)`.
 - Signature verification has no Cargo feature here. `m2-native` exists and CI checks that it compiles.
 - The IPLD crates come from crates.io; they are released from master only.
 
@@ -37,4 +37,4 @@ Conformance replays the network version 18 vectors (`0002-hygge-01`), skipping `
 
 ## Releases
 
-Add an entry under `[Unreleased]` in the changed crate's `CHANGELOG.md`. To release, a PR against this branch sets the versions with `cargo set-version` and dates the changelogs; the Release Checker dry-runs the publish. On merge, `releaser.yml` tags `crate@vX.Y.Z` and publishes to crates.io through trusted publishing. Hosts pin `~3.15`, so a minor release needs ffi and Forest bumps.
+Add an entry under `[Unreleased]` in the changed crate's `CHANGELOG.md`. To release, a PR against this branch sets the versions with `cargo set-version` and dates the changelogs; the Release Checker dry-runs the publish. On merge, `releaser.yml` tags `crate@vX.Y.Z` and publishes to crates.io through trusted publishing. Hosts pin this branch's minor with `~`, so a minor release needs ffi and Forest bumps.
