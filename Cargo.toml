@@ -23,7 +23,7 @@ members = [
 ignored = ["serde", "num-traits"]
 
 [workspace.package]
-version = "4.9.0"
+version = "4.9.1"
 license = "MIT OR Apache-2.0"
 edition = "2024"
 repository = "https://github.com/filecoin-project/ref-fvm"
@@ -57,8 +57,8 @@ k256 = { version = "0.13.4", features = ["ecdsa"], default-features = false }
 bls-signatures = { version = "0.15", default-features = false }
 
 # wasmtime: LTS majors only, see deny.toml
-wasmtime = {version = "48", default-features = false, features = ["anyhow", "cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
-wasmtime-environ = "48"
+wasmtime = {version = "48.0.10", default-features = false, features = ["anyhow", "cranelift", "pooling-allocator", "parallel-compilation", "runtime"] }
+wasmtime-environ = "48.0.10"
 
 # misc
 libfuzzer-sys = "0.4"
@@ -76,10 +76,10 @@ quickcheck_macros = "1.0.0"
 minstant = "0.1.7"
 
 # workspace (FVM)
-fvm = { path = "fvm", version = "~4.9.0", default-features = false }
-fvm_shared = { path = "shared", version = "~4.9.0", default-features = false }
-fvm_sdk = { path = "sdk", version = "~4.9.0" }
-fvm_integration_tests = { path = "testing/integration", version = "~4.9.0" }
+fvm = { path = "fvm", version = "~4.9.1", default-features = false }
+fvm_shared = { path = "shared", version = "~4.9.1", default-features = false }
+fvm_sdk = { path = "sdk", version = "~4.9.1" }
+fvm_integration_tests = { path = "testing/integration", version = "~4.9.1" }
 
 # workspace (other)
 fvm_ipld_amt = { path = "ipld/amt", version = "0.7.7" }

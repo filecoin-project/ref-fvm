@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 4.9.1 [2026-11-25]
+
+- Raise the minimum `wasmtime` and `wasmtime-environ` to 48.0.10 so dependents resolve past the 48.0.9 and 48.0.10 advisories. The FVM's engine configuration doesn't reach the affected code. [#2390](https://github.com/filecoin-project/ref-fvm/pull/2390)
+
 ## 4.9.0 [2026-11-09]
 
 - Update `wasmtime` to 48 (LTS), with 48.0.8 in the workspace lockfile. The accepted Wasm feature set and engine settings are now pinned explicitly and covered by tests. [#2362](https://github.com/filecoin-project/ref-fvm/pull/2362)
