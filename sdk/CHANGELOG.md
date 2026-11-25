@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 3.15.1 [2026-11-25]
+
 ## 3.15.0 [2026-11-05]
 
 - Suppress the native-build lint for the Wasm `vm::exit` import under Rust 1.99.1. [#2369](https://github.com/filecoin-project/ref-fvm/pull/2369)
