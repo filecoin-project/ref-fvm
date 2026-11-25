@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 2.13.1 (2026-11-25)
+
 ## 2.13.0 (2026-11-05)
 
 - Remove unused dependencies. [#2357](https://github.com/filecoin-project/ref-fvm/pull/2357)

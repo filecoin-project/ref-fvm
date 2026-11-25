@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 2.13.1 (2026-11-25)
+
 ## 2.13.0 (2026-11-05)
 
 - Update the `fvm_shared` dependency to 2.13.0.
