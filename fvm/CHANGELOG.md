@@ -4,6 +4,10 @@ Changes to the reference FVM implementation.
 
 ## [Unreleased]
 
+## 2.13.1 (2026-11-25)
+
+- Raise the minimum `wasmtime` to 48.0.10 so dependents resolve past the 48.0.9 and 48.0.10 advisories. The FVM's engine configuration doesn't reach the affected code. [#2387](https://github.com/filecoin-project/ref-fvm/pull/2387)
+
 ## 2.13.0 (2026-11-05)
 
 - Update `wasmtime` to 48.0.8 (LTS) and the Rust toolchain to 1.99.1. The FVM pins the accepted Wasm features and engine settings and tests trap-to-exit-code mapping. [#2370](https://github.com/filecoin-project/ref-fvm/pull/2370)
