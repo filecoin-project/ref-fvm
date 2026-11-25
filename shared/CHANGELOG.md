@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 3.15.1 [2026-11-25]
+
 ## 3.15.0 [2026-11-05]
 
 - Remove the unused `multihash` dependency and `serde_json` dev dependency. [#2358](https://github.com/filecoin-project/ref-fvm/pull/2358)
