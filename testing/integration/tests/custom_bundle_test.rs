@@ -38,8 +38,16 @@ const POWER_ADDRESS: Address = Address::new_id(4);
 const VERIFREG_ADDRESS: Address = Address::new_id(6);
 const DATACAP_ADDRESS: Address = Address::new_id(7);
 
+// Run the bundle's actors on NV29. The miner creation check requires 32 GiB sector support.
+// Run from the ref-fvm root with the path to the CAR you want to test.
+//
+// FVM_ACTORS_BUNDLE=/path/to/bundle.car \
+//   cargo test --locked -p fvm_integration_tests --test custom_bundle_test -- --ignored --nocapture
+//
+// Set FVM_CHECK_FILPLUS=1 to test Verified Registry and DataCap. Also set
+// FVM_EXPECT_FILPLUS_MISSING=1 if the bundle should omit both actors.
 #[test]
-#[ignore = "requires FVM_ACTORS_BUNDLE; see testing/integration/README.md"]
+#[ignore = "set FVM_ACTORS_BUNDLE to the path of a builtin actor CAR"]
 fn custom_bundle() -> Result<()> {
     let car_path = std::env::var_os("FVM_ACTORS_BUNDLE")
         .context("set FVM_ACTORS_BUNDLE to the CAR file to test")?;
