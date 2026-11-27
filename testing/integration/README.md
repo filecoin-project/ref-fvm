@@ -7,11 +7,11 @@ This directory contains tooling to run integration test over the FVM.
 The bulk of the logic is handled by the `Tester` struct.
 
 The following flow has been defined as a default usage:
+
 1. Instantiate a new `Tester` specifying accessible accounts, the network and state tree versions.
 2. (Repeat) Set new actor states and deploy given actor in the stand alone `Blockstore` and `StateTree`.
 3. Interact with previously deployed actors by calling the `execute()` function.
-> Note: Once the `execute()` is called new actors have to be instantiated with messages as the `Machine` and `Executor`
-> are already instantiated
+    > Note: Once the `execute()` is called new actors have to be instantiated with messages as the `Machine` and `Executor` are already instantiated
 4. Make assertion on the `ApplyRet` of the message
 
 ## Current limitations
@@ -21,9 +21,14 @@ at test time.
 2. Some testing and examples should be added to demonstrate how the framework works.
 
 TODO: (hack to get coverage reports from actors + integration tests)
+
 ```bash
 cargo build -p "*actor"
 export SKIP_WASM_BUILD=true
 export FVM_STORE_ARTIFACT_DIR=../../target/llvm-cov-target/
 cargo llvm-cov -p fvm_integration_tests --lcov
 ```
+
+## Testing a builtin actor bundle
+
+Use the [custom bundle test](tests/custom_bundle_test.rs) to check that the FVM can load a builtin actor CAR and execute its Wasm.
